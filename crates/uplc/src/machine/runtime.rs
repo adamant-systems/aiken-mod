@@ -42,6 +42,12 @@ const INTEGER_TO_BYTE_STRING_MAXIMUM_OUTPUT_LENGTH: i64 = 8192;
 //    Deferred,
 //}
 
+pub struct BuiltinCall {
+    pub fun: DefaultFunction,
+    pub args: Vec<Value>,
+    pub result: Result<Value, Error>,
+}
+
 pub enum BuiltinSemantics {
     V1,
     V2,
@@ -89,8 +95,14 @@ impl BuiltinRuntime {
         self.forces += 1;
     }
 
-    pub fn call(&self, language: &Language, logs: &mut Vec<String>) -> Result<Value, Error> {
-        self.fun.call(language.into(), &self.args, logs)
+    pub fn call(&self, language: &Language, logs: &mut Vec<String>, calls: &mut Vec<BuiltinCall>) -> Result<Value, Error> {
+        let args = self.args.clone();
+
+        let result = self.fun.call(language.into(), &self.args, logs);
+
+        calls.push(BuiltinCall { fun: self.fun, args: self.args.clone(), result: result.clone() });
+
+        result
     }
 
     pub fn push(&mut self, arg: Value) -> Result<(), Error> {

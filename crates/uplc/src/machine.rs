@@ -12,6 +12,7 @@ pub mod value;
 use cost_model::{ExBudget, StepKind};
 pub use error::Error;
 use pallas_primitives::conway::Language;
+use runtime::BuiltinCall;
 
 use self::{
     cost_model::CostModel,
@@ -48,6 +49,7 @@ pub struct Machine {
     slippage: u32,
     unbudgeted_steps: [u32; 10],
     pub logs: Vec<String>,
+    pub builtin_calls: Vec<BuiltinCall>,
     version: Language,
 }
 
@@ -64,6 +66,7 @@ impl Machine {
             slippage,
             unbudgeted_steps: [0; 10],
             logs: vec![],
+            builtin_calls: vec![],
             version,
         }
     }
@@ -324,7 +327,7 @@ impl Machine {
 
         self.spend_budget(cost)?;
 
-        runtime.call(&self.version, &mut self.logs)
+        runtime.call(&self.version, &mut self.logs, &mut self.builtin_calls)
     }
 
     fn lookup_var(&mut self, name: &NamedDeBruijn, env: &[Value]) -> Result<Value, Error> {
