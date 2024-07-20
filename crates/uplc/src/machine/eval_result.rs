@@ -35,6 +35,10 @@ impl EvalResult {
         std::mem::take(&mut self.logs)
     }
 
+    pub fn builtin_calls(&mut self) -> Vec<BuiltinCall> {
+        std::mem::take(&mut self.builtin_calls)
+    }
+
     pub fn failed(&self, can_error: bool) -> bool {
         if can_error {
             self.result.is_ok()
