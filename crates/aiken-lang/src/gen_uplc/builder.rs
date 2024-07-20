@@ -1317,13 +1317,14 @@ pub fn convert_constants_to_data(constants: Vec<Rc<UplcConstant>>) -> Vec<UplcCo
                 any_constructor: None,
                 fields: vec![],
             })),
-            UplcConstant::Bls12_381G1Element(b) => UplcConstant::Data(PlutusData::BoundedBytes(
-                b.deref().clone().compress().into(),
-            )),
-            UplcConstant::Bls12_381G2Element(b) => UplcConstant::Data(PlutusData::BoundedBytes(
-                b.deref().clone().compress().into(),
-            )),
-            UplcConstant::Bls12_381MlResult(_) => panic!("Bls12_381MlResult not supported"),
+            // UplcConstant::Bls12_381G1Element(b) => UplcConstant::Data(PlutusData::BoundedBytes(
+            //     b.deref().clone().compress().into(),
+            // )),
+            // UplcConstant::Bls12_381G2Element(b) => UplcConstant::Data(PlutusData::BoundedBytes(
+            //     b.deref().clone().compress().into(),
+            // )),
+            // UplcConstant::Bls12_381MlResult(_) => panic!("Bls12_381MlResult not supported"),
+            _ => unimplemented!()
         };
         new_constants.push(constant);
     }

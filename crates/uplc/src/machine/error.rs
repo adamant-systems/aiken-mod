@@ -65,7 +65,9 @@ pub enum Error {
     #[error("Integer overflow")]
     OverflowError,
     #[error("blst error {0:?}")]
-    Blst(blst::BLST_ERROR),
+    Blst(()),
+    // #[error("blst error {0:?}")]
+    // Blst(blst::BLST_ERROR),
     #[error("blst::hashToGroup")]
     HashToCurveDstTooBig,
     #[cfg(not(target_family = "wasm"))]

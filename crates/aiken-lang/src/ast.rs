@@ -1507,8 +1507,9 @@ impl Curve {
     pub fn compress(&self) -> Vec<u8> {
         match self {
             Curve::Bls12_381(point) => match point {
-                Bls12_381Point::G1(g1) => g1.compress(),
-                Bls12_381Point::G2(g2) => g2.compress(),
+                // Bls12_381Point::G1(g1) => g1.compress(),
+                // Bls12_381Point::G2(g2) => g2.compress(),
+                _ => unimplemented!()
             },
         }
     }
@@ -1531,20 +1532,21 @@ impl serde::Serialize for Bls12_381Point {
     where
         S: serde::Serializer,
     {
-        match *self {
-            Bls12_381Point::G1(ref p1) => {
-                // Assuming `to_bytes` for compression to Vec<u8>
-                let bytes = p1.compress();
+        unimplemented!()
+        // match *self {
+        //     Bls12_381Point::G1(ref p1) => {
+        //         // Assuming `to_bytes` for compression to Vec<u8>
+        //         let bytes = p1.compress();
 
-                // Serialize as a tuple with a tag for differentiation
-                serializer.serialize_newtype_variant("Bls12_381Point", 0, "G1", &bytes)
-            }
-            Bls12_381Point::G2(ref p2) => {
-                let bytes = p2.compress();
+        //         // Serialize as a tuple with a tag for differentiation
+        //         serializer.serialize_newtype_variant("Bls12_381Point", 0, "G1", &bytes)
+        //     }
+        //     Bls12_381Point::G2(ref p2) => {
+        //         let bytes = p2.compress();
 
-                serializer.serialize_newtype_variant("Bls12_381Point", 1, "G2", &bytes)
-            }
-        }
+        //         serializer.serialize_newtype_variant("Bls12_381Point", 1, "G2", &bytes)
+        //     }
+        // }
     }
 }
 
@@ -1601,28 +1603,29 @@ impl<'de> serde::Deserialize<'de> for Bls12_381Point {
             where
                 V: serde::de::SeqAccess<'de>,
             {
-                let tag = seq
-                    .next_element::<Field>()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                unimplemented!()
+                // let tag = seq
+                //     .next_element::<Field>()?
+                //     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
 
-                let bytes = seq
-                    .next_element::<Vec<u8>>()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                // let bytes = seq
+                //     .next_element::<Vec<u8>>()?
+                //     .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
 
-                match tag {
-                    Field::G1 => {
-                        let p1 =
-                            blst::blst_p1::uncompress(&bytes).map_err(serde::de::Error::custom)?;
+                // match tag {
+                //     Field::G1 => {
+                //         let p1 =
+                //             blst::blst_p1::uncompress(&bytes).map_err(serde::de::Error::custom)?;
 
-                        Ok(Bls12_381Point::G1(p1))
-                    }
-                    Field::G2 => {
-                        let p2 =
-                            blst::blst_p2::uncompress(&bytes).map_err(serde::de::Error::custom)?;
+                //         Ok(Bls12_381Point::G1(p1))
+                //     }
+                //     Field::G2 => {
+                //         let p2 =
+                //             blst::blst_p2::uncompress(&bytes).map_err(serde::de::Error::custom)?;
 
-                        Ok(Bls12_381Point::G2(p2))
-                    }
-                }
+                //         Ok(Bls12_381Point::G2(p2))
+                //     }
+                // }
             }
         }
 

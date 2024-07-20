@@ -100,8 +100,8 @@ peg::parser! {
             / constant_unit()
             / constant_bool()
             / constant_data()
-            / constant_g1_element()
-            / constant_g2_element()
+            // / constant_g1_element()
+            // / constant_g2_element()
             / constant_list()
             / constant_pair()
             ) _* ")" {
@@ -168,15 +168,15 @@ peg::parser! {
         rule constant_data() -> Constant
           = "data" _+ "(" _* d:data() _* ")" { Constant::Data(d) }
 
-        rule constant_g1_element() -> Constant
-          = "bls12_381_G1_element" _+ element:g1_element() {
-                Constant::Bls12_381G1Element(Box::new(element))
-            }
+        // rule constant_g1_element() -> Constant
+        //   = "bls12_381_G1_element" _+ element:g1_element() {
+        //         Constant::Bls12_381G1Element(Box::new(element))
+        //     }
 
-        rule constant_g2_element() -> Constant
-          = "bls12_381_G2_element" _+ element:g2_element() {
-                Constant::Bls12_381G2Element(Box::new(element))
-            }
+        // rule constant_g2_element() -> Constant
+        //   = "bls12_381_G2_element" _+ element:g2_element() {
+        //         Constant::Bls12_381G2Element(Box::new(element))
+        //     }
 
         rule constant_list() -> Constant
           = "(" _* "list" _* t:type_info() _* ")" _+ ls:list(Some(&t)) {
@@ -213,15 +213,15 @@ peg::parser! {
               hex::decode(String::from_iter(i)).map_err(|_| "Invalid bls element hex")
             }
 
-        rule g1_element() -> blst::blst_p1
-          = element:bls_element() {?
-              blst::blst_p1::uncompress(&element).map_err(|_| "Invalid bls g1 element encoding")
-            }
+        // rule g1_element() -> blst::blst_p1
+        //   = element:bls_element() {?
+        //       blst::blst_p1::uncompress(&element).map_err(|_| "Invalid bls g1 element encoding")
+        //     }
 
-        rule g2_element() -> blst::blst_p2
-          = element:bls_element() {?
-              blst::blst_p2::uncompress(&element).map_err(|_| "Invalid bls g2 element encoding")
-        }
+        // rule g2_element() -> blst::blst_p2
+        //   = element:bls_element() {?
+        //       blst::blst_p2::uncompress(&element).map_err(|_| "Invalid bls g2 element encoding")
+        // }
 
         rule string() -> String
           = "\"" s:character()* "\"" { String::from_iter(s) }
@@ -307,20 +307,20 @@ peg::parser! {
                     _ => Err("found 'Data' instead of expected type")
                 }
             }
-            / element:g1_element() {?
-                match type_info {
-                    Some(Type::Bls12_381G1Element) => Ok(Constant::Bls12_381G1Element(Box::new(element))),
-                    _ => Err("found 'Bls12_381G1Element' instead of expected type")
+            // / element:g1_element() {?
+            //     match type_info {
+            //         Some(Type::Bls12_381G1Element) => Ok(Constant::Bls12_381G1Element(Box::new(element))),
+            //         _ => Err("found 'Bls12_381G1Element' instead of expected type")
 
-                }
-            }
-            / element:g2_element() {?
-                match type_info {
-                    Some(Type::Bls12_381G2Element) => Ok(Constant::Bls12_381G2Element(Box::new(element))),
-                    _ => Err("found 'Bls12_381G2Element' instead of expected type")
+            //     }
+            // }
+            // / element:g2_element() {?
+            //     match type_info {
+            //         Some(Type::Bls12_381G2Element) => Ok(Constant::Bls12_381G2Element(Box::new(element))),
+            //         _ => Err("found 'Bls12_381G2Element' instead of expected type")
 
-                }
-            }
+            //     }
+            // }
             / ls:list(list_sub_type(type_info)) {?
                 match type_info {
                     Some(Type::List(t)) => Ok(Constant::ProtoList(t.as_ref().clone(), ls)),

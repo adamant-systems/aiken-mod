@@ -997,312 +997,312 @@ impl DefaultFunction {
                 Ok(value)
             }
 
-            DefaultFunction::Bls12_381_G1_Add => {
-                let arg1 = args[0].unwrap_bls12_381_g1_element()?;
-                let arg2 = args[1].unwrap_bls12_381_g1_element()?;
+            // DefaultFunction::Bls12_381_G1_Add => {
+            //     let arg1 = args[0].unwrap_bls12_381_g1_element()?;
+            //     let arg2 = args[1].unwrap_bls12_381_g1_element()?;
 
-                let mut out = blst::blst_p1::default();
+            //     let mut out = blst::blst_p1::default();
 
-                unsafe {
-                    blst::blst_p1_add_or_double(
-                        &mut out as *mut _,
-                        arg1 as *const _,
-                        arg2 as *const _,
-                    );
-                }
+            //     unsafe {
+            //         blst::blst_p1_add_or_double(
+            //             &mut out as *mut _,
+            //             arg1 as *const _,
+            //             arg2 as *const _,
+            //         );
+            //     }
 
-                let constant = Constant::Bls12_381G1Element(out.into());
+            //     let constant = Constant::Bls12_381G1Element(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G1_Neg => {
-                let arg1 = args[0].unwrap_bls12_381_g1_element()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G1_Neg => {
+            //     let arg1 = args[0].unwrap_bls12_381_g1_element()?;
 
-                let mut out = *arg1;
+            //     let mut out = *arg1;
 
-                unsafe {
-                    blst::blst_p1_cneg(
-                        &mut out as *mut _,
-                        // This was true in the Cardano code
-                        true,
-                    );
-                }
+            //     unsafe {
+            //         blst::blst_p1_cneg(
+            //             &mut out as *mut _,
+            //             // This was true in the Cardano code
+            //             true,
+            //         );
+            //     }
 
-                let constant = Constant::Bls12_381G1Element(out.into());
+            //     let constant = Constant::Bls12_381G1Element(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G1_ScalarMul => {
-                let arg1 = args[0].unwrap_integer()?;
-                let arg2 = args[1].unwrap_bls12_381_g1_element()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G1_ScalarMul => {
+            //     let arg1 = args[0].unwrap_integer()?;
+            //     let arg2 = args[1].unwrap_bls12_381_g1_element()?;
 
-                let size_scalar = size_of::<blst::blst_scalar>();
+            //     let size_scalar = size_of::<blst::blst_scalar>();
 
-                let arg1 = arg1.mod_floor(&SCALAR_PERIOD);
+            //     let arg1 = arg1.mod_floor(&SCALAR_PERIOD);
 
-                let (_, mut arg1) = arg1.to_bytes_be();
+            //     let (_, mut arg1) = arg1.to_bytes_be();
 
-                if size_scalar > arg1.len() {
-                    let diff = size_scalar - arg1.len();
+            //     if size_scalar > arg1.len() {
+            //         let diff = size_scalar - arg1.len();
 
-                    let mut new_vec = vec![0; diff];
+            //         let mut new_vec = vec![0; diff];
 
-                    new_vec.append(&mut arg1);
+            //         new_vec.append(&mut arg1);
 
-                    arg1 = new_vec;
-                }
+            //         arg1 = new_vec;
+            //     }
 
-                let mut out = blst::blst_p1::default();
-                let mut scalar = blst::blst_scalar::default();
+            //     let mut out = blst::blst_p1::default();
+            //     let mut scalar = blst::blst_scalar::default();
 
-                unsafe {
-                    blst::blst_scalar_from_bendian(
-                        &mut scalar as *mut _,
-                        arg1.as_ptr() as *const _,
-                    );
+            //     unsafe {
+            //         blst::blst_scalar_from_bendian(
+            //             &mut scalar as *mut _,
+            //             arg1.as_ptr() as *const _,
+            //         );
 
-                    blst::blst_p1_mult(
-                        &mut out as *mut _,
-                        arg2 as *const _,
-                        scalar.b.as_ptr() as *const _,
-                        size_scalar * 8,
-                    );
-                }
+            //         blst::blst_p1_mult(
+            //             &mut out as *mut _,
+            //             arg2 as *const _,
+            //             scalar.b.as_ptr() as *const _,
+            //             size_scalar * 8,
+            //         );
+            //     }
 
-                let constant = Constant::Bls12_381G1Element(out.into());
+            //     let constant = Constant::Bls12_381G1Element(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G1_Equal => {
-                let arg1 = args[0].unwrap_bls12_381_g1_element()?;
-                let arg2 = args[1].unwrap_bls12_381_g1_element()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G1_Equal => {
+            //     let arg1 = args[0].unwrap_bls12_381_g1_element()?;
+            //     let arg2 = args[1].unwrap_bls12_381_g1_element()?;
 
-                let is_equal = unsafe { blst::blst_p1_is_equal(arg1, arg2) };
+            //     let is_equal = unsafe { blst::blst_p1_is_equal(arg1, arg2) };
 
-                let constant = Constant::Bool(is_equal);
+            //     let constant = Constant::Bool(is_equal);
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G1_Compress => {
-                let arg1 = args[0].unwrap_bls12_381_g1_element()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G1_Compress => {
+            //     let arg1 = args[0].unwrap_bls12_381_g1_element()?;
 
-                let out = arg1.compress();
+            //     let out = arg1.compress();
 
-                let constant = Constant::ByteString(out.to_vec());
+            //     let constant = Constant::ByteString(out.to_vec());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G1_Uncompress => {
-                let arg1 = args[0].unwrap_byte_string()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G1_Uncompress => {
+            //     let arg1 = args[0].unwrap_byte_string()?;
 
-                let out = blst::blst_p1::uncompress(arg1)?;
+            //     let out = blst::blst_p1::uncompress(arg1)?;
 
-                let constant = Constant::Bls12_381G1Element(out.into());
-
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G1_HashToGroup => {
-                let arg1 = args[0].unwrap_byte_string()?;
-                let arg2 = args[1].unwrap_byte_string()?;
-
-                if arg2.len() > 255 {
-                    return Err(Error::HashToCurveDstTooBig);
-                }
-
-                let mut out = blst::blst_p1::default();
-                let aug = [];
-
-                unsafe {
-                    blst::blst_hash_to_g1(
-                        &mut out as *mut _,
-                        arg1.as_ptr(),
-                        arg1.len(),
-                        arg2.as_ptr(),
-                        arg2.len(),
-                        aug.as_ptr(),
-                        0,
-                    );
-                };
+            //     let constant = Constant::Bls12_381G1Element(out.into());
+
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G1_HashToGroup => {
+            //     let arg1 = args[0].unwrap_byte_string()?;
+            //     let arg2 = args[1].unwrap_byte_string()?;
+
+            //     if arg2.len() > 255 {
+            //         return Err(Error::HashToCurveDstTooBig);
+            //     }
+
+            //     let mut out = blst::blst_p1::default();
+            //     let aug = [];
+
+            //     unsafe {
+            //         blst::blst_hash_to_g1(
+            //             &mut out as *mut _,
+            //             arg1.as_ptr(),
+            //             arg1.len(),
+            //             arg2.as_ptr(),
+            //             arg2.len(),
+            //             aug.as_ptr(),
+            //             0,
+            //         );
+            //     };
 
-                let constant = Constant::Bls12_381G1Element(out.into());
+            //     let constant = Constant::Bls12_381G1Element(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G2_Add => {
-                let arg1 = args[0].unwrap_bls12_381_g2_element()?;
-                let arg2 = args[1].unwrap_bls12_381_g2_element()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G2_Add => {
+            //     let arg1 = args[0].unwrap_bls12_381_g2_element()?;
+            //     let arg2 = args[1].unwrap_bls12_381_g2_element()?;
 
-                let mut out = blst::blst_p2::default();
+            //     let mut out = blst::blst_p2::default();
 
-                unsafe {
-                    blst::blst_p2_add_or_double(
-                        &mut out as *mut _,
-                        arg1 as *const _,
-                        arg2 as *const _,
-                    );
-                }
+            //     unsafe {
+            //         blst::blst_p2_add_or_double(
+            //             &mut out as *mut _,
+            //             arg1 as *const _,
+            //             arg2 as *const _,
+            //         );
+            //     }
 
-                let constant = Constant::Bls12_381G2Element(out.into());
+            //     let constant = Constant::Bls12_381G2Element(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G2_Neg => {
-                let arg1 = args[0].unwrap_bls12_381_g2_element()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G2_Neg => {
+            //     let arg1 = args[0].unwrap_bls12_381_g2_element()?;
 
-                let mut out = *arg1;
-
-                unsafe {
-                    blst::blst_p2_cneg(
-                        &mut out as *mut _,
-                        // This was true in the Cardano code
-                        true,
-                    );
-                }
-
-                let constant = Constant::Bls12_381G2Element(out.into());
-
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G2_ScalarMul => {
-                let arg1 = args[0].unwrap_integer()?;
-                let arg2 = args[1].unwrap_bls12_381_g2_element()?;
-
-                let size_scalar = size_of::<blst::blst_scalar>();
+            //     let mut out = *arg1;
+
+            //     unsafe {
+            //         blst::blst_p2_cneg(
+            //             &mut out as *mut _,
+            //             // This was true in the Cardano code
+            //             true,
+            //         );
+            //     }
+
+            //     let constant = Constant::Bls12_381G2Element(out.into());
+
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G2_ScalarMul => {
+            //     let arg1 = args[0].unwrap_integer()?;
+            //     let arg2 = args[1].unwrap_bls12_381_g2_element()?;
+
+            //     let size_scalar = size_of::<blst::blst_scalar>();
 
-                let arg1 = arg1.mod_floor(&SCALAR_PERIOD);
-
-                let (_, mut arg1) = arg1.to_bytes_be();
+            //     let arg1 = arg1.mod_floor(&SCALAR_PERIOD);
+
+            //     let (_, mut arg1) = arg1.to_bytes_be();
 
-                if size_scalar > arg1.len() {
-                    let diff = size_scalar - arg1.len();
+            //     if size_scalar > arg1.len() {
+            //         let diff = size_scalar - arg1.len();
 
-                    let mut new_vec = vec![0; diff];
+            //         let mut new_vec = vec![0; diff];
 
-                    new_vec.append(&mut arg1);
+            //         new_vec.append(&mut arg1);
 
-                    arg1 = new_vec;
-                }
-
-                let mut out = blst::blst_p2::default();
-                let mut scalar = blst::blst_scalar::default();
+            //         arg1 = new_vec;
+            //     }
+
+            //     let mut out = blst::blst_p2::default();
+            //     let mut scalar = blst::blst_scalar::default();
 
-                unsafe {
-                    blst::blst_scalar_from_bendian(
-                        &mut scalar as *mut _,
-                        arg1.as_ptr() as *const _,
-                    );
+            //     unsafe {
+            //         blst::blst_scalar_from_bendian(
+            //             &mut scalar as *mut _,
+            //             arg1.as_ptr() as *const _,
+            //         );
 
-                    blst::blst_p2_mult(
-                        &mut out as *mut _,
-                        arg2 as *const _,
-                        scalar.b.as_ptr() as *const _,
-                        size_scalar * 8,
-                    );
-                }
+            //         blst::blst_p2_mult(
+            //             &mut out as *mut _,
+            //             arg2 as *const _,
+            //             scalar.b.as_ptr() as *const _,
+            //             size_scalar * 8,
+            //         );
+            //     }
 
-                let constant = Constant::Bls12_381G2Element(out.into());
+            //     let constant = Constant::Bls12_381G2Element(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G2_Equal => {
-                let arg1 = args[0].unwrap_bls12_381_g2_element()?;
-                let arg2 = args[1].unwrap_bls12_381_g2_element()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G2_Equal => {
+            //     let arg1 = args[0].unwrap_bls12_381_g2_element()?;
+            //     let arg2 = args[1].unwrap_bls12_381_g2_element()?;
 
-                let is_equal = unsafe { blst::blst_p2_is_equal(arg1, arg2) };
+            //     let is_equal = unsafe { blst::blst_p2_is_equal(arg1, arg2) };
 
-                let constant = Constant::Bool(is_equal);
+            //     let constant = Constant::Bool(is_equal);
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G2_Compress => {
-                let arg1 = args[0].unwrap_bls12_381_g2_element()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G2_Compress => {
+            //     let arg1 = args[0].unwrap_bls12_381_g2_element()?;
 
-                let out = arg1.compress();
+            //     let out = arg1.compress();
 
-                let constant = Constant::ByteString(out.to_vec());
+            //     let constant = Constant::ByteString(out.to_vec());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G2_Uncompress => {
-                let arg1 = args[0].unwrap_byte_string()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G2_Uncompress => {
+            //     let arg1 = args[0].unwrap_byte_string()?;
 
-                let out = blst::blst_p2::uncompress(arg1)?;
+            //     let out = blst::blst_p2::uncompress(arg1)?;
 
-                let constant = Constant::Bls12_381G2Element(out.into());
+            //     let constant = Constant::Bls12_381G2Element(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_G2_HashToGroup => {
-                let arg1 = args[0].unwrap_byte_string()?;
-                let arg2 = args[1].unwrap_byte_string()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_G2_HashToGroup => {
+            //     let arg1 = args[0].unwrap_byte_string()?;
+            //     let arg2 = args[1].unwrap_byte_string()?;
 
-                if arg2.len() > 255 {
-                    return Err(Error::HashToCurveDstTooBig);
-                }
+            //     if arg2.len() > 255 {
+            //         return Err(Error::HashToCurveDstTooBig);
+            //     }
 
-                let mut out = blst::blst_p2::default();
-                let aug = [];
+            //     let mut out = blst::blst_p2::default();
+            //     let aug = [];
 
-                unsafe {
-                    blst::blst_hash_to_g2(
-                        &mut out as *mut _,
-                        arg1.as_ptr(),
-                        arg1.len(),
-                        arg2.as_ptr(),
-                        arg2.len(),
-                        aug.as_ptr(),
-                        0,
-                    );
-                };
+            //     unsafe {
+            //         blst::blst_hash_to_g2(
+            //             &mut out as *mut _,
+            //             arg1.as_ptr(),
+            //             arg1.len(),
+            //             arg2.as_ptr(),
+            //             arg2.len(),
+            //             aug.as_ptr(),
+            //             0,
+            //         );
+            //     };
 
-                let constant = Constant::Bls12_381G2Element(out.into());
+            //     let constant = Constant::Bls12_381G2Element(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_MillerLoop => {
-                let arg1 = args[0].unwrap_bls12_381_g1_element()?;
-                let arg2 = args[1].unwrap_bls12_381_g2_element()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_MillerLoop => {
+            //     let arg1 = args[0].unwrap_bls12_381_g1_element()?;
+            //     let arg2 = args[1].unwrap_bls12_381_g2_element()?;
 
-                let mut out = blst::blst_fp12::default();
+            //     let mut out = blst::blst_fp12::default();
 
-                let mut affine1 = blst::blst_p1_affine::default();
-                let mut affine2 = blst::blst_p2_affine::default();
+            //     let mut affine1 = blst::blst_p1_affine::default();
+            //     let mut affine2 = blst::blst_p2_affine::default();
 
-                unsafe {
-                    blst::blst_p1_to_affine(&mut affine1 as *mut _, arg1);
-                    blst::blst_p2_to_affine(&mut affine2 as *mut _, arg2);
+            //     unsafe {
+            //         blst::blst_p1_to_affine(&mut affine1 as *mut _, arg1);
+            //         blst::blst_p2_to_affine(&mut affine2 as *mut _, arg2);
 
-                    blst::blst_miller_loop(&mut out as *mut _, &affine2, &affine1);
-                }
+            //         blst::blst_miller_loop(&mut out as *mut _, &affine2, &affine1);
+            //     }
 
-                let constant = Constant::Bls12_381MlResult(out.into());
+            //     let constant = Constant::Bls12_381MlResult(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_MulMlResult => {
-                let arg1 = args[0].unwrap_bls12_381_ml_result()?;
-                let arg2 = args[1].unwrap_bls12_381_ml_result()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_MulMlResult => {
+            //     let arg1 = args[0].unwrap_bls12_381_ml_result()?;
+            //     let arg2 = args[1].unwrap_bls12_381_ml_result()?;
 
-                let mut out = blst::blst_fp12::default();
+            //     let mut out = blst::blst_fp12::default();
 
-                unsafe {
-                    blst::blst_fp12_mul(&mut out as *mut _, arg1, arg2);
-                }
+            //     unsafe {
+            //         blst::blst_fp12_mul(&mut out as *mut _, arg1, arg2);
+            //     }
 
-                let constant = Constant::Bls12_381MlResult(out.into());
+            //     let constant = Constant::Bls12_381MlResult(out.into());
 
-                Ok(Value::Con(constant.into()))
-            }
-            DefaultFunction::Bls12_381_FinalVerify => {
-                let arg1 = args[0].unwrap_bls12_381_ml_result()?;
-                let arg2 = args[1].unwrap_bls12_381_ml_result()?;
+            //     Ok(Value::Con(constant.into()))
+            // }
+            // DefaultFunction::Bls12_381_FinalVerify => {
+            //     let arg1 = args[0].unwrap_bls12_381_ml_result()?;
+            //     let arg2 = args[1].unwrap_bls12_381_ml_result()?;
 
-                let verified = unsafe { blst::blst_fp12_finalverify(arg1, arg2) };
+            //     let verified = unsafe { blst::blst_fp12_finalverify(arg1, arg2) };
 
-                let constant = Constant::Bool(verified);
+            //     let constant = Constant::Bool(verified);
 
-                Ok(Value::Con(constant.into()))
-            }
+            //     Ok(Value::Con(constant.into()))
+            // }
             DefaultFunction::IntegerToByteString => {
                 let endianness = args[0].unwrap_bool()?;
                 let size = args[1].unwrap_integer()?;
@@ -1388,6 +1388,9 @@ impl DefaultFunction {
 
                 Ok(Value::Con(constant.into()))
             }
+            _ => {
+                Err(Error::Blst(()))
+            }
         }
     }
 }
@@ -1400,85 +1403,85 @@ pub trait Compressable {
         Self: std::marker::Sized;
 }
 
-impl Compressable for blst::blst_p1 {
-    fn compress(&self) -> Vec<u8> {
-        let mut out = [0; BLST_P1_COMPRESSED_SIZE];
+// impl Compressable for blst::blst_p1 {
+//     fn compress(&self) -> Vec<u8> {
+//         let mut out = [0; BLST_P1_COMPRESSED_SIZE];
 
-        unsafe {
-            blst::blst_p1_compress(&mut out as *mut _, self);
-        };
+//         unsafe {
+//             blst::blst_p1_compress(&mut out as *mut _, self);
+//         };
 
-        out.to_vec()
-    }
+//         out.to_vec()
+//     }
 
-    fn uncompress(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() != BLST_P1_COMPRESSED_SIZE {
-            return Err(Error::Blst(blst::BLST_ERROR::BLST_BAD_ENCODING));
-        }
+//     fn uncompress(bytes: &[u8]) -> Result<Self, Error> {
+//         if bytes.len() != BLST_P1_COMPRESSED_SIZE {
+//             return Err(Error::Blst(blst::BLST_ERROR::BLST_BAD_ENCODING));
+//         }
 
-        let mut affine = blst::blst_p1_affine::default();
+//         let mut affine = blst::blst_p1_affine::default();
 
-        let mut out = blst::blst_p1::default();
+//         let mut out = blst::blst_p1::default();
 
-        unsafe {
-            let err = blst::blst_p1_uncompress(&mut affine as *mut _, bytes.as_ptr());
+//         unsafe {
+//             let err = blst::blst_p1_uncompress(&mut affine as *mut _, bytes.as_ptr());
 
-            if err != blst::BLST_ERROR::BLST_SUCCESS {
-                return Err(Error::Blst(err));
-            }
+//             if err != blst::BLST_ERROR::BLST_SUCCESS {
+//                 return Err(Error::Blst(err));
+//             }
 
-            blst::blst_p1_from_affine(&mut out as *mut _, &affine);
+//             blst::blst_p1_from_affine(&mut out as *mut _, &affine);
 
-            let in_group = blst::blst_p1_in_g1(&out);
+//             let in_group = blst::blst_p1_in_g1(&out);
 
-            if !in_group {
-                return Err(Error::Blst(blst::BLST_ERROR::BLST_POINT_NOT_IN_GROUP));
-            }
-        };
+//             if !in_group {
+//                 return Err(Error::Blst(blst::BLST_ERROR::BLST_POINT_NOT_IN_GROUP));
+//             }
+//         };
 
-        Ok(out)
-    }
-}
+//         Ok(out)
+//     }
+// }
 
-impl Compressable for blst::blst_p2 {
-    fn compress(&self) -> Vec<u8> {
-        let mut out = [0; BLST_P2_COMPRESSED_SIZE];
+// impl Compressable for blst::blst_p2 {
+//     fn compress(&self) -> Vec<u8> {
+//         let mut out = [0; BLST_P2_COMPRESSED_SIZE];
 
-        unsafe {
-            blst::blst_p2_compress(&mut out as *mut _, self);
-        };
+//         unsafe {
+//             blst::blst_p2_compress(&mut out as *mut _, self);
+//         };
 
-        out.to_vec()
-    }
+//         out.to_vec()
+//     }
 
-    fn uncompress(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() != BLST_P2_COMPRESSED_SIZE {
-            return Err(Error::Blst(blst::BLST_ERROR::BLST_BAD_ENCODING));
-        }
+//     fn uncompress(bytes: &[u8]) -> Result<Self, Error> {
+//         if bytes.len() != BLST_P2_COMPRESSED_SIZE {
+//             return Err(Error::Blst(blst::BLST_ERROR::BLST_BAD_ENCODING));
+//         }
 
-        let mut affine = blst::blst_p2_affine::default();
+//         let mut affine = blst::blst_p2_affine::default();
 
-        let mut out = blst::blst_p2::default();
+//         let mut out = blst::blst_p2::default();
 
-        unsafe {
-            let err = blst::blst_p2_uncompress(&mut affine as *mut _, bytes.as_ptr());
+//         unsafe {
+//             let err = blst::blst_p2_uncompress(&mut affine as *mut _, bytes.as_ptr());
 
-            if err != blst::BLST_ERROR::BLST_SUCCESS {
-                return Err(Error::Blst(err));
-            }
+//             if err != blst::BLST_ERROR::BLST_SUCCESS {
+//                 return Err(Error::Blst(err));
+//             }
 
-            blst::blst_p2_from_affine(&mut out as *mut _, &affine);
+//             blst::blst_p2_from_affine(&mut out as *mut _, &affine);
 
-            let in_group = blst::blst_p2_in_g2(&out);
+//             let in_group = blst::blst_p2_in_g2(&out);
 
-            if !in_group {
-                return Err(Error::Blst(blst::BLST_ERROR::BLST_POINT_NOT_IN_GROUP));
-            }
-        };
+//             if !in_group {
+//                 return Err(Error::Blst(blst::BLST_ERROR::BLST_POINT_NOT_IN_GROUP));
+//             }
+//         };
 
-        Ok(out)
-    }
-}
+//         Ok(out)
+//     }
+// }
 
 pub fn convert_tag_to_constr(tag: u64) -> Option<u64> {
     if (121..=127).contains(&tag) {

@@ -291,9 +291,12 @@ pub enum Constant {
     // Apply(Box<Constant>, Type),
     // tag: 8
     Data(PlutusData),
-    Bls12_381G1Element(Box<blst::blst_p1>),
-    Bls12_381G2Element(Box<blst::blst_p2>),
-    Bls12_381MlResult(Box<blst::blst_fp12>),
+    // Bls12_381G1Element(Box<blst::blst_p1>),
+    // Bls12_381G2Element(Box<blst::blst_p2>),
+    // Bls12_381MlResult(Box<blst::blst_fp12>),
+    Bls12_381G1Element(()),
+    Bls12_381G2Element(()),
+    Bls12_381MlResult(()),
 }
 
 pub struct Data;

@@ -4053,8 +4053,9 @@ impl<'a> CodeGenerator<'a> {
             Air::ByteArray { bytes } => Some(Term::byte_string(bytes)),
             Air::Bool { value } => Some(Term::bool(value)),
             Air::CurvePoint { point, .. } => match point {
-                Curve::Bls12_381(Bls12_381Point::G1(g1)) => Some(Term::bls12_381_g1(g1)),
-                Curve::Bls12_381(Bls12_381Point::G2(g2)) => Some(Term::bls12_381_g2(g2)),
+                _ => unimplemented!()
+                // Curve::Bls12_381(Bls12_381Point::G1(g1)) => Some(Term::bls12_381_g1(g1)),
+                // Curve::Bls12_381(Bls12_381Point::G2(g2)) => Some(Term::bls12_381_g2(g2)),
             },
             Air::Var {
                 name,

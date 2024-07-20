@@ -818,43 +818,44 @@ impl UntypedExpr {
                     value,
                 }),
 
-                uplc::ast::Constant::Bls12_381G1Element(pt) => Ok(UntypedExpr::CurvePoint {
-                    location: Span::empty(),
-                    point: Curve::Bls12_381(Bls12_381Point::G1(*pt)).into(),
-                    preferred_format: ByteArrayFormatPreference::HexadecimalString,
-                }),
+                // uplc::ast::Constant::Bls12_381G1Element(pt) => Ok(UntypedExpr::CurvePoint {
+                //     location: Span::empty(),
+                //     point: Curve::Bls12_381(Bls12_381Point::G1(*pt)).into(),
+                //     preferred_format: ByteArrayFormatPreference::HexadecimalString,
+                // }),
 
-                uplc::ast::Constant::Bls12_381G2Element(pt) => Ok(UntypedExpr::CurvePoint {
-                    location: Span::empty(),
-                    point: Curve::Bls12_381(Bls12_381Point::G2(*pt)).into(),
-                    preferred_format: ByteArrayFormatPreference::HexadecimalString,
-                }),
+                // uplc::ast::Constant::Bls12_381G2Element(pt) => Ok(UntypedExpr::CurvePoint {
+                //     location: Span::empty(),
+                //     point: Curve::Bls12_381(Bls12_381Point::G2(*pt)).into(),
+                //     preferred_format: ByteArrayFormatPreference::HexadecimalString,
+                // }),
 
-                uplc::ast::Constant::Bls12_381MlResult(ml) => {
-                    let mut bytes = Vec::new();
+                // uplc::ast::Constant::Bls12_381MlResult(ml) => {
+                //     let mut bytes = Vec::new();
 
-                    bytes.extend((*ml).to_bendian());
+                //     bytes.extend((*ml).to_bendian());
 
-                    // NOTE: We don't actually have a syntax for representing MillerLoop results, so we
-                    // just fake it as a constructor with a bytearray. Note also that the bytearray is
-                    // *large*.
-                    Ok(UntypedExpr::Call {
-                        location: Span::empty(),
-                        arguments: vec![CallArg {
-                            label: None,
-                            location: Span::empty(),
-                            value: UntypedExpr::ByteArray {
-                                location: Span::empty(),
-                                bytes,
-                                preferred_format: ByteArrayFormatPreference::HexadecimalString,
-                            },
-                        }],
-                        fun: Box::new(UntypedExpr::Var {
-                            name: "MillerLoopResult".to_string(),
-                            location: Span::empty(),
-                        }),
-                    })
-                }
+                //     // NOTE: We don't actually have a syntax for representing MillerLoop results, so we
+                //     // just fake it as a constructor with a bytearray. Note also that the bytearray is
+                //     // *large*.
+                //     Ok(UntypedExpr::Call {
+                //         location: Span::empty(),
+                //         arguments: vec![CallArg {
+                //             label: None,
+                //             location: Span::empty(),
+                //             value: UntypedExpr::ByteArray {
+                //                 location: Span::empty(),
+                //                 bytes,
+                //                 preferred_format: ByteArrayFormatPreference::HexadecimalString,
+                //             },
+                //         }],
+                //         fun: Box::new(UntypedExpr::Var {
+                //             name: "MillerLoopResult".to_string(),
+                //             location: Span::empty(),
+                //         }),
+                //     })
+                // }
+                _ => unimplemented!()
             },
         )
     }

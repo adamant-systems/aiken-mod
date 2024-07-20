@@ -172,35 +172,35 @@ impl Value {
         Ok(list)
     }
 
-    pub(super) fn unwrap_bls12_381_g1_element(&self) -> Result<&blst::blst_p1, Error> {
-        let inner = self.unwrap_constant()?;
+    // pub(super) fn unwrap_bls12_381_g1_element(&self) -> Result<&blst::blst_p1, Error> {
+    //     let inner = self.unwrap_constant()?;
 
-        let Constant::Bls12_381G1Element(element) = inner else {
-            return Err(Error::TypeMismatch(Type::Bls12_381G1Element, inner.into()));
-        };
+    //     let Constant::Bls12_381G1Element(element) = inner else {
+    //         return Err(Error::TypeMismatch(Type::Bls12_381G1Element, inner.into()));
+    //     };
 
-        Ok(element)
-    }
+    //     Ok(element)
+    // }
 
-    pub(super) fn unwrap_bls12_381_g2_element(&self) -> Result<&blst::blst_p2, Error> {
-        let inner = self.unwrap_constant()?;
+    // pub(super) fn unwrap_bls12_381_g2_element(&self) -> Result<&blst::blst_p2, Error> {
+    //     let inner = self.unwrap_constant()?;
 
-        let Constant::Bls12_381G2Element(element) = inner else {
-            return Err(Error::TypeMismatch(Type::Bls12_381G2Element, inner.into()));
-        };
+    //     let Constant::Bls12_381G2Element(element) = inner else {
+    //         return Err(Error::TypeMismatch(Type::Bls12_381G2Element, inner.into()));
+    //     };
 
-        Ok(element)
-    }
+    //     Ok(element)
+    // }
 
-    pub(super) fn unwrap_bls12_381_ml_result(&self) -> Result<&blst::blst_fp12, Error> {
-        let inner = self.unwrap_constant()?;
+    // pub(super) fn unwrap_bls12_381_ml_result(&self) -> Result<&blst::blst_fp12, Error> {
+    //     let inner = self.unwrap_constant()?;
 
-        let Constant::Bls12_381MlResult(element) = inner else {
-            return Err(Error::TypeMismatch(Type::Bls12_381MlResult, inner.into()));
-        };
+    //     let Constant::Bls12_381MlResult(element) = inner else {
+    //         return Err(Error::TypeMismatch(Type::Bls12_381MlResult, inner.into()));
+    //     };
 
-        Ok(element)
-    }
+    //     Ok(element)
+    // }
 
     pub fn is_integer(&self) -> bool {
         matches!(self, Value::Con(i) if matches!(i.as_ref(), Constant::Integer(_)))
@@ -238,9 +238,10 @@ impl Value {
                     Value::Con(l.clone()).to_ex_mem() + Value::Con(r.clone()).to_ex_mem()
                 }
                 Constant::Data(item) => self.data_to_ex_mem(item),
-                Constant::Bls12_381G1Element(_) => size_of::<blst::blst_p1>() as i64 / 8,
-                Constant::Bls12_381G2Element(_) => size_of::<blst::blst_p2>() as i64 / 8,
-                Constant::Bls12_381MlResult(_) => size_of::<blst::blst_fp12>() as i64 / 8,
+                // Constant::Bls12_381G1Element(_) => size_of::<blst::blst_p1>() as i64 / 8,
+                // Constant::Bls12_381G2Element(_) => size_of::<blst::blst_p2>() as i64 / 8,
+                // Constant::Bls12_381MlResult(_) => size_of::<blst::blst_fp12>() as i64 / 8,
+                _ => unimplemented!()
             },
             Value::Delay(_, _) => 1,
             Value::Lambda { .. } => 1,

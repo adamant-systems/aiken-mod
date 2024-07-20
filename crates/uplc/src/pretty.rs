@@ -258,15 +258,16 @@ impl Constant {
                 .append(RcDoc::text("("))
                 .append(Self::to_doc_list_plutus_data(d))
                 .append(RcDoc::text(")")),
-            Constant::Bls12_381G1Element(p1) => RcDoc::text("bls12_381_G1_element ")
-                .append(RcDoc::line())
-                .append(RcDoc::text("0x"))
-                .append(RcDoc::text(hex::encode(p1.compress()))),
-            Constant::Bls12_381G2Element(p2) => RcDoc::text("bls12_381_G2_element ")
-                .append(RcDoc::line())
-                .append(RcDoc::text("0x"))
-                .append(RcDoc::text(hex::encode(p2.compress()))),
+            // Constant::Bls12_381G1Element(p1) => RcDoc::text("bls12_381_G1_element ")
+            //     .append(RcDoc::line())
+            //     .append(RcDoc::text("0x"))
+            //     .append(RcDoc::text(hex::encode(p1.compress()))),
+            // Constant::Bls12_381G2Element(p2) => RcDoc::text("bls12_381_G2_element ")
+            //     .append(RcDoc::line())
+            //     .append(RcDoc::text("0x"))
+            //     .append(RcDoc::text(hex::encode(p2.compress()))),
             Constant::Bls12_381MlResult(_) => panic!("cannot represent Bls12_381MlResult as text"),
+            _ => unimplemented!()
         }
     }
 
@@ -300,13 +301,14 @@ impl Constant {
                 .append(RcDoc::text(")")),
 
             Constant::Data(data) => Self::to_doc_list_plutus_data(data),
-            Constant::Bls12_381G1Element(p1) => {
-                RcDoc::text("0x").append(RcDoc::text(hex::encode(p1.compress())))
-            }
-            Constant::Bls12_381G2Element(p2) => {
-                RcDoc::text("0x").append(RcDoc::text(hex::encode(p2.compress())))
-            }
+            // Constant::Bls12_381G1Element(p1) => {
+            //     RcDoc::text("0x").append(RcDoc::text(hex::encode(p1.compress())))
+            // }
+            // Constant::Bls12_381G2Element(p2) => {
+            //     RcDoc::text("0x").append(RcDoc::text(hex::encode(p2.compress())))
+            // }
             Constant::Bls12_381MlResult(_) => panic!("cannot represent Bls12_381MlResult as text"),
+            _ => unimplemented!()
         }
     }
 

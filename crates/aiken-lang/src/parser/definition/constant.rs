@@ -49,26 +49,27 @@ pub fn value() -> impl Parser<Token, ast::Constant, Error = ParseError> {
     let constant_bytearray_parser = literal::bytearray(
         |bytes, preferred_format, curve, location, emit| match curve {
             Some(curve @ ast::CurveType::Bls12_381(point)) => {
-                let point = match point {
-                    ast::Bls12_381PointType::G1 => {
-                        blst::blst_p1::uncompress(&bytes).map(ast::Bls12_381Point::G1)
-                    }
-                    ast::Bls12_381PointType::G2 => {
-                        blst::blst_p2::uncompress(&bytes).map(ast::Bls12_381Point::G2)
-                    }
-                };
+                unimplemented!()
+                // let point = match point {
+                //     ast::Bls12_381PointType::G1 => {
+                //         blst::blst_p1::uncompress(&bytes).map(ast::Bls12_381Point::G1)
+                //     }
+                //     ast::Bls12_381PointType::G2 => {
+                //         blst::blst_p2::uncompress(&bytes).map(ast::Bls12_381Point::G2)
+                //     }
+                // };
 
-                let point = point.unwrap_or_else(|_err| {
-                    emit(ParseError::point_not_on_curve(curve, location));
+                // let point = point.unwrap_or_else(|_err| {
+                //     emit(ParseError::point_not_on_curve(curve, location));
 
-                    ast::Bls12_381Point::default()
-                });
+                //     ast::Bls12_381Point::default()
+                // });
 
-                ast::Constant::CurvePoint {
-                    location,
-                    point: ast::Curve::Bls12_381(point).into(),
-                    preferred_format,
-                }
+                // ast::Constant::CurvePoint {
+                //     location,
+                //     point: ast::Curve::Bls12_381(point).into(),
+                //     preferred_format,
+                // }
             }
             None => ast::Constant::ByteArray {
                 location,

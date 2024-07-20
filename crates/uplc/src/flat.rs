@@ -549,23 +549,28 @@ impl Encode for Constant {
 
                 cbor.encode(e)?;
             }
-            Constant::Bls12_381G1Element(b) => {
-                encode_constant(&[9], e)?;
+            // Constant::Bls12_381G1Element(b) => {
+            //     encode_constant(&[9], e)?;
 
-                let x = b.compress();
+            //     let x = b.compress();
 
-                x.encode(e)?;
-            }
-            Constant::Bls12_381G2Element(b) => {
-                encode_constant(&[10], e)?;
+            //     x.encode(e)?;
+            // }
+            // Constant::Bls12_381G2Element(b) => {
+            //     encode_constant(&[10], e)?;
 
-                let x = b.compress();
+            //     let x = b.compress();
 
-                x.encode(e)?;
-            }
-            Constant::Bls12_381MlResult(_) => {
-                encode_constant(&[11], e)?;
+            //     x.encode(e)?;
+            // }
+            // Constant::Bls12_381MlResult(_) => {
+            //     encode_constant(&[11], e)?;
 
+            //     return Err(en::Error::Message(
+            //         "BLS12-381 ML results are not supported for flat encoding".to_string(),
+            //     ));
+            // }
+            _ => {
                 return Err(en::Error::Message(
                     "BLS12-381 ML results are not supported for flat encoding".to_string(),
                 ));
@@ -600,14 +605,16 @@ fn encode_constant_value(x: &Constant, e: &mut Encoder) -> Result<(), en::Error>
             cbor.encode(e)
         }
         Constant::Bls12_381G1Element(b) => {
-            let x = b.compress();
+            unimplemented!()
+            // let x = b.compress();
 
-            x.encode(e)
+            // x.encode(e)
         }
         Constant::Bls12_381G2Element(b) => {
-            let x = b.compress();
+            unimplemented!()
+            // let x = b.compress();
 
-            x.encode(e)
+            // x.encode(e)
         }
         Constant::Bls12_381MlResult(_) => Err(en::Error::Message(
             "BLS12-381 ML results are not supported for flat encoding".to_string(),
@@ -678,9 +685,11 @@ impl<'b> Decode<'b> for Constant {
             [9] => {
                 let p1 = Vec::<u8>::decode(d)?;
 
-                let p1 = blst::blst_p1::uncompress(&p1).map_err(|err| {
-                    de::Error::Message(format!("Failed to uncompress p1: {}", err))
-                })?;
+                // let p1 = blst::blst_p1::uncompress(&p1).map_err(|err| {
+                //     de::Error::Message(format!("Failed to uncompress p1: {}", err))
+                // })?;
+
+                let p1 = ();
 
                 Ok(Constant::Bls12_381G1Element(p1.into()))
             }
@@ -688,9 +697,11 @@ impl<'b> Decode<'b> for Constant {
             [10] => {
                 let p2 = Vec::<u8>::decode(d)?;
 
-                let p2 = blst::blst_p2::uncompress(&p2).map_err(|err| {
-                    de::Error::Message(format!("Failed to uncompress p2: {}", err))
-                })?;
+                // let p2 = blst::blst_p2::uncompress(&p2).map_err(|err| {
+                //     de::Error::Message(format!("Failed to uncompress p2: {}", err))
+                // })?;
+
+                let p2 = ();
 
                 Ok(Constant::Bls12_381G2Element(p2.into()))
             }
@@ -739,16 +750,20 @@ fn decode_constant_value(typ: Rc<Type>, d: &mut Decoder) -> Result<Constant, de:
         Type::Bls12_381G1Element => {
             let p1 = Vec::<u8>::decode(d)?;
 
-            let p1 = blst::blst_p1::uncompress(&p1)
-                .map_err(|err| de::Error::Message(format!("Failed to uncompress p1: {}", err)))?;
+            // let p1 = blst::blst_p1::uncompress(&p1)
+            //     .map_err(|err| de::Error::Message(format!("Failed to uncompress p1: {}", err)))?;
+
+            let p1 = ();
 
             Ok(Constant::Bls12_381G1Element(p1.into()))
         }
         Type::Bls12_381G2Element => {
             let p2 = Vec::<u8>::decode(d)?;
 
-            let p2 = blst::blst_p2::uncompress(&p2)
-                .map_err(|err| de::Error::Message(format!("Failed to uncompress p2: {}", err)))?;
+            // let p2 = blst::blst_p2::uncompress(&p2)
+            //     .map_err(|err| de::Error::Message(format!("Failed to uncompress p2: {}", err)))?;
+
+            let p2 = ();
 
             Ok(Constant::Bls12_381G2Element(p2.into()))
         }
