@@ -1,4 +1,4 @@
-use super::{cost_model::ExBudget, Error};
+use super::{cost_model::ExBudget, runtime::BuiltinCall, Error};
 use crate::ast::{Constant, NamedDeBruijn, Term};
 
 #[derive(Debug)]
@@ -7,6 +7,7 @@ pub struct EvalResult {
     remaining_budget: ExBudget,
     initial_budget: ExBudget,
     logs: Vec<String>,
+    builtin_calls: Vec<BuiltinCall>,
 }
 
 impl EvalResult {
@@ -15,12 +16,14 @@ impl EvalResult {
         remaining_budget: ExBudget,
         initial_budget: ExBudget,
         logs: Vec<String>,
+        builtin_calls: Vec<BuiltinCall>,
     ) -> EvalResult {
         EvalResult {
             result,
             remaining_budget,
             initial_budget,
             logs,
+            builtin_calls,
         }
     }
 

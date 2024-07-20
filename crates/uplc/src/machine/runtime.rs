@@ -42,6 +42,7 @@ const INTEGER_TO_BYTE_STRING_MAXIMUM_OUTPUT_LENGTH: i64 = 8192;
 //    Deferred,
 //}
 
+#[derive(Debug)]
 pub struct BuiltinCall {
     pub fun: DefaultFunction,
     pub args: Vec<Value>,
