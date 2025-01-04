@@ -3,6 +3,7 @@ use aiken_lang::{
     ast::{self, Span},
     error::ExtraData,
     parser::error::ParseError,
+    test_framework::{PropertyTestResult, TestResult, UnitTestResult},
     tipo,
 };
 use miette::{
@@ -14,17 +15,32 @@ use owo_colors::{
     Stream::{Stderr, Stdout},
 };
 use std::{
-    fmt::{Debug, Display},
+    fmt::{self, Debug, Display},
     io,
-    ops::Deref,
     path::{Path, PathBuf},
 };
 use zip::result::ZipError;
 
+pub enum TomlLoadingContext {
+    Project,
+    Manifest,
+    Package,
+}
+
+impl fmt::Display for TomlLoadingContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TomlLoadingContext::Project => write!(f, "project"),
+            TomlLoadingContext::Manifest => write!(f, "manifest"),
+            TomlLoadingContext::Package => write!(f, "package"),
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(thiserror::Error)]
 pub enum Error {
-    #[error("I just found two modules with the same name: '{module}'")]
+    #[error("I just found two modules with the same name: '{}'", module.if_supports_color(Stderr, |s| s.yellow()))]
     DuplicateModule {
         module: String,
         first: PathBuf,
@@ -58,11 +74,12 @@ pub enum Error {
     #[error(transparent)]
     Module(#[from] ast::Error),
 
-    #[error("{help}")]
+    #[error("I could not load the {ctx} config file.")]
     TomlLoading {
+        ctx: TomlLoadingContext,
         path: PathBuf,
         src: String,
-        named: Box<NamedSource>,
+        named: Box<NamedSource<String>>,
         location: Option<Span>,
         help: String,
     },
@@ -77,7 +94,7 @@ pub enum Error {
     Parse {
         path: PathBuf,
         src: String,
-        named: NamedSource,
+        named: Box<NamedSource<String>>,
         #[source]
         error: Box<ParseError>,
     },
@@ -86,7 +103,7 @@ pub enum Error {
     Type {
         path: PathBuf,
         src: String,
-        named: NamedSource,
+        named: NamedSource<String>,
         #[source]
         error: tipo::error::Error,
     },
@@ -116,7 +133,7 @@ pub enum Error {
 
     #[error("I couldn't parse the provided stake address.")]
     MalformedStakeAddress {
-        error: Option<pallas::ledger::addresses::Error>,
+        error: Option<pallas_addresses::Error>,
     },
 
     #[error("I didn't find any validator matching your criteria.")]
@@ -127,6 +144,15 @@ pub enum Error {
 
     #[error("I couldn't find any exportable function named '{name}' in module '{module}'.")]
     ExportNotFound { module: String, name: String },
+
+    #[error("No such module '{module}' found in the project.")]
+    ModuleNotFound {
+        module: String,
+        known_modules: Vec<String>,
+    },
+
+    #[error("I located conditional modules under 'env', but no default one!")]
+    NoDefaultEnvironment,
 }
 
 impl Error {
@@ -147,12 +173,34 @@ impl Error {
             errors.push(Error::Parse {
                 path: path.into(),
                 src: src.to_string(),
-                named: NamedSource::new(path.display().to_string(), src.to_string()),
+                named: NamedSource::new(path.display().to_string(), src.to_string()).into(),
                 error: error.into(),
             });
         }
 
         errors
+    }
+
+    pub fn from_test_result<U, T>(result: &TestResult<U, T>, verbose: bool) -> Self {
+        let (name, path, src) = match result {
+            TestResult::UnitTestResult(UnitTestResult { test, .. }) => (
+                test.name.to_string(),
+                test.input_path.to_path_buf(),
+                test.program.to_pretty(),
+            ),
+            TestResult::PropertyTestResult(PropertyTestResult { test, .. }) => (
+                test.name.to_string(),
+                test.input_path.to_path_buf(),
+                test.program.to_pretty(),
+            ),
+        };
+
+        Error::TestFailure {
+            name,
+            path,
+            src,
+            verbose,
+        }
     }
 }
 
@@ -195,6 +243,8 @@ impl ExtraData for Error {
             | Error::NoValidatorNotFound { .. }
             | Error::MoreThanOneValidatorFound { .. }
             | Error::Module { .. }
+            | Error::NoDefaultEnvironment { .. }
+            | Error::ModuleNotFound { .. }
             | Error::ExportNotFound { .. } => None,
             Error::Type { error, .. } => error.extra_data(),
         }
@@ -223,7 +273,9 @@ impl GetSource for Error {
             | Error::MalformedStakeAddress { .. }
             | Error::NoValidatorNotFound { .. }
             | Error::MoreThanOneValidatorFound { .. }
+            | Error::ModuleNotFound { .. }
             | Error::ExportNotFound { .. }
+            | Error::NoDefaultEnvironment { .. }
             | Error::Module { .. } => None,
             Error::DuplicateModule { second: path, .. }
             | Error::MissingManifest { path }
@@ -252,7 +304,9 @@ impl GetSource for Error {
             | Error::Json { .. }
             | Error::MalformedStakeAddress { .. }
             | Error::NoValidatorNotFound { .. }
+            | Error::NoDefaultEnvironment { .. }
             | Error::MoreThanOneValidatorFound { .. }
+            | Error::ModuleNotFound { .. }
             | Error::ExportNotFound { .. }
             | Error::Module { .. } => None,
             Error::TomlLoading { src, .. } | Error::Parse { src, .. } | Error::Type { src, .. } => {
@@ -307,6 +361,8 @@ impl Diagnostic for Error {
             Error::NoValidatorNotFound { .. } => None,
             Error::MoreThanOneValidatorFound { .. } => None,
             Error::ExportNotFound { .. } => None,
+            Error::ModuleNotFound { .. } => None,
+            Error::NoDefaultEnvironment { .. } => None,
             Error::Module(e) => e.code().map(boxed),
         }
     }
@@ -314,9 +370,9 @@ impl Diagnostic for Error {
     fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
         match self {
             Error::DuplicateModule { first, second, .. } => Some(Box::new(format!(
-                "Rename either {} or {}",
-                first.display(),
-                second.display()
+                "Rename either of them:\n- {}\n- {}",
+                first.display().if_supports_color(Stderr, |s| s.yellow()),
+                second.display().if_supports_color(Stderr, |s| s.yellow()),
             ))),
             Error::FileIo { error, .. } => Some(Box::new(format!("{error}"))),
             Error::Blueprint(e) => e.help(),
@@ -324,19 +380,30 @@ impl Diagnostic for Error {
                 "Try moving the shared code to a separate module that the others can depend on\n- {}",
                 modules.join("\n- ")
             ))),
-            Error::Parse { error, .. } => error.kind.help(),
+            Error::Parse { error, .. } => error.help(),
             Error::Type { error, .. } => error.help(),
             Error::StandardIo(_) => None,
             Error::MissingManifest { .. } => Some(Box::new(
                 "Try running `aiken new <REPOSITORY/PROJECT>` to initialise a project with an example manifest.",
             )),
-            Error::TomlLoading { .. } => None,
+            Error::NoDefaultEnvironment { .. } => Some(Box::new(
+                "Environment module names are free, but there must be at least one named 'default.ak'.",
+            )),
+            Error::TomlLoading { help, .. } => Some(Box::new(help)),
             Error::Format { .. } => None,
             Error::TestFailure { .. } => None,
             Error::Http(_) => None,
             Error::ZipExtract(_) => None,
             Error::JoinError(_) => None,
             Error::ExportNotFound { .. } => None,
+            Error::ModuleNotFound { known_modules, .. } => Some(Box::new(format!(
+                "I know about the following modules:\n{}",
+                known_modules
+                    .iter()
+                    .map(|s| format!("─▶ {}", s.if_supports_color(Stdout, |s| s.purple())))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ))),
             Error::UnknownPackageVersion { .. } => Some(Box::new(
                 "Perhaps, double-check the package repository and version?",
             )),
@@ -408,6 +475,8 @@ impl Diagnostic for Error {
             Error::MalformedStakeAddress { .. } => None,
             Error::NoValidatorNotFound { .. } => None,
             Error::MoreThanOneValidatorFound { .. } => None,
+            Error::NoDefaultEnvironment { .. } => None,
+            Error::ModuleNotFound { .. } => None,
             Error::Module(e) => e.labels(),
         }
     }
@@ -417,13 +486,15 @@ impl Diagnostic for Error {
             Error::DuplicateModule { .. } => None,
             Error::FileIo { .. } => None,
             Error::ImportCycle { .. } => None,
+            Error::ModuleNotFound { .. } => None,
             Error::ExportNotFound { .. } => None,
             Error::Blueprint(e) => e.source_code(),
-            Error::Parse { named, .. } => Some(named),
+            Error::NoDefaultEnvironment { .. } => None,
+            Error::Parse { named, .. } => Some(named.as_ref()),
             Error::Type { named, .. } => Some(named),
             Error::StandardIo(_) => None,
             Error::MissingManifest { .. } => None,
-            Error::TomlLoading { named, .. } => Some(named.deref()),
+            Error::TomlLoading { named, .. } => Some(named.as_ref()),
             Error::Format { .. } => None,
             Error::TestFailure { .. } => None,
             Error::Http(_) => None,
@@ -444,6 +515,7 @@ impl Diagnostic for Error {
             Error::DuplicateModule { .. } => None,
             Error::FileIo { .. } => None,
             Error::ImportCycle { .. } => None,
+            Error::ModuleNotFound { .. } => None,
             Error::ExportNotFound { .. } => None,
             Error::Blueprint(e) => e.url(),
             Error::Parse { .. } => None,
@@ -462,6 +534,7 @@ impl Diagnostic for Error {
             Error::MalformedStakeAddress { .. } => None,
             Error::NoValidatorNotFound { .. } => None,
             Error::MoreThanOneValidatorFound { .. } => None,
+            Error::NoDefaultEnvironment { .. } => None,
             Error::Module(e) => e.url(),
         }
     }
@@ -470,12 +543,14 @@ impl Diagnostic for Error {
         match self {
             Error::DuplicateModule { .. } => None,
             Error::FileIo { .. } => None,
+            Error::ModuleNotFound { .. } => None,
             Error::ExportNotFound { .. } => None,
             Error::Blueprint(e) => e.related(),
             Error::ImportCycle { .. } => None,
             Error::Parse { .. } => None,
             Error::Type { error, .. } => error.related(),
             Error::StandardIo(_) => None,
+            Error::NoDefaultEnvironment { .. } => None,
             Error::MissingManifest { .. } => None,
             Error::TomlLoading { .. } => None,
             Error::Format { .. } => None,
@@ -502,7 +577,7 @@ pub enum Warning {
     Type {
         path: PathBuf,
         src: String,
-        named: NamedSource,
+        named: NamedSource<String>,
         #[source]
         warning: tipo::error::Warning,
     },
@@ -512,6 +587,8 @@ pub enum Warning {
     InvalidModuleName { path: PathBuf },
     #[error("aiken.toml demands compiler version {demanded}, but you are using {current}.")]
     CompilerVersionMismatch { demanded: String, current: String },
+    #[error("No configuration found for environment {env}.")]
+    NoConfigurationForEnv { env: String },
 }
 
 impl ExtraData for Warning {
@@ -520,7 +597,8 @@ impl ExtraData for Warning {
             Warning::NoValidators { .. }
             | Warning::DependencyAlreadyExists { .. }
             | Warning::InvalidModuleName { .. }
-            | Warning::CompilerVersionMismatch { .. } => None,
+            | Warning::CompilerVersionMismatch { .. }
+            | Warning::NoConfigurationForEnv { .. } => None,
             Warning::Type { warning, .. } => warning.extra_data(),
         }
     }
@@ -532,6 +610,7 @@ impl GetSource for Warning {
             Warning::InvalidModuleName { path } | Warning::Type { path, .. } => Some(path.clone()),
             Warning::NoValidators
             | Warning::DependencyAlreadyExists { .. }
+            | Warning::NoConfigurationForEnv { .. }
             | Warning::CompilerVersionMismatch { .. } => None,
         }
     }
@@ -542,6 +621,7 @@ impl GetSource for Warning {
             Warning::NoValidators
             | Warning::InvalidModuleName { .. }
             | Warning::DependencyAlreadyExists { .. }
+            | Warning::NoConfigurationForEnv { .. }
             | Warning::CompilerVersionMismatch { .. } => None,
         }
     }
@@ -557,6 +637,7 @@ impl Diagnostic for Warning {
             Warning::Type { named, .. } => Some(named),
             Warning::NoValidators
             | Warning::InvalidModuleName { .. }
+            | Warning::NoConfigurationForEnv { .. }
             | Warning::DependencyAlreadyExists { .. }
             | Warning::CompilerVersionMismatch { .. } => None,
         }
@@ -568,6 +649,7 @@ impl Diagnostic for Warning {
             Warning::InvalidModuleName { .. }
             | Warning::NoValidators
             | Warning::DependencyAlreadyExists { .. }
+            | Warning::NoConfigurationForEnv { .. }
             | Warning::CompilerVersionMismatch { .. } => None,
         }
     }
@@ -586,6 +668,9 @@ impl Diagnostic for Warning {
             Warning::DependencyAlreadyExists { .. } => {
                 Some(Box::new("aiken::packages::already_exists"))
             }
+            Warning::NoConfigurationForEnv { .. } => {
+                Some(Box::new("aiken::project::config::missing::env"))
+            }
         }
     }
 
@@ -602,6 +687,9 @@ impl Diagnostic for Warning {
             )),
             Warning::DependencyAlreadyExists { .. } => Some(Box::new(
                 "If you need to change the version, try 'aiken packages upgrade' instead.",
+            )),
+            Warning::NoConfigurationForEnv { .. } => Some(Box::new(
+                "When configuration keys are missing for a target environment, no 'config' module will be created. This may lead to issues down the line.",
             )),
         }
     }
@@ -649,7 +737,7 @@ struct DisplayWarning<'a> {
     help: Option<String>,
 }
 
-impl<'a> Diagnostic for DisplayWarning<'a> {
+impl Diagnostic for DisplayWarning<'_> {
     fn severity(&self) -> Option<miette::Severity> {
         Some(miette::Severity::Warning)
     }
@@ -678,7 +766,7 @@ impl<'a> Diagnostic for DisplayWarning<'a> {
     }
 }
 
-impl<'a> Debug for DisplayWarning<'a> {
+impl Debug for DisplayWarning<'_> {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         unreachable!("Display warning are never shown directly.");
     }

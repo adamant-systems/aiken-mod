@@ -6,10 +6,7 @@ use super::{
     hydrator::Hydrator,
     PatternConstructor, Type, ValueConstructorVariant,
 };
-use crate::{
-    ast::{CallArg, Pattern, Span, TypedPattern, UntypedPattern},
-    builtins::{int, list, pair, tuple},
-};
+use crate::ast::{CallArg, Pattern, Span, TypedPattern, UntypedPattern};
 use itertools::Itertools;
 use std::{
     collections::{HashMap, HashSet},
@@ -39,6 +36,7 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn insert_variable(
         &mut self,
         name: &str,
@@ -94,6 +92,7 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn infer_alternative_pattern(
         &mut self,
         pattern: UntypedPattern,
@@ -125,6 +124,7 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn infer_pattern(
         &mut self,
         pattern: UntypedPattern,
@@ -133,6 +133,7 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
         self.unify(pattern, Rc::new(subject.clone()), None, false)
     }
 
+    #[allow(clippy::result_large_err)]
     /// When we have an assignment or a case expression we unify the pattern with the
     /// inferred type of the subject in order to determine what variables to insert
     /// into the environment (or to detect a type error).
@@ -141,11 +142,11 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
         pattern: UntypedPattern,
         tipo: Rc<Type>,
         ann_type: Option<Rc<Type>>,
-        is_let: bool,
+        warn_on_discard: bool,
     ) -> Result<TypedPattern, Error> {
         match pattern {
             Pattern::Discard { name, location } => {
-                if is_let {
+                if warn_on_discard {
                     // Register declaration for the unused variable detection
                     self.environment
                         .warnings
@@ -190,12 +191,27 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
                 value,
                 base,
             } => {
-                self.environment.unify(tipo, int(), location, false)?;
+                self.environment.unify(tipo, Type::int(), location, false)?;
 
                 Ok(Pattern::Int {
                     location,
                     value,
                     base,
+                })
+            }
+
+            Pattern::ByteArray {
+                location,
+                value,
+                preferred_format,
+            } => {
+                self.environment
+                    .unify(tipo, Type::byte_array(), location, false)?;
+
+                Ok(Pattern::ByteArray {
+                    location,
+                    value,
+                    preferred_format,
                 })
             }
 
@@ -216,7 +232,12 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
                         .try_collect()?;
 
                     let tail = match tail {
-                        Some(tail) => Some(Box::new(self.unify(*tail, list(tipo), None, false)?)),
+                        Some(tail) => Some(Box::new(self.unify(
+                            *tail,
+                            Type::list(tipo),
+                            None,
+                            false,
+                        )?)),
                         None => None,
                     };
 
@@ -228,7 +249,7 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
                 }
 
                 None => Err(Error::CouldNotUnify {
-                    given: list(self.environment.new_unbound_var()),
+                    given: Type::list(self.environment.new_unbound_var()),
                     expected: tipo.clone(),
                     situation: None,
                     location,
@@ -252,7 +273,7 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
                     let t_snd = self.environment.new_unbound_var();
 
                     self.environment.unify(
-                        pair(t_fst.clone(), t_snd.clone()),
+                        Type::pair(t_fst.clone(), t_snd.clone()),
                         tipo,
                         location,
                         false,
@@ -265,7 +286,7 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
                 }
 
                 _ => Err(Error::CouldNotUnify {
-                    given: pair(
+                    given: Type::pair(
                         self.environment.new_unbound_var(),
                         self.environment.new_unbound_var(),
                     ),
@@ -307,8 +328,12 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
                         .map(|_| self.environment.new_unbound_var())
                         .collect();
 
-                    self.environment
-                        .unify(tuple(elems_types.clone()), tipo, location, false)?;
+                    self.environment.unify(
+                        Type::tuple(elems_types.clone()),
+                        tipo,
+                        location,
+                        false,
+                    )?;
 
                     let mut patterns = vec![];
 
@@ -330,7 +355,7 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
                         .collect();
 
                     Err(Error::CouldNotUnify {
-                        given: tuple(elems_types),
+                        given: Type::tuple(elems_types),
                         expected: tipo,
                         situation: None,
                         location,

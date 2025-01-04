@@ -1,13 +1,3 @@
-use num_bigint::BigInt;
-use pallas_codec::flat::{
-    de::{self, Decode, Decoder},
-    en::{self, Encode, Encoder},
-    Flat,
-};
-use pallas_primitives::{babbage::PlutusData, Fragment};
-
-use std::{collections::VecDeque, fmt::Debug, rc::Rc};
-
 use crate::{
     ast::{
         Constant, DeBruijn, FakeNamedDeBruijn, Name, NamedDeBruijn, Program, Term, Type, Unique,
@@ -15,6 +5,14 @@ use crate::{
     builtins::DefaultFunction,
     machine::runtime::Compressable,
 };
+use num_bigint::BigInt;
+use pallas_codec::flat::{
+    de::{self, Decode, Decoder},
+    en::{self, Encode, Encoder},
+    Flat,
+};
+use pallas_primitives::{conway::PlutusData, Fragment};
+use std::{collections::VecDeque, fmt::Debug, rc::Rc};
 
 const BUILTIN_TAG_WIDTH: u32 = 7;
 const CONST_TAG_WIDTH: u32 = 4;
@@ -549,23 +547,23 @@ impl Encode for Constant {
 
                 cbor.encode(e)?;
             }
-            // Constant::Bls12_381G1Element(b) => {
-            //     encode_constant(&[9], e)?;
+            Constant::Bls12_381G1Element(_) => {
+                encode_constant(&[9], e)?;
 
-            //     let x = b.compress();
+                return Err(en::Error::Message(
+                    "BLS12-381 G1 points are not supported for flat encoding".to_string(),
+                ));
+            }
+            Constant::Bls12_381G2Element(_) => {
+                encode_constant(&[10], e)?;
 
-            //     x.encode(e)?;
-            // }
-            // Constant::Bls12_381G2Element(b) => {
-            //     encode_constant(&[10], e)?;
-
-            //     let x = b.compress();
-
-            //     x.encode(e)?;
-            // }
-            // Constant::Bls12_381MlResult(_) => {
-            //     encode_constant(&[11], e)?;
-
+                return Err(en::Error::Message(
+                    "BLS12-381 G2 points are not supported for flat encoding".to_string(),
+                ));
+            }
+            Constant::Bls12_381MlResult(_) => {
+                encode_constant(&[11], e)?;
+            }
             //     return Err(en::Error::Message(
             //         "BLS12-381 ML results are not supported for flat encoding".to_string(),
             //     ));
@@ -604,18 +602,12 @@ fn encode_constant_value(x: &Constant, e: &mut Encoder) -> Result<(), en::Error>
 
             cbor.encode(e)
         }
-        Constant::Bls12_381G1Element(b) => {
-            unimplemented!()
-            // let x = b.compress();
-
-            // x.encode(e)
-        }
-        Constant::Bls12_381G2Element(b) => {
-            unimplemented!()
-            // let x = b.compress();
-
-            // x.encode(e)
-        }
+        Constant::Bls12_381G1Element(_) => Err(en::Error::Message(
+            "BLS12-381 G1 points are not supported for flat encoding".to_string(),
+        )),
+        Constant::Bls12_381G2Element(_) => Err(en::Error::Message(
+            "BLS12-381 G2 points are not supported for flat encoding".to_string(),
+        )),
         Constant::Bls12_381MlResult(_) => Err(en::Error::Message(
             "BLS12-381 ML results are not supported for flat encoding".to_string(),
         )),
@@ -645,7 +637,7 @@ fn encode_type(typ: &Type, bytes: &mut Vec<u8>) {
     }
 }
 
-impl<'b> Decode<'b> for Constant {
+impl Decode<'_> for Constant {
     fn decode(d: &mut Decoder) -> Result<Self, de::Error> {
         match &decode_constant(d)?[..] {
             [0] => Ok(Constant::Integer(BigInt::decode(d)?)),
@@ -685,25 +677,29 @@ impl<'b> Decode<'b> for Constant {
             [9] => {
                 let p1 = Vec::<u8>::decode(d)?;
 
-                // let p1 = blst::blst_p1::uncompress(&p1).map_err(|err| {
+                let p1 = ();
+
+                // let _p1 = blst::blst_p1::uncompress(&p1).map_err(|err| {
                 //     de::Error::Message(format!("Failed to uncompress p1: {}", err))
                 // })?;
 
-                let p1 = ();
-
-                Ok(Constant::Bls12_381G1Element(p1.into()))
+                Err(de::Error::Message(
+                    "BLS12-381 G1 points are not supported for flat decoding.".to_string(),
+                ))
             }
 
             [10] => {
                 let p2 = Vec::<u8>::decode(d)?;
 
-                // let p2 = blst::blst_p2::uncompress(&p2).map_err(|err| {
+                let p2 = ();
+
+                // let _p2 = blst::blst_p2::uncompress(&p2).map_err(|err| {
                 //     de::Error::Message(format!("Failed to uncompress p2: {}", err))
                 // })?;
 
-                let p2 = ();
-
-                Ok(Constant::Bls12_381G2Element(p2.into()))
+                Err(de::Error::Message(
+                    "BLS12-381 G2 points are not supported for flat decoding.".to_string(),
+                ))
             }
             [11] => Err(de::Error::Message(
                 "BLS12-381 ML results are not supported for flat decoding".to_string(),
@@ -750,22 +746,26 @@ fn decode_constant_value(typ: Rc<Type>, d: &mut Decoder) -> Result<Constant, de:
         Type::Bls12_381G1Element => {
             let p1 = Vec::<u8>::decode(d)?;
 
-            // let p1 = blst::blst_p1::uncompress(&p1)
-            //     .map_err(|err| de::Error::Message(format!("Failed to uncompress p1: {}", err)))?;
-
             let p1 = ();
 
-            Ok(Constant::Bls12_381G1Element(p1.into()))
+            // let _p1 = blst::blst_p1::uncompress(&p1)
+            //     .map_err(|err| de::Error::Message(format!("Failed to uncompress p1: {}", err)))?;
+
+            Err(de::Error::Message(
+                "BLS12-381 G1 points are not supported for flat decoding.".to_string(),
+            ))
         }
         Type::Bls12_381G2Element => {
             let p2 = Vec::<u8>::decode(d)?;
 
-            // let p2 = blst::blst_p2::uncompress(&p2)
-            //     .map_err(|err| de::Error::Message(format!("Failed to uncompress p2: {}", err)))?;
-
             let p2 = ();
 
-            Ok(Constant::Bls12_381G2Element(p2.into()))
+            // let _p2 = blst::blst_p2::uncompress(&p2)
+            //     .map_err(|err| de::Error::Message(format!("Failed to uncompress p2: {}", err)))?;
+
+            Err(de::Error::Message(
+                "BLS12-381 G2 points are not supported for flat decoding.".to_string(),
+            ))
         }
         Type::Bls12_381MlResult => Err(de::Error::Message(
             "BLS12-381 ML results are not supported for flat decoding".to_string(),
@@ -819,7 +819,7 @@ impl Encode for Unique {
     }
 }
 
-impl<'b> Decode<'b> for Unique {
+impl Decode<'_> for Unique {
     fn decode(d: &mut Decoder) -> Result<Self, de::Error> {
         Ok(isize::decode(d)?.into())
     }
@@ -834,7 +834,7 @@ impl Encode for Name {
     }
 }
 
-impl<'b> Decode<'b> for Name {
+impl Decode<'_> for Name {
     fn decode(d: &mut Decoder) -> Result<Self, de::Error> {
         Ok(Name {
             text: String::decode(d)?,
@@ -843,7 +843,7 @@ impl<'b> Decode<'b> for Name {
     }
 }
 
-impl<'b> Binder<'b> for Name {
+impl Binder<'_> for Name {
     fn binder_encode(&self, e: &mut Encoder) -> Result<(), en::Error> {
         self.encode(e)?;
 
@@ -868,7 +868,7 @@ impl Encode for NamedDeBruijn {
     }
 }
 
-impl<'b> Decode<'b> for NamedDeBruijn {
+impl Decode<'_> for NamedDeBruijn {
     fn decode(d: &mut Decoder) -> Result<Self, de::Error> {
         Ok(NamedDeBruijn {
             text: String::decode(d)?,
@@ -877,7 +877,7 @@ impl<'b> Decode<'b> for NamedDeBruijn {
     }
 }
 
-impl<'b> Binder<'b> for NamedDeBruijn {
+impl Binder<'_> for NamedDeBruijn {
     fn binder_encode(&self, e: &mut Encoder) -> Result<(), en::Error> {
         self.text.encode(e)?;
         self.index.encode(e)?;
@@ -905,13 +905,13 @@ impl Encode for DeBruijn {
     }
 }
 
-impl<'b> Decode<'b> for DeBruijn {
+impl Decode<'_> for DeBruijn {
     fn decode(d: &mut Decoder) -> Result<Self, de::Error> {
         Ok(usize::decode(d)?.into())
     }
 }
 
-impl<'b> Binder<'b> for DeBruijn {
+impl Binder<'_> for DeBruijn {
     fn binder_encode(&self, _: &mut Encoder) -> Result<(), en::Error> {
         Ok(())
     }
@@ -935,7 +935,7 @@ impl Encode for FakeNamedDeBruijn {
     }
 }
 
-impl<'b> Decode<'b> for FakeNamedDeBruijn {
+impl Decode<'_> for FakeNamedDeBruijn {
     fn decode(d: &mut Decoder) -> Result<Self, de::Error> {
         let index = DeBruijn::decode(d)?;
 
@@ -943,7 +943,7 @@ impl<'b> Decode<'b> for FakeNamedDeBruijn {
     }
 }
 
-impl<'b> Binder<'b> for FakeNamedDeBruijn {
+impl Binder<'_> for FakeNamedDeBruijn {
     fn binder_encode(&self, _: &mut Encoder) -> Result<(), en::Error> {
         Ok(())
     }
@@ -967,7 +967,7 @@ impl Encode for DefaultFunction {
     }
 }
 
-impl<'b> Decode<'b> for DefaultFunction {
+impl Decode<'_> for DefaultFunction {
     fn decode(d: &mut Decoder) -> Result<Self, de::Error> {
         let builtin_tag = d.bits8(BUILTIN_TAG_WIDTH as usize)?;
         builtin_tag.try_into()

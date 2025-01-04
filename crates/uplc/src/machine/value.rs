@@ -1,18 +1,19 @@
-use std::{collections::VecDeque, mem::size_of, ops::Deref, rc::Rc};
-
+use super::{
+    runtime::{self, BuiltinRuntime},
+    Error,
+};
 use crate::{
     ast::{Constant, NamedDeBruijn, Term, Type},
     builtins::DefaultFunction,
 };
 use num_bigint::BigInt;
 use num_traits::{Signed, ToPrimitive, Zero};
-use pallas_primitives::babbage::{self, PlutusData};
-
-use super::{runtime::BuiltinRuntime, Error};
+use pallas_primitives::conway::{self, PlutusData};
+use std::{collections::VecDeque, ops::Deref, rc::Rc};
 
 pub(super) type Env = Rc<Vec<Value>>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Con(Rc<Constant>),
     Delay(Rc<Term<NamedDeBruijn>>, Env),
@@ -172,8 +173,22 @@ impl Value {
         Ok(list)
     }
 
+    pub(super) fn unwrap_int_list(&self) -> Result<&Vec<Constant>, Error> {
+        let inner = self.unwrap_constant()?;
+
+        let Constant::ProtoList(Type::Integer, list) = inner else {
+            return Err(Error::TypeMismatch(
+                Type::List(Type::Integer.into()),
+                inner.into(),
+            ));
+        };
+
+        Ok(list)
+    }
+
     // pub(super) fn unwrap_bls12_381_g1_element(&self) -> Result<&blst::blst_p1, Error> {
     //     let inner = self.unwrap_constant()?;
+    // }
 
     //     let Constant::Bls12_381G1Element(element) = inner else {
     //         return Err(Error::TypeMismatch(Type::Bls12_381G1Element, inner.into()));
@@ -208,6 +223,42 @@ impl Value {
 
     pub fn is_bool(&self) -> bool {
         matches!(self, Value::Con(b) if matches!(b.as_ref(), Constant::Bool(_)))
+    }
+
+    pub fn cost_as_size(&self, func: DefaultFunction) -> Result<i64, Error> {
+        let size = self.unwrap_integer()?;
+
+        if size.is_negative() {
+            let error = match func {
+                DefaultFunction::IntegerToByteString => {
+                    Error::IntegerToByteStringNegativeSize(size.clone())
+                }
+                DefaultFunction::ReplicateByte => Error::ReplicateByteNegativeSize(size.clone()),
+                _ => unreachable!(),
+            };
+            return Err(error);
+        }
+
+        if size > &BigInt::from(runtime::INTEGER_TO_BYTE_STRING_MAXIMUM_OUTPUT_LENGTH) {
+            let error = match func {
+                DefaultFunction::IntegerToByteString => Error::IntegerToByteStringSizeTooBig(
+                    size.clone(),
+                    runtime::INTEGER_TO_BYTE_STRING_MAXIMUM_OUTPUT_LENGTH,
+                ),
+                DefaultFunction::ReplicateByte => Error::ReplicateByteSizeTooBig(
+                    size.clone(),
+                    runtime::INTEGER_TO_BYTE_STRING_MAXIMUM_OUTPUT_LENGTH,
+                ),
+                _ => unreachable!(),
+            };
+            return Err(error);
+        }
+
+        let arg1: i64 = u64::try_from(size).unwrap().try_into().unwrap();
+
+        let arg1_exmem = if arg1 == 0 { 0 } else { ((arg1 - 1) / 8) + 1 };
+
+        Ok(arg1_exmem)
     }
 
     // TODO: Make this to_ex_mem not recursive.
@@ -399,44 +450,41 @@ pub fn integer_log2(i: BigInt) -> i64 {
     }
 }
 
-pub fn from_pallas_bigint(n: &babbage::BigInt) -> BigInt {
+pub fn from_pallas_bigint(n: &conway::BigInt) -> BigInt {
     match n {
-        babbage::BigInt::Int(i) => i128::from(*i).into(),
-        babbage::BigInt::BigUInt(bytes) => BigInt::from_bytes_be(num_bigint::Sign::Plus, bytes),
-        babbage::BigInt::BigNInt(bytes) => {
-            BigInt::from_bytes_be(num_bigint::Sign::Minus, bytes) - 1
-        }
+        conway::BigInt::Int(i) => i128::from(*i).into(),
+        conway::BigInt::BigUInt(bytes) => BigInt::from_bytes_be(num_bigint::Sign::Plus, bytes),
+        conway::BigInt::BigNInt(bytes) => BigInt::from_bytes_be(num_bigint::Sign::Minus, bytes) - 1,
     }
 }
 
-pub fn to_pallas_bigint(n: &BigInt) -> babbage::BigInt {
+pub fn to_pallas_bigint(n: &BigInt) -> conway::BigInt {
     if let Some(i) = n.to_i128() {
         if let Ok(i) = i.try_into() {
             let pallas_int: pallas_codec::utils::Int = i;
-            return babbage::BigInt::Int(pallas_int);
+            return conway::BigInt::Int(pallas_int);
         }
     }
 
     if n.is_positive() {
         let (_, bytes) = n.to_bytes_be();
-        babbage::BigInt::BigUInt(bytes.into())
+        conway::BigInt::BigUInt(bytes.into())
     } else {
         // Note that this would break if n == 0
         // BUT n == 0 always fits into 64bits and hence would end up in the first branch.
         let n: BigInt = n + 1;
         let (_, bytes) = n.to_bytes_be();
-        babbage::BigInt::BigNInt(bytes.into())
+        conway::BigInt::BigNInt(bytes.into())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use num_bigint::BigInt;
-
     use crate::{
         ast::Constant,
         machine::value::{integer_log2, Value},
     };
+    use num_bigint::BigInt;
 
     #[test]
     fn to_ex_mem_bigint() {

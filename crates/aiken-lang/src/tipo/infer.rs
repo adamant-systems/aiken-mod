@@ -7,19 +7,20 @@ use super::{
 };
 use crate::{
     ast::{
-        Annotation, ArgName, ArgVia, DataType, Definition, Function, ModuleConstant, ModuleKind,
-        RecordConstructor, RecordConstructorArg, Tracing, TypeAlias, TypedArg, TypedDefinition,
-        TypedFunction, TypedModule, UntypedDefinition, UntypedModule, Use, Validator,
+        Annotation, ArgBy, ArgName, ArgVia, DataType, Definition, Function, ModuleConstant,
+        ModuleKind, RecordConstructor, RecordConstructorArg, Tracing, TypeAlias, TypedArg,
+        TypedDefinition, TypedModule, TypedValidator, UntypedArg, UntypedDefinition, UntypedModule,
+        UntypedPattern, UntypedValidator, Use, Validator,
     },
-    builtins,
-    builtins::{fuzzer, generic_var},
-    line_numbers::LineNumbers,
+    expr::{TypedExpr, UntypedAssignmentKind},
     tipo::{expr::infer_function, Span, Type, TypeVar},
     IdGenerator,
 };
 use std::{borrow::Borrow, collections::HashMap, ops::Deref, rc::Rc};
 
 impl UntypedModule {
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::result_large_err)]
     pub fn infer(
         mut self,
         id_gen: &IdGenerator,
@@ -28,11 +29,12 @@ impl UntypedModule {
         modules: &HashMap<String, TypeInfo>,
         tracing: Tracing,
         warnings: &mut Vec<Warning>,
+        env: Option<&str>,
     ) -> Result<TypedModule, Error> {
         let module_name = self.name.clone();
         let docs = std::mem::take(&mut self.docs);
         let mut environment =
-            Environment::new(id_gen.clone(), &module_name, &kind, modules, warnings);
+            Environment::new(id_gen.clone(), &module_name, &kind, modules, warnings, env);
 
         let mut type_names = HashMap::with_capacity(self.definitions.len());
         let mut value_names = HashMap::with_capacity(self.definitions.len());
@@ -86,14 +88,8 @@ impl UntypedModule {
         }
 
         for def in consts.into_iter().chain(not_consts) {
-            let definition = infer_definition(
-                def,
-                &module_name,
-                &mut hydrators,
-                &mut environment,
-                &self.lines,
-                tracing,
-            )?;
+            let definition =
+                infer_definition(def, &module_name, &mut hydrators, &mut environment, tracing)?;
 
             definitions.push(definition);
         }
@@ -105,6 +101,12 @@ impl UntypedModule {
             .collect();
 
         // Generate warnings for unused items
+        environment.warnings.retain(|warning| match warning {
+            Warning::UnusedVariable { location, name } => !environment
+                .validator_params
+                .contains(&(name.to_string(), *location)),
+            _ => true,
+        });
         environment.convert_unused_to_warnings();
 
         // Remove private and imported types and values to create the public interface
@@ -157,12 +159,12 @@ impl UntypedModule {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn infer_definition(
     def: UntypedDefinition,
     module_name: &String,
     hydrators: &mut HashMap<String, Hydrator>,
     environment: &mut Environment<'_>,
-    lines: &LineNumbers,
     tracing: Tracing,
 ) -> Result<TypedDefinition, Error> {
     match def {
@@ -171,7 +173,6 @@ fn infer_definition(
             module_name,
             hydrators,
             environment,
-            lines,
             tracing,
         )?)),
 
@@ -179,144 +180,151 @@ fn infer_definition(
             doc,
             location,
             end_position,
-            mut fun,
-            other_fun,
+            handlers,
+            mut fallback,
             params,
+            name,
         }) => {
             let params_length = params.len();
-            let temp_params = params.iter().cloned().chain(fun.arguments);
-            fun.arguments = temp_params.collect();
 
             environment.in_new_scope(|environment| {
-                let preregistered_fn = environment
-                    .get_variable(&fun.name)
-                    .expect("Could not find preregistered type for function");
+                let fallback_name = TypedValidator::handler_name(&name, &fallback.name);
 
-                let preregistered_type = preregistered_fn.tipo.clone();
+                put_params_in_scope(&fallback_name, environment, &params);
 
-                let (args_types, _return_type) = preregistered_type
-                    .function_types()
-                    .expect("Preregistered type for fn was not a fn");
+                let mut typed_handlers = vec![];
 
-                for (ix, (arg, t)) in params
-                    .iter()
-                    .zip(args_types[0..params.len()].iter())
-                    .enumerate()
-                {
-                    match &arg.arg_name(ix) {
-                        ArgName::Named {
-                            name,
-                            label: _,
-                            location: _,
-                        } if arg.is_validator_param => {
-                            environment.insert_variable(
-                                name.to_string(),
-                                ValueConstructorVariant::LocalVariable {
-                                    location: arg.location,
-                                },
-                                t.clone(),
-                            );
+                for mut handler in handlers {
+                    let typed_fun = environment.in_new_scope(|environment| {
+                        let temp_params = params.iter().cloned().chain(handler.arguments);
+                        handler.arguments = temp_params.collect();
 
-                            environment.init_usage(
-                                name.to_string(),
-                                EntityKind::Variable,
-                                arg.location,
-                            );
-                        }
-                        ArgName::Named { .. } | ArgName::Discarded { .. } => (),
-                    };
-                }
+                        let handler_name = TypedValidator::handler_name(&name, &handler.name);
 
-                let mut typed_fun =
-                    infer_function(&fun, module_name, hydrators, environment, lines, tracing)?;
+                        let old_name = handler.name;
+                        handler.name = handler_name;
 
-                if !typed_fun.return_type.is_bool() {
-                    return Err(Error::ValidatorMustReturnBool {
-                        return_type: typed_fun.return_type.clone(),
-                        location: typed_fun.location,
-                    });
-                }
+                        let mut typed_fun =
+                            infer_function(&handler, module_name, hydrators, environment, tracing)?;
 
-                let typed_params = typed_fun
-                    .arguments
-                    .drain(0..params_length)
-                    .map(|mut arg| {
-                        if arg.tipo.is_unbound() {
-                            arg.tipo = builtins::data();
-                        }
+                        typed_fun.name = old_name;
 
-                        arg
-                    })
-                    .collect();
-
-                if typed_fun.arguments.len() < 2 || typed_fun.arguments.len() > 3 {
-                    return Err(Error::IncorrectValidatorArity {
-                        count: typed_fun.arguments.len() as u32,
-                        location: typed_fun.location,
-                    });
-                }
-
-                for arg in typed_fun.arguments.iter_mut() {
-                    if arg.tipo.is_unbound() {
-                        arg.tipo = builtins::data();
-                    }
-                }
-
-                let typed_other_fun = other_fun
-                    .map(|mut other| -> Result<TypedFunction, Error> {
-                        let params = params.into_iter().chain(other.arguments);
-                        other.arguments = params.collect();
-
-                        let mut other_typed_fun = infer_function(
-                            &other,
-                            module_name,
-                            hydrators,
-                            environment,
-                            lines,
-                            tracing,
-                        )?;
-
-                        if !other_typed_fun.return_type.is_bool() {
+                        if !typed_fun.return_type.is_bool() {
                             return Err(Error::ValidatorMustReturnBool {
-                                return_type: other_typed_fun.return_type.clone(),
-                                location: other_typed_fun.location,
-                            });
-                        }
-
-                        other_typed_fun.arguments.drain(0..params_length);
-
-                        if other_typed_fun.arguments.len() < 2
-                            || other_typed_fun.arguments.len() > 3
-                        {
-                            return Err(Error::IncorrectValidatorArity {
-                                count: other_typed_fun.arguments.len() as u32,
-                                location: other_typed_fun.location,
-                            });
-                        }
-
-                        if typed_fun.arguments.len() == other_typed_fun.arguments.len() {
-                            return Err(Error::MultiValidatorEqualArgs {
+                                return_type: typed_fun.return_type.clone(),
                                 location: typed_fun.location,
-                                other_location: other_typed_fun.location,
-                                count: other_typed_fun.arguments.len(),
                             });
                         }
 
-                        for arg in other_typed_fun.arguments.iter_mut() {
+                        typed_fun.arguments.drain(0..params_length);
+
+                        if !typed_fun.has_valid_purpose_name() {
+                            return Err(Error::UnknownPurpose {
+                                location: typed_fun
+                                    .location
+                                    .map(|start, _end| (start, start + typed_fun.name.len())),
+                                available_purposes: TypedValidator::available_handler_names(),
+                            });
+                        }
+
+                        if typed_fun.arguments.len() != typed_fun.validator_arity() {
+                            return Err(Error::IncorrectValidatorArity {
+                                count: typed_fun.arguments.len() as u32,
+                                expected: typed_fun.validator_arity() as u32,
+                                location: typed_fun.location,
+                            });
+                        }
+
+                        if typed_fun.is_spend() && !typed_fun.arguments[0].tipo.is_option() {
+                            return Err(Error::CouldNotUnify {
+                                location: typed_fun.arguments[0].location,
+                                expected: Type::option(typed_fun.arguments[0].tipo.clone()),
+                                given: typed_fun.arguments[0].tipo.clone(),
+                                situation: None,
+                                rigid_type_names: Default::default(),
+                            });
+                        }
+
+                        for arg in typed_fun.arguments.iter_mut() {
                             if arg.tipo.is_unbound() {
-                                arg.tipo = builtins::data();
+                                arg.tipo = Type::data();
                             }
                         }
 
-                        Ok(other_typed_fun)
-                    })
-                    .transpose()?;
+                        Ok(typed_fun)
+                    })?;
+
+                    typed_handlers.push(typed_fun);
+                }
+
+                // NOTE: Duplicates are handled when registering handler names. So if we have N
+                // typed handlers, they are different. The -1 represents takes out the fallback
+                // handler name.
+                let is_exhaustive =
+                    typed_handlers.len() >= TypedValidator::available_handler_names().len() - 1;
+
+                if is_exhaustive
+                    && fallback != UntypedValidator::default_fallback(fallback.location)
+                {
+                    return Err(Error::UnexpectedValidatorFallback {
+                        fallback: fallback.location,
+                    });
+                }
+
+                let (typed_params, typed_fallback) = environment.in_new_scope(|environment| {
+                    let temp_params = params.iter().cloned().chain(fallback.arguments);
+                    fallback.arguments = temp_params.collect();
+
+                    let old_name = fallback.name;
+                    fallback.name = fallback_name;
+
+                    let mut typed_fallback =
+                        infer_function(&fallback, module_name, hydrators, environment, tracing)?;
+
+                    typed_fallback.name = old_name;
+
+                    if !typed_fallback.return_type.is_bool() {
+                        return Err(Error::ValidatorMustReturnBool {
+                            return_type: typed_fallback.return_type.clone(),
+                            location: typed_fallback.location,
+                        });
+                    }
+
+                    let typed_params = typed_fallback
+                        .arguments
+                        .drain(0..params_length)
+                        .map(|mut arg| {
+                            if arg.tipo.is_unbound() {
+                                arg.tipo = Type::data();
+                            }
+
+                            arg
+                        })
+                        .collect();
+
+                    if typed_fallback.arguments.len() != 1 {
+                        return Err(Error::IncorrectValidatorArity {
+                            count: typed_fallback.arguments.len() as u32,
+                            expected: 1,
+                            location: typed_fallback.location,
+                        });
+                    }
+
+                    for arg in typed_fallback.arguments.iter_mut() {
+                        if arg.tipo.is_unbound() {
+                            arg.tipo = Type::data();
+                        }
+                    }
+
+                    Ok((typed_params, typed_fallback))
+                })?;
 
                 Ok(Definition::Validator(Validator {
                     doc,
                     end_position,
-                    fun: typed_fun,
-                    other_fun: typed_other_fun,
+                    handlers: typed_handlers,
+                    fallback: typed_fallback,
+                    name,
                     location,
                     params: typed_params,
                 }))
@@ -338,8 +346,7 @@ fn infer_definition(
                         });
                     }
 
-                    let typed_via =
-                        ExprTyper::new(environment, lines, tracing).infer(arg.via.clone())?;
+                    let typed_via = ExprTyper::new(environment, tracing).infer(arg.via.clone())?;
 
                     let hydrator: &mut Hydrator = hydrators.get_mut(&f.name).unwrap();
 
@@ -404,21 +411,27 @@ fn infer_definition(
                 None => Ok((None, None)),
             }?;
 
-            let typed_f = infer_function(
-                &f.into(),
-                module_name,
-                hydrators,
-                environment,
-                lines,
-                tracing,
-            )?;
+            let typed_f = infer_function(&f.into(), module_name, hydrators, environment, tracing)?;
 
-            environment.unify(
+            let is_bool = environment.unify(
                 typed_f.return_type.clone(),
-                builtins::bool(),
+                Type::bool(),
                 typed_f.location,
                 false,
-            )?;
+            );
+
+            let is_void = environment.unify(
+                typed_f.return_type.clone(),
+                Type::void(),
+                typed_f.location,
+                false,
+            );
+
+            if is_bool.or(is_void).is_err() {
+                return Err(Error::IllegalTestType {
+                    location: typed_f.location,
+                });
+            }
 
             Ok(Definition::Test(Function {
                 doc: typed_f.doc,
@@ -597,18 +610,7 @@ fn infer_definition(
             unqualified,
             package: _,
         }) => {
-            let name = module.join("/");
-
-            // Find imported module
-            let module_info =
-                environment
-                    .importable_modules
-                    .get(&name)
-                    .ok_or_else(|| Error::UnknownModule {
-                        location,
-                        name,
-                        imported_modules: environment.imported_modules.keys().cloned().collect(),
-                    })?;
+            let module_info = environment.find_module(&module, location)?;
 
             Ok(Definition::Use(Use {
                 location,
@@ -626,18 +628,42 @@ fn infer_definition(
             annotation,
             public,
             value,
-            tipo: _,
         }) => {
-            let typed_expr =
-                ExprTyper::new(environment, lines, tracing).infer_const(&annotation, *value)?;
+            let typed_assignment = ExprTyper::new(environment, tracing).infer_assignment(
+                UntypedPattern::Var {
+                    location,
+                    name: name.clone(),
+                },
+                value,
+                UntypedAssignmentKind::Let { backpassing: false },
+                &annotation,
+                location,
+            )?;
+
+            // NOTE: The assignment above is only a convenient way to create the TypedExpression
+            // that will be reduced at compile-time. We must increment its usage to not
+            // automatically trigger a warning since we are virtually creating a block with a
+            // single assignment that is then left unused.
+            //
+            // The usage of the constant is tracked through different means.
+            environment.increment_usage(&name);
+
+            let typed_expr = match typed_assignment {
+                TypedExpr::Assignment { value, .. } => value,
+                _ => unreachable!("infer_assignment inferred something else than an assignment?"),
+            };
 
             let tipo = typed_expr.tipo();
+
+            if tipo.is_function() && !tipo.is_monomorphic() {
+                return Err(Error::GenericLeftAtBoundary { location });
+            }
 
             let variant = ValueConstructor {
                 public,
                 variant: ValueConstructorVariant::ModuleConstant {
                     location,
-                    literal: typed_expr.clone(),
+                    name: name.to_owned(),
                     module: module_name.to_owned(),
                 },
                 tipo: tipo.clone(),
@@ -657,13 +683,13 @@ fn infer_definition(
                 name,
                 annotation,
                 public,
-                value: Box::new(typed_expr),
-                tipo,
+                value: *typed_expr,
             }))
         }
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn infer_fuzzer(
     environment: &mut Environment<'_>,
     expected_inner_type: Option<Rc<Type>>,
@@ -672,10 +698,10 @@ fn infer_fuzzer(
 ) -> Result<(Annotation, Rc<Type>), Error> {
     let could_not_unify = || Error::CouldNotUnify {
         location: *location,
-        expected: fuzzer(
+        expected: Type::fuzzer(
             expected_inner_type
                 .clone()
-                .unwrap_or_else(|| generic_var(0)),
+                .unwrap_or_else(|| Type::generic_var(0)),
         ),
         given: tipo.clone(),
         situation: None,
@@ -711,7 +737,7 @@ fn infer_fuzzer(
                         // `unify` now that we have figured out the type carried by the fuzzer.
                         environment.unify(
                             tipo.clone(),
-                            fuzzer(wrapped.clone()),
+                            Type::fuzzer(wrapped.clone()),
                             *location,
                             false,
                         )?;
@@ -740,6 +766,7 @@ fn infer_fuzzer(
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn annotate_fuzzer(tipo: &Type, location: &Span) -> Result<Annotation, Error> {
     match tipo {
         Type::App {
@@ -796,5 +823,52 @@ fn annotate_fuzzer(tipo: &Type, location: &Span) -> Result<Annotation, Error> {
                 location: *location,
             })
         }
+    }
+}
+
+fn put_params_in_scope<'a>(
+    name: &'_ str,
+    environment: &'a mut Environment,
+    params: &'a [UntypedArg],
+) {
+    let preregistered_fn = environment
+        .get_variable(name)
+        .expect("Could not find preregistered type for function");
+
+    let preregistered_type = preregistered_fn.tipo.clone();
+
+    let (args_types, _return_type) = preregistered_type
+        .function_types()
+        .expect("Preregistered type for fn was not a fn");
+
+    for (ix, (arg, t)) in params
+        .iter()
+        .zip(args_types[0..params.len()].iter())
+        .enumerate()
+    {
+        match arg.arg_name(ix) {
+            ArgName::Named {
+                name,
+                label: _,
+                location: _,
+            } if arg.is_validator_param => {
+                environment.insert_variable(
+                    name.to_string(),
+                    ValueConstructorVariant::LocalVariable {
+                        location: arg.location,
+                    },
+                    t.clone(),
+                );
+
+                if let ArgBy::ByPattern(ref pattern) = arg.by {
+                    pattern.collect_identifiers(&mut |identifier| {
+                        environment.validator_params.insert(identifier);
+                    })
+                }
+
+                environment.init_usage(name, EntityKind::Variable, arg.location);
+            }
+            ArgName::Named { .. } | ArgName::Discarded { .. } => (),
+        };
     }
 }

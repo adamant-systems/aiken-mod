@@ -1,13 +1,11 @@
+use aiken_project::{
+    blueprint::{error::Error as BlueprintError, Blueprint},
+    error::Error as ProjectError,
+};
 use clap::ValueEnum;
 use miette::IntoDiagnostic;
 use serde_json::json;
 use std::{env, fs::File, io::BufReader, path::PathBuf, process};
-
-use aiken_project::{
-    blueprint::{error::Error as BlueprintError, Blueprint},
-    config::Config,
-    error::Error as ProjectError,
-};
 
 /// Convert a blueprint into other formats.
 #[derive(clap::Args)]
@@ -23,7 +21,7 @@ pub struct Args {
     #[clap(short, long)]
     validator: Option<String>,
 
-    // Format to convert to
+    /// Format to convert to
     #[clap(long, default_value = "cardano-cli")]
     to: Format,
 }
@@ -41,18 +39,6 @@ pub fn exec(
         to,
     }: Args,
 ) -> miette::Result<()> {
-    let title = module.as_ref().map(|m| {
-        format!(
-            "{m}{}",
-            validator
-                .as_ref()
-                .map(|v| format!(".{v}"))
-                .unwrap_or_default()
-        )
-    });
-
-    let title = title.as_ref().or(validator.as_ref());
-
     let project_path = if let Some(d) = directory {
         d
     } else {
@@ -69,31 +55,29 @@ pub fn exec(
     let blueprint: Blueprint =
         serde_json::from_reader(BufReader::new(blueprint)).into_diagnostic()?;
 
-    let opt_config = Config::load(&project_path).ok();
-
-    let cardano_cli_type = opt_config
-        .map(|config| config.plutus)
-        .unwrap_or_default()
-        .cardano_cli_type();
-
     // Perform the conversion
     let when_too_many =
         |known_validators| ProjectError::MoreThanOneValidatorFound { known_validators };
     let when_missing = |known_validators| ProjectError::NoValidatorNotFound { known_validators };
 
-    let result =
-        blueprint.with_validator(title, when_too_many, when_missing, |validator| match to {
+    let result = blueprint.with_validator(
+        module.as_deref(),
+        validator.as_deref(),
+        when_too_many,
+        when_missing,
+        |validator| match to {
             Format::CardanoCli => {
-                let cbor_bytes = validator.program.to_cbor().unwrap();
+                let cbor_bytes = validator.program.inner().to_cbor().unwrap();
 
                 let mut double_cbor_bytes = Vec::new();
 
-                let mut cbor_encoder =
-                    pallas::codec::minicbor::Encoder::new(&mut double_cbor_bytes);
+                let mut cbor_encoder = pallas_codec::minicbor::Encoder::new(&mut double_cbor_bytes);
 
                 cbor_encoder.bytes(&cbor_bytes).unwrap();
 
                 let cbor_hex = hex::encode(double_cbor_bytes);
+
+                let cardano_cli_type = blueprint.preamble.plutus_version.cardano_cli_type();
 
                 Ok(json!({
                     "type": cardano_cli_type,
@@ -101,7 +85,8 @@ pub fn exec(
                     "cborHex": cbor_hex
                 }))
             }
-        });
+        },
+    );
 
     match result {
         Ok(value) => {

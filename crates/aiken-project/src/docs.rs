@@ -4,15 +4,17 @@ use crate::{
 };
 use aiken_lang::{
     ast::{
-        DataType, Definition, Function, ModuleConstant, RecordConstructor, TypeAlias,
+        DataType, Definition, Function, ModuleConstant, RecordConstructor, Span, TypeAlias,
         TypedDefinition,
     },
     format,
+    parser::extra::Comment,
     tipo::Type,
 };
 use askama::Template;
 use itertools::Itertools;
 use pulldown_cmark as markdown;
+use regex::Regex;
 use serde::Serialize;
 use serde_json as json;
 use std::{
@@ -21,8 +23,11 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-const MAX_COLUMNS: isize = 999;
+const MAX_COLUMNS: isize = 80;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub mod link_tree;
+pub mod source_links;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DocFile {
@@ -39,9 +44,8 @@ struct ModuleTemplate<'a> {
     module_name: String,
     project_name: &'a str,
     project_version: &'a str,
-    modules_prefix: String,
-    modules: &'a Vec<DocLink>,
-    functions: Vec<DocFunction>,
+    modules: &'a [DocLink],
+    functions: Vec<Interspersed>,
     types: Vec<DocType>,
     constants: Vec<DocConstant>,
     documentation: String,
@@ -49,7 +53,7 @@ struct ModuleTemplate<'a> {
     timestamp: String,
 }
 
-impl<'a> ModuleTemplate<'a> {
+impl ModuleTemplate<'_> {
     pub fn is_current_module(&self, module: &DocLink) -> bool {
         match module.path.split(".html").next() {
             None => false,
@@ -66,21 +70,21 @@ struct PageTemplate<'a> {
     page_title: &'a str,
     project_name: &'a str,
     project_version: &'a str,
-    modules_prefix: String,
-    modules: &'a Vec<DocLink>,
+    modules: &'a [DocLink],
     content: String,
     source: &'a DocLink,
     timestamp: &'a str,
 }
 
-impl<'a> PageTemplate<'a> {
+impl PageTemplate<'_> {
     pub fn is_current_module(&self, _module: &DocLink) -> bool {
         false
     }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-struct DocLink {
+pub struct DocLink {
+    indent: usize,
     name: String,
     path: String,
 }
@@ -88,6 +92,10 @@ struct DocLink {
 impl DocLink {
     pub fn is_empty(&self) -> bool {
         self.name.is_empty()
+    }
+
+    pub fn is_separator(&self) -> bool {
+        self.path.is_empty()
     }
 }
 
@@ -98,10 +106,11 @@ impl DocLink {
 /// across multiple modules.
 pub fn generate_all(root: &Path, config: &Config, modules: Vec<&CheckedModule>) -> Vec<DocFile> {
     let timestamp = new_timestamp();
-    let (modules_prefix, modules_links) = generate_modules_links(&modules);
+    let modules_links = generate_modules_links(&modules);
 
     let source = match &config.repository {
         None => DocLink {
+            indent: 0,
             name: String::new(),
             path: String::new(),
         },
@@ -110,6 +119,7 @@ pub fn generate_all(root: &Path, config: &Config, modules: Vec<&CheckedModule>) 
             project,
             platform,
         }) => DocLink {
+            indent: 0,
             name: format!("{user}/{project}"),
             path: format!("https://{platform}.com/{user}/{project}"),
         },
@@ -119,13 +129,12 @@ pub fn generate_all(root: &Path, config: &Config, modules: Vec<&CheckedModule>) 
     let mut search_indexes: Vec<SearchIndex> = vec![];
 
     for module in &modules {
-        let (indexes, file) = generate_module(
-            config,
-            module,
-            (&modules_prefix, &modules_links),
-            &source,
-            &timestamp,
-        );
+        if module.skip_doc_generation() {
+            continue;
+        }
+
+        let (indexes, file) =
+            generate_module(root, config, module, &modules_links, &source, &timestamp);
         if !indexes.is_empty() {
             search_indexes.extend(indexes);
             output_files.push(file);
@@ -136,7 +145,7 @@ pub fn generate_all(root: &Path, config: &Config, modules: Vec<&CheckedModule>) 
     output_files.push(generate_readme(
         root,
         config,
-        (&modules_prefix, &modules_links),
+        &modules_links,
         &source,
         &timestamp,
     ));
@@ -145,32 +154,80 @@ pub fn generate_all(root: &Path, config: &Config, modules: Vec<&CheckedModule>) 
 }
 
 fn generate_module(
+    root: &Path,
     config: &Config,
     module: &CheckedModule,
-    (modules_prefix, modules): (&str, &Vec<DocLink>),
+    modules: &[DocLink],
     source: &DocLink,
     timestamp: &Duration,
 ) -> (Vec<SearchIndex>, DocFile) {
     let mut search_indexes = vec![];
 
+    let source_linker = source_links::SourceLinker::new(root, config, module);
+
+    // Section headers
+    let mut section_headers = module
+        .extra
+        .comments
+        .iter()
+        .filter_map(|span| {
+            let comment = Comment::from((span, module.code.as_str()))
+                .content
+                .trim_start();
+            if comment.starts_with('#') {
+                let trimmed = comment.trim_start_matches('#');
+                let heading = comment.len() - trimmed.len();
+                Some((
+                    span,
+                    DocSection {
+                        heading,
+                        title: trimmed.trim_start().to_string(),
+                    },
+                ))
+            } else {
+                None
+            }
+        })
+        .collect_vec();
+
     // Functions
-    let functions: Vec<DocFunction> = module
+    let functions: Vec<(Span, DocFunction)> = module
         .ast
         .definitions
         .iter()
-        .flat_map(DocFunction::from_definition)
-        .sorted()
+        .flat_map(|def| DocFunction::from_definition(def, &source_linker))
         .collect();
-    functions
-        .iter()
-        .for_each(|function| search_indexes.push(SearchIndex::from_function(module, function)));
+
+    functions.iter().for_each(|(_, function)| {
+        search_indexes.push(SearchIndex::from_function(module, function))
+    });
+
+    let no_functions = functions.is_empty();
+
+    let mut functions_and_headers = Vec::new();
+
+    for (span_fn, function) in functions {
+        let mut to_remove = vec![];
+        for (ix, (span_h, header)) in section_headers.iter().enumerate() {
+            if span_h.start < span_fn.start {
+                functions_and_headers.push(Interspersed::Section(header.clone()));
+                to_remove.push(ix);
+            }
+        }
+
+        for ix in to_remove.iter().rev() {
+            section_headers.remove(*ix);
+        }
+
+        functions_and_headers.push(Interspersed::Function(function))
+    }
 
     // Types
     let types: Vec<DocType> = module
         .ast
         .definitions
         .iter()
-        .flat_map(DocType::from_definition)
+        .flat_map(|def| DocType::from_definition(def, &source_linker))
         .sorted()
         .collect();
     types
@@ -182,14 +239,14 @@ fn generate_module(
         .ast
         .definitions
         .iter()
-        .flat_map(DocConstant::from_definition)
+        .flat_map(|def| DocConstant::from_definition(def, &source_linker))
         .sorted()
         .collect();
     constants
         .iter()
         .for_each(|constant| search_indexes.push(SearchIndex::from_constant(module, constant)));
 
-    let is_empty = functions.is_empty() && types.is_empty() && constants.is_empty();
+    let is_empty = no_functions && types.is_empty() && constants.is_empty();
 
     // Module
     if !is_empty {
@@ -200,28 +257,66 @@ fn generate_module(
         aiken_version: VERSION,
         breadcrumbs: to_breadcrumbs(&module.name),
         documentation: render_markdown(&module.ast.docs.iter().join("\n")),
-        modules_prefix: modules_prefix.to_string(),
         modules,
         project_name: &config.name.repo.to_string(),
         page_title: &format!("{} - {}", module.name, config.name),
         module_name: module.name.clone(),
         project_version: &config.version.to_string(),
-        functions,
+        functions: functions_and_headers,
         types,
         constants,
         source,
         timestamp: timestamp.as_secs().to_string(),
     };
 
+    let rendered_content = convert_latex_markers(
+        module
+            .render()
+            .expect("Module documentation template rendering"),
+    );
+
     (
         search_indexes,
         DocFile {
             path: PathBuf::from(format!("{}.html", module.module_name)),
-            content: module
-                .render()
-                .expect("Module documentation template rendering"),
+            content: rendered_content,
         },
     )
+}
+
+#[cfg(windows)]
+fn convert_latex_markers(input: String) -> String {
+    input
+}
+
+#[cfg(not(windows))]
+fn convert_latex_markers(input: String) -> String {
+    let re_inline = Regex::new(r#"<span class="math math-inline">\s*(.+?)\s*</span>"#).unwrap();
+    let re_block = Regex::new(r#"<span class="math math-display">\s*(.+?)\s*</span>"#).unwrap();
+
+    let opts_inline = katex::Opts::builder()
+        .display_mode(false) // Inline math
+        .output_type(katex::OutputType::Mathml)
+        .build()
+        .unwrap();
+
+    let opts_block = katex::Opts::builder()
+        .display_mode(true) // Block math
+        .output_type(katex::OutputType::Mathml)
+        .build()
+        .unwrap();
+
+    let input = re_inline.replace_all(&input, |caps: &regex::Captures| {
+        let formula = &caps[1];
+        katex::render_with_opts(formula, &opts_inline).unwrap_or_else(|_| formula.to_string())
+    });
+
+    re_block
+        .replace_all(&input, |caps: &regex::Captures| {
+            let formula = &caps[1];
+            katex::render_with_opts(formula, &opts_block).unwrap_or_else(|_| formula.to_string())
+        })
+        .to_string()
 }
 
 fn generate_static_assets(search_indexes: Vec<SearchIndex>) -> Vec<DocFile> {
@@ -282,7 +377,7 @@ fn generate_static_assets(search_indexes: Vec<SearchIndex>) -> Vec<DocFile> {
 fn generate_readme(
     root: &Path,
     config: &Config,
-    (modules_prefix, modules): (&str, &Vec<DocLink>),
+    modules: &[DocLink],
     source: &DocLink,
     timestamp: &Duration,
 ) -> DocFile {
@@ -293,7 +388,6 @@ fn generate_readme(
     let template = PageTemplate {
         aiken_version: VERSION,
         breadcrumbs: ".",
-        modules_prefix: modules_prefix.to_string(),
         modules,
         project_name: &config.name.repo.to_string(),
         page_title: &config.name.to_string(),
@@ -309,46 +403,31 @@ fn generate_readme(
     }
 }
 
-fn generate_modules_links(modules: &[&CheckedModule]) -> (String, Vec<DocLink>) {
-    let non_empty_modules = modules.iter().filter(|module| {
-        module.ast.definitions.iter().any(|def| {
-            matches!(
-                def,
-                Definition::Fn(Function { public: true, .. })
-                    | Definition::DataType(DataType { public: true, .. })
-                    | Definition::TypeAlias(TypeAlias { public: true, .. })
-                    | Definition::ModuleConstant(ModuleConstant { public: true, .. })
-            )
+fn generate_modules_links(modules: &[&CheckedModule]) -> Vec<DocLink> {
+    let non_empty_modules = modules
+        .iter()
+        .filter(|module| {
+            !module.skip_doc_generation()
+                && module.ast.definitions.iter().any(|def| {
+                    matches!(
+                        def,
+                        Definition::Fn(Function { public: true, .. })
+                            | Definition::DataType(DataType { public: true, .. })
+                            | Definition::TypeAlias(TypeAlias { public: true, .. })
+                            | Definition::ModuleConstant(ModuleConstant { public: true, .. })
+                    )
+                })
         })
-    });
+        .sorted_by(|a, b| a.name.cmp(&b.name))
+        .collect_vec();
 
-    let mut modules_links = vec![];
+    let mut links = link_tree::LinkTree::default();
+
     for module in non_empty_modules {
-        let module_path = [&module.name.clone(), ".html"].concat();
-        modules_links.push(DocLink {
-            path: module_path,
-            name: module.name.to_string().clone(),
-        });
+        links.insert(module.name.as_str());
     }
-    modules_links.sort();
 
-    let prefix = if modules_links.len() > 1 {
-        let prefix = find_modules_prefix(&modules_links);
-
-        for module in &mut modules_links {
-            let name = module.name.strip_prefix(&prefix).unwrap_or_default();
-            module.name = name.strip_prefix('/').unwrap_or(name).to_string();
-            if module.name == String::new() {
-                module.name = "/".to_string()
-            }
-        }
-
-        prefix
-    } else {
-        String::new()
-    };
-
-    (prefix, modules_links)
+    links.to_vec()
 }
 
 #[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -411,7 +490,19 @@ impl SearchIndex {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Interspersed {
+    Section(DocSection),
+    Function(DocFunction),
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+struct DocSection {
+    heading: usize,
+    title: String,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct DocFunction {
     name: String,
     signature: String,
@@ -421,26 +512,33 @@ struct DocFunction {
 }
 
 impl DocFunction {
-    fn from_definition(def: &TypedDefinition) -> Option<Self> {
+    fn from_definition(
+        def: &TypedDefinition,
+        source_linker: &source_links::SourceLinker,
+    ) -> Option<(Span, Self)> {
         match def {
-            Definition::Fn(func_def) if func_def.public => Some(DocFunction {
-                name: func_def.name.clone(),
-                documentation: func_def
-                    .doc
-                    .as_deref()
-                    .map(render_markdown)
-                    .unwrap_or_default(),
-                raw_documentation: func_def.doc.as_deref().unwrap_or_default().to_string(),
-                signature: format::Formatter::new()
-                    .docs_fn_signature(
-                        &func_def.name,
-                        &func_def.arguments,
-                        &func_def.return_annotation,
-                        func_def.return_type.clone(),
-                    )
-                    .to_pretty_string(MAX_COLUMNS),
-                source_url: "#todo".to_string(),
-            }),
+            Definition::Fn(func_def) if func_def.public => Some((
+                func_def.location,
+                DocFunction {
+                    name: func_def.name.clone(),
+                    documentation: func_def
+                        .doc
+                        .as_deref()
+                        .map(render_markdown)
+                        .unwrap_or_default(),
+                    raw_documentation: func_def.doc.as_deref().unwrap_or_default().to_string(),
+                    signature: format::Formatter::new()
+                        .docs_fn_signature(
+                            &func_def.name,
+                            &func_def.arguments,
+                            &func_def.return_annotation,
+                            func_def.return_type.clone(),
+                        )
+                        .to_pretty_string(MAX_COLUMNS),
+                    source_url: source_linker
+                        .url(func_def.location.map_end(|_| func_def.end_position)),
+                },
+            )),
             _ => None,
         }
     }
@@ -456,7 +554,10 @@ struct DocConstant {
 }
 
 impl DocConstant {
-    fn from_definition(def: &TypedDefinition) -> Option<Self> {
+    fn from_definition(
+        def: &TypedDefinition,
+        source_linker: &source_links::SourceLinker,
+    ) -> Option<Self> {
         match def {
             Definition::ModuleConstant(const_def) if const_def.public => Some(DocConstant {
                 name: const_def.name.clone(),
@@ -469,7 +570,7 @@ impl DocConstant {
                 definition: format::Formatter::new()
                     .docs_const_expr(&const_def.name, &const_def.value)
                     .to_pretty_string(MAX_COLUMNS),
-                source_url: "#todo".to_string(),
+                source_url: source_linker.url(const_def.location),
             }),
             _ => None,
         }
@@ -489,7 +590,10 @@ struct DocType {
 }
 
 impl DocType {
-    fn from_definition(def: &TypedDefinition) -> Option<Self> {
+    fn from_definition(
+        def: &TypedDefinition,
+        source_linker: &source_links::SourceLinker,
+    ) -> Option<Self> {
         match def {
             Definition::TypeAlias(info) if info.public => Some(DocType {
                 name: info.alias.clone(),
@@ -501,7 +605,7 @@ impl DocType {
                 constructors: vec![],
                 parameters: info.parameters.clone(),
                 opaque: false,
-                source_url: "#todo".to_string(),
+                source_url: source_linker.url(info.location),
             }),
 
             Definition::DataType(info) if info.public && !info.opaque => Some(DocType {
@@ -523,7 +627,7 @@ impl DocType {
                     .collect(),
                 parameters: info.parameters.clone(),
                 opaque: info.opaque,
-                source_url: "#todo".to_string(),
+                source_url: source_linker.url(info.location),
             }),
 
             Definition::DataType(info) if info.public && info.opaque => Some(DocType {
@@ -536,7 +640,7 @@ impl DocType {
                 constructors: vec![],
                 parameters: info.parameters.clone(),
                 opaque: info.opaque,
-                source_url: "#todo".to_string(),
+                source_url: source_linker.url(info.location),
             }),
 
             _ => None,
@@ -553,14 +657,28 @@ struct DocTypeConstructor {
 
 impl DocTypeConstructor {
     fn from_record_constructor(constructor: &RecordConstructor<Rc<Type>>) -> Self {
+        let doc_args = constructor
+            .arguments
+            .iter()
+            .filter_map(|arg| match (arg.label.as_deref(), arg.doc.as_deref()) {
+                (Some(label), Some(doc)) => Some(format!("#### `.{label}`\n{doc}\n<hr/>\n",)),
+                _ => None,
+            })
+            .join("\n");
+
         DocTypeConstructor {
             definition: format::Formatter::new()
                 .docs_record_constructor(constructor)
-                .to_pretty_string(80),
+                .to_pretty_string(format::MAX_COLUMNS),
             documentation: constructor
                 .doc
                 .as_deref()
-                .map(render_markdown)
+                .map(|doc| render_markdown(&format!("{doc}\n{doc_args}")))
+                .or(if doc_args.is_empty() {
+                    None
+                } else {
+                    Some(render_markdown(&format!("\n{doc_args}")))
+                })
                 .unwrap_or_default(),
             raw_documentation: constructor.doc.as_deref().unwrap_or_default().to_string(),
         }
@@ -602,141 +720,6 @@ fn new_timestamp() -> Duration {
         .expect("get current timestamp")
 }
 
-fn find_modules_prefix(modules: &[DocLink]) -> String {
-    do_find_modules_prefix("", modules)
-}
-
-fn do_find_modules_prefix(current_prefix: &str, modules: &[DocLink]) -> String {
-    let prefix = modules
-        .iter()
-        .fold(None, |previous_prefix, module| {
-            let name = module.name.strip_prefix(current_prefix).unwrap_or_default();
-            let name = if name.starts_with('/') {
-                name.strip_prefix('/').unwrap_or_default()
-            } else {
-                name
-            };
-
-            let prefix = name.split('/').next().unwrap_or_default().to_string();
-
-            match previous_prefix {
-                None if prefix != module.name => Some(prefix),
-                Some(..) if Some(prefix) == previous_prefix => previous_prefix,
-                _ => Some(String::new()),
-            }
-        })
-        .unwrap_or_default();
-
-    if prefix.is_empty() {
-        current_prefix.to_string()
-    } else {
-        let mut current_prefix = current_prefix.to_owned();
-        if !current_prefix.is_empty() {
-            current_prefix.push('/');
-        }
-        current_prefix.push_str(&prefix);
-        do_find_modules_prefix(&current_prefix, modules)
-    }
-}
-
-#[test]
-fn find_modules_prefix_test() {
-    assert_eq!(find_modules_prefix(&[]), "".to_string());
-
-    assert_eq!(
-        find_modules_prefix(&[DocLink {
-            name: "aiken/list".to_string(),
-            path: String::new()
-        }]),
-        "aiken/list".to_string()
-    );
-
-    assert_eq!(
-        find_modules_prefix(&[DocLink {
-            name: "my_module".to_string(),
-            path: String::new()
-        }]),
-        "".to_string()
-    );
-
-    assert_eq!(
-        find_modules_prefix(&[
-            DocLink {
-                name: "aiken/list".to_string(),
-                path: String::new()
-            },
-            DocLink {
-                name: "aiken/bytearray".to_string(),
-                path: String::new(),
-            }
-        ]),
-        "aiken".to_string()
-    );
-
-    assert_eq!(
-        find_modules_prefix(&[
-            DocLink {
-                name: "aiken/list".to_string(),
-                path: String::new()
-            },
-            DocLink {
-                name: "foo/bytearray".to_string(),
-                path: String::new(),
-            }
-        ]),
-        "".to_string()
-    );
-}
-
-#[test]
-fn find_modules_prefix_test_2() {
-    assert_eq!(
-        find_modules_prefix(&[
-            DocLink {
-                name: "aiken/trees/bst".to_string(),
-                path: String::new()
-            },
-            DocLink {
-                name: "aiken/trees/mt".to_string(),
-                path: String::new(),
-            }
-        ]),
-        "aiken/trees".to_string()
-    );
-
-    assert_eq!(
-        find_modules_prefix(&[
-            DocLink {
-                name: "aiken/trees/bst".to_string(),
-                path: String::new()
-            },
-            DocLink {
-                name: "aiken/trees/mt".to_string(),
-                path: String::new(),
-            },
-            DocLink {
-                name: "aiken/sequences".to_string(),
-                path: String::new(),
-            }
-        ]),
-        "aiken".to_string()
-    );
-
-    assert_eq!(
-        find_modules_prefix(&[
-            DocLink {
-                name: "aiken".to_string(),
-                path: String::new()
-            },
-            DocLink {
-                name: "aiken/prelude".to_string(),
-                path: String::new(),
-            }
-        ]),
-        "".to_string()
-    );
-}
-
 fn to_breadcrumbs(path: &str) -> String {
     let breadcrumbs = path
         .strip_prefix('/')
@@ -752,16 +735,41 @@ fn to_breadcrumbs(path: &str) -> String {
     }
 }
 
-#[test]
-fn to_breadcrumbs_test() {
-    // Pages
-    assert_eq!(to_breadcrumbs("a.html"), ".");
-    assert_eq!(to_breadcrumbs("/a.html"), ".");
-    assert_eq!(to_breadcrumbs("/a/b.html"), "..");
-    assert_eq!(to_breadcrumbs("/a/b/c.html"), "../..");
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    // Modules
-    assert_eq!(to_breadcrumbs("a"), ".");
-    assert_eq!(to_breadcrumbs("a/b"), "..");
-    assert_eq!(to_breadcrumbs("a/b/c"), "../..");
+    #[test]
+    fn to_breadcrumbs_test() {
+        // Pages
+        assert_eq!(to_breadcrumbs("a.html"), ".");
+        assert_eq!(to_breadcrumbs("/a.html"), ".");
+        assert_eq!(to_breadcrumbs("/a/b.html"), "..");
+        assert_eq!(to_breadcrumbs("/a/b/c.html"), "../..");
+
+        // Modules
+        assert_eq!(to_breadcrumbs("a"), ".");
+        assert_eq!(to_breadcrumbs("a/b"), "..");
+        assert_eq!(to_breadcrumbs("a/b/c"), "../..");
+    }
+
+    #[test]
+    fn convert_latex_markers_simple() {
+        assert_eq!(
+            convert_latex_markers(
+                r#"<span class="math math-inline">\frac{4}{5}</span>"#.to_string()
+            ),
+            r#"<span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>4</mn><mn>5</mn></mfrac></mrow><annotation encoding="application/x-tex">\frac{4}{5}</annotation></semantics></math></span>"#,
+        );
+    }
+
+    #[test]
+    fn convert_latex_markers_sequence() {
+        assert_eq!(
+            convert_latex_markers(
+                r#"<span class="math math-inline">\frac{4}{5}</span><span class="math math-inline">e^{i \times \pi}</span>"#.to_string()
+            ),
+            r#"<span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>4</mn><mn>5</mn></mfrac></mrow><annotation encoding="application/x-tex">\frac{4}{5}</annotation></semantics></math></span><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>e</mi><mrow><mi>i</mi><mo>×</mo><mi>π</mi></mrow></msup></mrow><annotation encoding="application/x-tex">e^{i \times \pi}</annotation></semantics></math></span>"#,
+        );
+    }
 }

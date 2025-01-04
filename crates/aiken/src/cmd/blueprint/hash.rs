@@ -1,4 +1,3 @@
-use aiken_lang::ast::Tracing;
 use aiken_project::watch::with_project;
 use std::path::PathBuf;
 
@@ -8,6 +7,18 @@ pub struct Args {
     /// Path to project
     directory: Option<PathBuf>,
 
+    /// Optional path to the blueprint file to be used as input.
+    ///
+    /// [default: plutus.json]
+    #[clap(
+        short,
+        long = "in",
+        value_parser,
+        value_name = "FILEPATH",
+        verbatim_doc_comment
+    )]
+    input: Option<PathBuf>,
+
     /// Name of the validator's module within the project. Optional if there's only one validator
     #[clap(short, long)]
     module: Option<String>,
@@ -15,38 +26,24 @@ pub struct Args {
     /// Name of the validator within the module. Optional if there's only one validator
     #[clap(short, long)]
     validator: Option<String>,
-
-    /// Force the project to be rebuilt, otherwise relies on existing artifacts (i.e. plutus.json)
-    #[clap(long)]
-    rebuild: bool,
 }
 
 pub fn exec(
     Args {
         directory,
+        input,
         module,
         validator,
-        rebuild,
     }: Args,
 ) -> miette::Result<()> {
-    with_project(directory.as_deref(), false, |p| {
-        if rebuild {
-            p.build(false, Tracing::silent())?;
-        }
-
-        let title = module.as_ref().map(|m| {
-            format!(
-                "{m}{}",
-                validator
-                    .as_ref()
-                    .map(|v| format!(".{v}"))
-                    .unwrap_or_default()
-            )
-        });
-
-        let title = title.as_ref().or(validator.as_ref());
-
-        let address = p.address(title, None, false)?;
+    with_project(directory.as_deref(), false, false, |p| {
+        let address = p.address(
+            module.as_deref(),
+            validator.as_deref(),
+            None,
+            p.blueprint_path(input.as_deref()).as_path(),
+            false,
+        )?;
 
         println!("{}", address.payment().to_hex());
 

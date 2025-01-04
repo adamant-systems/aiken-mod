@@ -1,4 +1,3 @@
-use aiken_lang::ast::Tracing;
 use aiken_project::watch::with_project;
 use std::path::PathBuf;
 
@@ -7,6 +6,18 @@ use std::path::PathBuf;
 pub struct Args {
     /// Path to project
     directory: Option<PathBuf>,
+
+    /// Optional path to the Plutus blueprint file to be used as input.
+    ///
+    /// [default: plutus.json]
+    #[clap(
+        short,
+        long = "in",
+        value_parser,
+        value_name = "FILEPATH",
+        verbatim_doc_comment
+    )]
+    input: Option<PathBuf>,
 
     /// Name of the validator's module within the project. Optional if there's only one validator
     #[clap(short, long)]
@@ -20,10 +31,6 @@ pub struct Args {
     #[clap(long)]
     delegated_to: Option<String>,
 
-    /// Force the project to be rebuilt, otherwise relies on existing artifacts (i.e. plutus.json)
-    #[clap(long)]
-    rebuild: bool,
-
     /// Output the address for mainnet (this command defaults to testnet)
     #[clap(long)]
     mainnet: bool,
@@ -32,31 +39,21 @@ pub struct Args {
 pub fn exec(
     Args {
         directory,
+        input,
         module,
         validator,
         delegated_to,
-        rebuild,
         mainnet,
     }: Args,
 ) -> miette::Result<()> {
-    with_project(directory.as_deref(), false, |p| {
-        if rebuild {
-            p.build(false, Tracing::silent())?;
-        }
-
-        let title = module.as_ref().map(|m| {
-            format!(
-                "{m}{}",
-                validator
-                    .as_ref()
-                    .map(|v| format!(".{v}"))
-                    .unwrap_or_default()
-            )
-        });
-
-        let title = title.as_ref().or(validator.as_ref());
-
-        let address = p.address(title, delegated_to.as_ref(), mainnet)?;
+    with_project(directory.as_deref(), false, false, |p| {
+        let address = p.address(
+            module.as_deref(),
+            validator.as_deref(),
+            delegated_to.as_deref(),
+            p.blueprint_path(input.as_deref()).as_path(),
+            mainnet,
+        )?;
 
         println!("{}", address.to_bech32().unwrap());
 

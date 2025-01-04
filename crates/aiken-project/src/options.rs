@@ -1,8 +1,11 @@
 use aiken_lang::ast::Tracing;
+use std::path::PathBuf;
 
 pub struct Options {
     pub code_gen_mode: CodeGenMode,
     pub tracing: Tracing,
+    pub env: Option<String>,
+    pub blueprint_path: PathBuf,
 }
 
 impl Default for Options {
@@ -10,6 +13,8 @@ impl Default for Options {
         Self {
             code_gen_mode: CodeGenMode::NoOp,
             tracing: Tracing::silent(),
+            env: None,
+            blueprint_path: PathBuf::from("plutus.json"),
         }
     }
 }

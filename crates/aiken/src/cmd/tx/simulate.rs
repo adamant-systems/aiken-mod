@@ -1,18 +1,15 @@
 use miette::IntoDiagnostic;
 use owo_colors::{OwoColorize, Stream::Stderr};
-use pallas::ledger::{
-    primitives::{
-        babbage::{Redeemer, TransactionInput, TransactionOutput},
-        Fragment,
-    },
-    traverse::{Era, MultiEraTx},
+use pallas_primitives::{
+    conway::{Redeemer, TransactionInput, TransactionOutput},
+    Fragment,
 };
-
+use pallas_traverse::{Era, MultiEraTx};
 use std::{fmt, fs, path::PathBuf, process};
 use uplc::{
     machine::cost_model::ExBudget,
     tx::{
-        self,
+        self, redeemer_tag_to_string,
         script_context::{ResolvedInput, SlotConfig},
     },
 };
@@ -21,6 +18,7 @@ use uplc::{
 /// Simulate a transaction by evaluating it's script
 pub struct Args {
     /// A file containing cbor hex for a transaction
+    #[clap(value_name = "FILEPATH")]
     input: PathBuf,
 
     /// Toggle whether input is raw cbor or a hex string
@@ -28,21 +26,23 @@ pub struct Args {
     cbor: bool,
 
     /// A file containing cbor hex for the raw inputs
+    #[clap(value_name = "FILEPATH")]
     raw_inputs: PathBuf,
 
     /// A file containing cbor hex for the raw outputs
+    #[clap(value_name = "FILEPATH")]
     raw_outputs: PathBuf,
 
     /// Time between each slot
-    #[clap(short, long, default_value_t = 1000)]
+    #[clap(short, long, default_value_t = 1000, value_name = "MILLISECOND")]
     slot_length: u32,
 
     /// Time of shelley hardfork
-    #[clap(long, default_value_t = 1596059091000)]
+    #[clap(long, default_value_t = 1596059091000, value_name = "POSIX")]
     zero_time: u64,
 
     /// Slot number at the start of the shelley hardfork
-    #[clap(long, default_value_t = 4492800)]
+    #[clap(long, default_value_t = 4492800, value_name = "SLOT")]
     zero_slot: u64,
 }
 
@@ -82,7 +82,7 @@ pub fn exec(
         )
     };
 
-    let tx = MultiEraTx::decode_for_era(Era::Babbage, &tx_bytes).into_diagnostic()?;
+    let tx = MultiEraTx::decode_for_era(Era::Conway, &tx_bytes).into_diagnostic()?;
 
     eprintln!(
         "{} {}",
@@ -104,7 +104,7 @@ pub fn exec(
         })
         .collect();
 
-    if let Some(tx_babbage) = tx.as_babbage() {
+    if let Some(tx_conway) = tx.as_conway() {
         let slot_config = SlotConfig {
             zero_time,
             zero_slot,
@@ -113,17 +113,17 @@ pub fn exec(
 
         let with_redeemer = |redeemer: &Redeemer| {
             eprintln!(
-                "{} {:?} → {}",
-                "     Redeemer"
+                "{} {}[{}]",
+                "   Evaluating"
                     .if_supports_color(Stderr, |s| s.purple())
                     .if_supports_color(Stderr, |s| s.bold()),
-                redeemer.tag,
+                redeemer_tag_to_string(&redeemer.tag),
                 redeemer.index
             )
         };
 
         let result = tx::eval_phase_two(
-            tx_babbage,
+            tx_conway,
             &resolved_inputs,
             None,
             None,
@@ -152,54 +152,18 @@ pub fn exec(
                 );
             }
             Err(err) => {
-                eprintln!("{}", display_tx_error(&err));
+                eprintln!(
+                    "{} {}",
+                    "        Error"
+                        .if_supports_color(Stderr, |s| s.red())
+                        .if_supports_color(Stderr, |s| s.bold()),
+                    err.red()
+                );
+
                 process::exit(1);
             }
         }
     }
 
     Ok(())
-}
-
-fn display_tx_error(err: &tx::error::Error) -> String {
-    let mut msg = format!(
-        "{} {}",
-        "        Error"
-            .if_supports_color(Stderr, |s| s.red())
-            .if_supports_color(Stderr, |s| s.bold()),
-        err.red()
-    );
-    match err {
-        tx::error::Error::RedeemerError { err, .. } => {
-            msg.push_str(&format!(
-                "\n{}",
-                display_tx_error(err)
-                    .lines()
-                    .skip(1)
-                    .collect::<Vec<_>>()
-                    .join("\n"),
-            ));
-            msg
-        }
-        tx::error::Error::Machine(_, _, traces) => {
-            msg.push_str(
-                traces
-                    .iter()
-                    .map(|s| {
-                        format!(
-                            "\n{} {}",
-                            "        Trace"
-                                .if_supports_color(Stderr, |s| s.yellow())
-                                .if_supports_color(Stderr, |s| s.bold()),
-                            s.if_supports_color(Stderr, |s| s.yellow())
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join("")
-                    .as_str(),
-            );
-            msg
-        }
-        _ => msg,
-    }
 }

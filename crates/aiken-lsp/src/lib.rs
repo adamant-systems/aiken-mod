@@ -11,6 +11,7 @@ mod quickfix;
 pub mod server;
 mod utils;
 
+#[allow(clippy::result_large_err)]
 pub fn start() -> Result<(), Error> {
     tracing::info!("Aiken language server starting");
 
@@ -34,7 +35,7 @@ pub fn start() -> Result<(), Error> {
     let (connection, io_threads) = Connection::stdio();
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
-    let server_capabilities = serde_json::to_value(&capabilities())?;
+    let server_capabilities = serde_json::to_value(capabilities())?;
 
     let initialization_params = connection.initialize(server_capabilities)?;
     let initialize_params = serde_json::from_value(initialization_params)?;

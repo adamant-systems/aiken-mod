@@ -1,6 +1,6 @@
 use super::{Type, TypeVar};
 use crate::{
-    docvec,
+    docvec, format,
     pretty::{nil, *},
     tipo::{Annotation, TypeAliasAnnotation},
 };
@@ -40,7 +40,7 @@ impl Printer {
             .to_doc()
             .append(self.print(typ))
             .nest(initial_indent as isize)
-            .to_pretty_string(80)
+            .to_pretty_string(format::MAX_COLUMNS)
     }
 
     // TODO: have this function return a Document that borrows from the Type.
@@ -206,7 +206,7 @@ impl Printer {
     }
 }
 
-fn qualify_type_name(module: &String, typ_name: &str) -> Document<'static> {
+fn qualify_type_name(module: &str, typ_name: &str) -> Document<'static> {
     if module.is_empty() {
         docvec!["aiken.", Document::String(typ_name.to_string())]
     } else {
@@ -214,7 +214,7 @@ fn qualify_type_name(module: &String, typ_name: &str) -> Document<'static> {
     }
 }
 
-fn resolve_alias(
+pub fn resolve_alias(
     parameters: &[String],
     annotation: &Annotation,
     typ: &Type,
@@ -296,10 +296,7 @@ fn resolve_alias(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        builtins::{function, int},
-        tipo::Span,
-    };
+    use crate::tipo::{Span, Type};
     use pretty_assertions::assert_eq;
     use std::cell::RefCell;
 
@@ -490,7 +487,7 @@ mod tests {
             "?",
         );
         assert_string!(
-            function(
+            Type::function(
                 vec![Rc::new(Type::Var {
                     tipo: Rc::new(RefCell::new(TypeVar::Unbound { id: 78 })),
                     alias: None,
@@ -503,7 +500,7 @@ mod tests {
             "fn(?) -> ?",
         );
         assert_string!(
-            function(
+            Type::function(
                 vec![Rc::new(Type::Var {
                     tipo: Rc::new(RefCell::new(TypeVar::Generic { id: 78 })),
                     alias: None,
@@ -692,10 +689,16 @@ mod tests {
 
     #[test]
     fn function_test() {
-        assert_eq!(pretty_print(function(vec![], int())), "fn() -> Int");
+        assert_eq!(
+            pretty_print(Type::function(vec![], Type::int())),
+            "fn() -> Int"
+        );
 
         assert_eq!(
-            pretty_print(function(vec![int(), int(), int()], int())),
+            pretty_print(Type::function(
+                vec![Type::int(), Type::int(), Type::int()],
+                Type::int()
+            )),
             "fn(Int, Int, Int) -> Int"
         );
     }

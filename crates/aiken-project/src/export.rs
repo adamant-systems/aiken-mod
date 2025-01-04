@@ -1,16 +1,19 @@
-use aiken_lang::{ast::TypedFunction, gen_uplc::CodeGenerator};
-use miette::NamedSource;
-use uplc::ast::{DeBruijn, Program};
-
 use crate::{
     blueprint::{
         self,
         definitions::Definitions,
         parameter::Parameter,
-        schema::{Annotated, Schema},
+        schema::{Annotated, Declaration, Schema},
     },
     module::{CheckedModule, CheckedModules},
 };
+use aiken_lang::{
+    ast::{ArgName, Span, TypedArg, TypedFunction},
+    gen_uplc::CodeGenerator,
+    plutus_version::PlutusVersion,
+};
+use miette::NamedSource;
+use uplc::ast::SerializableProgram;
 
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Export {
@@ -23,8 +26,10 @@ pub struct Export {
     #[serde(default)]
     pub parameters: Vec<Parameter>,
 
+    pub return_type: Parameter,
+
     #[serde(flatten)]
-    pub program: Program<DeBruijn>,
+    pub program: SerializableProgram,
 
     #[serde(skip_serializing_if = "Definitions::is_empty")]
     #[serde(default)]
@@ -37,6 +42,7 @@ impl Export {
         module: &CheckedModule,
         generator: &mut CodeGenerator,
         modules: &CheckedModules,
+        plutus_version: &PlutusVersion,
     ) -> Result<Export, blueprint::Error> {
         let mut definitions = Definitions::new();
 
@@ -51,7 +57,7 @@ impl Export {
                 )
                 .map(|schema| Parameter {
                     title: Some(param.arg_name.get_label()),
-                    schema,
+                    schema: Declaration::Referenced(schema),
                 })
                 .map_err(|error| blueprint::Error::Schema {
                     error,
@@ -64,15 +70,54 @@ impl Export {
             })
             .collect::<Result<_, _>>()?;
 
+        let return_type = Annotated::from_type(
+            modules.into(),
+            blueprint::validator::tipo_or_annotation(
+                module,
+                &TypedArg {
+                    arg_name: ArgName::Discarded {
+                        name: "".to_string(),
+                        label: "".to_string(),
+                        location: Span::empty(),
+                    },
+                    location: Span::empty(),
+                    annotation: func.return_annotation.clone(),
+                    doc: None,
+                    is_validator_param: false,
+                    tipo: func.return_type.clone(),
+                },
+            ),
+            &mut definitions,
+        )
+        .map(|schema| Parameter {
+            title: Some("return_type".to_string()),
+            schema: Declaration::Referenced(schema),
+        })
+        .map_err(|error| blueprint::Error::Schema {
+            error,
+            location: func.location,
+            source_code: NamedSource::new(
+                module.input_path.display().to_string(),
+                module.code.clone(),
+            ),
+        })?;
+
         let program = generator
             .generate_raw(&func.body, &func.arguments, &module.name)
             .to_debruijn()
             .unwrap();
 
+        let program = match plutus_version {
+            PlutusVersion::V1 => SerializableProgram::PlutusV1Program(program),
+            PlutusVersion::V2 => SerializableProgram::PlutusV2Program(program),
+            PlutusVersion::V3 => SerializableProgram::PlutusV3Program(program),
+        };
+
         Ok(Export {
             name: format!("{}.{}", &module.name, &func.name),
             doc: func.doc.clone(),
             parameters,
+            return_type,
             program,
             definitions,
         })
@@ -86,6 +131,7 @@ mod tests {
     use aiken_lang::{
         self,
         ast::{TraceLevel, Tracing},
+        plutus_version::PlutusVersion,
     };
 
     macro_rules! assert_export {
@@ -103,7 +149,7 @@ mod tests {
                 .next()
                 .expect("source code did no yield any exports");
 
-            let export = Export::from_function(func, module, &mut generator, &modules);
+            let export = Export::from_function(func, module, &mut generator, &modules, &PlutusVersion::default());
 
             match export {
                 Err(e) => insta::with_settings!({

@@ -1,7 +1,7 @@
-use aiken/bytearray.{from_string}
-use aiken/hash.{Hash, Sha2_256, sha2_256}
-use aiken/list
+use aiken/collection/list
+use aiken/crypto.{Hash, Sha2_256, sha2_256}
 use aiken/option.{choice, is_none}
+use aiken/primitive/bytearray.{from_string}
 
 // Construction of the merkle tree shouldn't be done by hand, but via
 // 'from_list'.
@@ -322,7 +322,7 @@ test get_proof_4() {
   let h1: ByteArray = get_proof_item_value(p1)
   let h2: ByteArray = get_proof_item_value(p2)
 
-  size_match && ( h1 == hash_fn(cat) && h2 == right_node_hash )
+  size_match && h1 == hash_fn(cat) && h2 == right_node_hash
 }
 
 fn do_from_list(

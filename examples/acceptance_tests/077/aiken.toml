@@ -1,4 +1,5 @@
 name = "aiken-lang/acceptance_test_077"
+plutusVersion = "v3"
 version = "0.0.0"
 
 [[dependencies]]

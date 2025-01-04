@@ -5,14 +5,13 @@ pub mod parameter;
 pub mod schema;
 pub mod validator;
 
-pub use error::Error;
-
 use crate::{
     config::{self, Config, PlutusVersion},
     module::CheckedModules,
 };
 use aiken_lang::gen_uplc::CodeGenerator;
 use definitions::Definitions;
+pub use error::Error;
 use schema::{Annotated, Schema};
 use std::fmt::Debug;
 use validator::Validator;
@@ -53,7 +52,7 @@ pub struct Compiler {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum LookupResult<'a, T> {
-    One(&'a T),
+    One(String, &'a T),
     Many,
 }
 
@@ -70,7 +69,7 @@ impl Blueprint {
         let validators: Result<Vec<_>, Error> = modules
             .validators()
             .flat_map(|(validator, def)| {
-                Validator::from_checked_module(modules, generator, validator, def)
+                Validator::from_checked_module(modules, generator, validator, def, &config.plutus)
                     .into_iter()
                     .map(|result| {
                         result.map(|mut schema| {
@@ -92,17 +91,48 @@ impl Blueprint {
 }
 
 impl Blueprint {
-    pub fn lookup(&self, title: Option<&String>) -> Option<LookupResult<Validator>> {
+    pub fn lookup(
+        &self,
+        want_module_name: Option<&str>,
+        want_validator_name: Option<&str>,
+    ) -> Option<LookupResult<Validator>> {
         let mut validator = None;
 
         for v in self.validators.iter() {
-            let match_title = Some(&v.title) == title.or(Some(&v.title));
-            if match_title {
-                validator = Some(if validator.is_none() {
-                    LookupResult::One(v)
-                } else {
-                    LookupResult::Many
-                })
+            let mut split = v.title.split('.');
+
+            let known_module_name = split
+                .next()
+                .expect("validator's name must have two dot-separated components.");
+
+            let known_validator_name = split
+                .next()
+                .expect("validator's name must have two dot-separated components.");
+
+            let is_target = match (want_module_name, want_validator_name) {
+                (None, None) => true,
+                (Some(want_module_name), None) => want_module_name == known_module_name,
+                (None, Some(want_validator_name)) => want_validator_name == known_validator_name,
+                (Some(want_module_name), Some(want_validator_name)) => {
+                    want_module_name == known_module_name
+                        && want_validator_name == known_validator_name
+                }
+            };
+
+            let title = format!("{known_module_name}.{known_validator_name}");
+
+            if is_target {
+                match validator {
+                    Some(LookupResult::Many) => (),
+                    None => {
+                        validator = Some(LookupResult::One(title, v));
+                    }
+                    Some(LookupResult::One(ref known_title, _)) => {
+                        if title.as_str() != known_title {
+                            validator = Some(LookupResult::Many)
+                        }
+                    }
+                }
             }
         }
 
@@ -111,16 +141,17 @@ impl Blueprint {
 
     pub fn with_validator<F, A, E>(
         &self,
-        title: Option<&String>,
+        module_name: Option<&str>,
+        validator_name: Option<&str>,
         when_too_many: fn(Vec<String>) -> E,
         when_missing: fn(Vec<String>) -> E,
         action: F,
     ) -> Result<A, E>
     where
-        F: Fn(Validator) -> Result<A, E>,
+        F: Fn(&Validator) -> Result<A, E>,
     {
-        match self.lookup(title) {
-            Some(LookupResult::One(validator)) => action(validator.to_owned()),
+        match self.lookup(module_name, validator_name) {
+            Some(LookupResult::One(_, validator)) => action(validator),
             Some(LookupResult::Many) => Err(when_too_many(
                 self.validators.iter().map(|v| v.title.clone()).collect(),
             )),
@@ -154,7 +185,7 @@ impl From<&Config> for Preamble {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aiken_lang::builtins;
+    use aiken_lang::tipo::Type;
     use schema::{Data, Declaration, Items, Schema};
     use serde_json::{self, json};
     use std::collections::HashMap;
@@ -226,17 +257,17 @@ mod tests {
     fn serialize_with_definitions() {
         let mut definitions = Definitions::new();
         definitions
-            .register::<_, Error>(&builtins::int(), &HashMap::new(), |_| {
+            .register::<_, Error>(&Type::int(), &HashMap::new(), |_| {
                 Ok(Schema::Data(Data::Integer).into())
             })
             .unwrap();
         definitions
             .register::<_, Error>(
-                &builtins::list(builtins::byte_array()),
+                &Type::list(Type::byte_array()),
                 &HashMap::new(),
                 |definitions| {
                     let ref_bytes = definitions.register::<_, Error>(
-                        &builtins::byte_array(),
+                        &Type::byte_array(),
                         &HashMap::new(),
                         |_| Ok(Schema::Data(Data::Bytes).into()),
                     )?;

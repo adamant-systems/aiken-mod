@@ -5,6 +5,7 @@ use aiken_lang::{
         Tracing, TypedDataType, TypedFunction, TypedModule, TypedValidator, UntypedModule,
         Validator,
     },
+    expr::TypedExpr,
     line_numbers::LineNumbers,
     parser::extra::{comments_before, Comment, ModuleExtra},
     tipo::TypeInfo,
@@ -32,16 +33,9 @@ pub struct ParsedModule {
 }
 
 impl ParsedModule {
-    pub fn deps_for_graph(&self) -> (String, Vec<String>) {
+    pub fn deps_for_graph(&self, env_modules: &[String]) -> (String, Vec<String>) {
         let name = self.name.clone();
-
-        let deps: Vec<_> = self
-            .ast
-            .dependencies()
-            .into_iter()
-            .map(|(dep, _span)| dep)
-            .collect();
-
+        let deps: Vec<_> = self.ast.dependencies(env_modules);
         (name, deps)
     }
 
@@ -51,10 +45,12 @@ impl ParsedModule {
         id_gen: &IdGenerator,
         package: &str,
         tracing: Tracing,
+        env: Option<&str>,
         validate_module_name: bool,
         module_sources: &mut HashMap<String, (String, LineNumbers)>,
         module_types: &mut HashMap<String, TypeInfo>,
         functions: &mut IndexMap<FunctionAccessKey, TypedFunction>,
+        constants: &mut IndexMap<FunctionAccessKey, TypedExpr>,
         data_types: &mut IndexMap<DataTypeKey, TypedDataType>,
     ) -> Result<(CheckedModule, Vec<Warning>), Error> {
         let mut warnings = Vec::new();
@@ -68,6 +64,7 @@ impl ParsedModule {
                 module_types,
                 tracing,
                 &mut warnings,
+                env,
             )
             .map_err(|error| Error::Type {
                 path: self.path.clone(),
@@ -97,7 +94,7 @@ impl ParsedModule {
         module_types.insert(self.name.clone(), ast.type_info.clone());
 
         // Register function definitions & data-types for easier access later.
-        ast.register_definitions(functions, data_types);
+        ast.register_definitions(functions, constants, data_types);
 
         Ok((
             CheckedModule {
@@ -122,10 +119,19 @@ impl ParsedModules {
     }
 
     pub fn sequence(&self, our_modules: &BTreeSet<String>) -> Result<Vec<String>, Error> {
+        let env_modules = self
+            .0
+            .values()
+            .filter_map(|m| match m.kind {
+                ModuleKind::Env => Some(m.name.clone()),
+                ModuleKind::Lib | ModuleKind::Validator | ModuleKind::Config => None,
+            })
+            .collect::<Vec<String>>();
+
         let inputs = self
             .0
             .values()
-            .map(|m| m.deps_for_graph())
+            .map(|m| m.deps_for_graph(&env_modules))
             .collect::<Vec<(String, Vec<String>)>>();
 
         let capacity = inputs.len();
@@ -287,6 +293,15 @@ pub struct CheckedModule {
 }
 
 impl CheckedModule {
+    pub fn skip_doc_generation(&self) -> bool {
+        self.ast
+            .docs
+            .first()
+            .map(|s| s.as_str().trim())
+            .unwrap_or_default()
+            == "@hidden"
+    }
+
     pub fn to_cbor(&self) -> Vec<u8> {
         let mut module_bytes = vec![];
 
@@ -377,8 +392,8 @@ impl CheckedModule {
                 }
                 Definition::Validator(Validator {
                     params,
-                    fun,
-                    other_fun,
+                    handlers,
+                    fallback,
                     ..
                 }) => {
                     for param in params {
@@ -391,18 +406,8 @@ impl CheckedModule {
                         }
                     }
 
-                    for argument in fun.arguments.iter_mut() {
-                        let docs: Vec<&str> =
-                            comments_before(&mut doc_comments, argument.location.start, &self.code);
-
-                        if !docs.is_empty() {
-                            let doc = docs.join("\n");
-                            argument.put_doc(doc);
-                        }
-                    }
-
-                    if let Some(fun) = other_fun {
-                        for argument in fun.arguments.iter_mut() {
+                    for handler in handlers.iter_mut() {
+                        for argument in handler.arguments.iter_mut() {
                             let docs: Vec<&str> = comments_before(
                                 &mut doc_comments,
                                 argument.location.start,
@@ -413,6 +418,16 @@ impl CheckedModule {
                                 let doc = docs.join("\n");
                                 argument.put_doc(doc);
                             }
+                        }
+                    }
+
+                    for argument in fallback.arguments.iter_mut() {
+                        let docs: Vec<&str> =
+                            comments_before(&mut doc_comments, argument.location.start, &self.code);
+
+                        if !docs.is_empty() {
+                            let doc = docs.join("\n");
+                            argument.put_doc(doc);
                         }
                     }
                 }
@@ -450,6 +465,7 @@ impl CheckedModules {
         modules
     }
 
+    // todo: this might need fixing
     pub fn validators(&self) -> impl Iterator<Item = (&CheckedModule, &TypedValidator)> {
         let mut items = vec![];
 
@@ -465,12 +481,12 @@ impl CheckedModules {
             (
                 left.0.package.to_string(),
                 left.0.name.to_string(),
-                left.1.fun.name.to_string(),
+                left.1.name.to_string(),
             )
                 .cmp(&(
                     right.0.package.to_string(),
                     right.0.name.to_string(),
-                    right.1.fun.name.to_string(),
+                    right.1.name.to_string(),
                 ))
         });
 

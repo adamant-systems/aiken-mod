@@ -198,18 +198,18 @@ fn format_preserve_newline_after_bool_expect() {
 fn format_validator() {
     assert_format!(
         r#"
-      validator ( ) {
+      validator thing ( ) {
       // What is the purpose of life
 
-      fn foo (d: Datum, r: Redeemer, ctx: ScriptContext) -> Bool {
+      spend(d: Datum, r: Redeemer, ctx: ScriptContext) -> Bool {
       True
       }
       }
 
       // What?
-      validator {
+      validator foo {
         /// Some documentation for foo
-        fn foo() {
+        foo() {
           Void
         }
 
@@ -223,12 +223,12 @@ fn format_validator() {
 fn format_double_validator() {
     assert_format!(
         r#"
-        validator ( param1 : ByteArray ) {
-        fn foo (d: Datum, r: Redeemer, ctx: ScriptContext) -> Bool {
+        validator foo( param1 : ByteArray ) {
+        spend(d: Datum, r: Redeemer, ctx: ScriptContext) -> Bool {
         True
         }
         /// This is bar
-    fn bar(r: Redeemer, ctx    : ScriptContext  )   ->   Bool { True }
+    mint(r: Redeemer, ctx    : ScriptContext  )   ->   Bool { True }
         }
     "#
     );
@@ -238,12 +238,12 @@ fn format_double_validator() {
 fn format_double_validator_public() {
     assert_format!(
         r#"
-        validator ( param1 : ByteArray ) {
-        pub fn foo (d: Datum, r: Redeemer, ctx: ScriptContext) -> Bool {
+        validator foo ( param1 : ByteArray ) {
+        spend(d: Datum, r: Redeemer, ctx: ScriptContext) -> Bool {
         True
         }
         /// This is bar
-    pub fn bar(r: Redeemer, ctx    : ScriptContext  )   ->   Bool { True }
+    mint(r: Redeemer, ctx    : ScriptContext  )   ->   Bool { True }
         }
     "#
     );
@@ -298,6 +298,7 @@ fn format_nested_when_if() {
             when xs is {
             [] ->
               []
+            [x] -> [1, 2, 3]
             [_x, ..rest] ->
               drop(rest, n - 1)
           }
@@ -967,20 +968,483 @@ fn format_anon_fn_pattern() {
 fn format_validator_pattern() {
     assert_format!(
         r#"
-        validator(Foo { a, b, .. }) {
-            fn foo() { todo }
+        validator foo(Foo { a, b, .. }) {
+            spend() { todo }
         }
 
-        validator([Bar] : List<Bar>) {
-            fn bar() { todo }
+        validator foo([Bar] : List<Bar>) {
+            spend() { todo }
         }
 
-        validator((Baz, Baz) as x) {
-            fn baz() { todo }
+        validator foo((Baz, Baz) as x) {
+            mint() { todo }
         }
 
-        validator((fst, snd) as x: Pair<Int, Int>) {
-            fn fiz() { todo }
+        validator fiz((fst, snd) as x: Pair<Int, Int>) {
+            spend() { todo }
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_variadic_trace() {
+    assert_format!(
+        r#"
+        fn foo() {
+            trace @"foo": @"bar"
+            trace "foo": "bar"
+            trace @"foo": "bar", @"baz"
+            trace bar: @"baz"
+            Void
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_pattern_bytearray() {
+    assert_format!(
+        r#"
+        fn main(foo) {
+            when foo is {
+                "Aiken, rocks!" -> True
+                #"00abcd" -> True
+                #[1, 2, 3, 4] -> True
+                #[0x00, 0xab, 0xcd] -> True
+                _ -> False
+            }
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_long_bin_op_1() {
+    assert_format!(
+        r#"
+        test foo() {
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_long_bin_op_2() {
+    assert_format!(
+        r#"
+        test foo() {
+            [0, 0, 0] == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_long_bin_op_3() {
+    assert_format!(
+        r#"
+        test foo() {
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] == [0, 0, 0]
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_long_bin_op_4() {
+    assert_format!(
+        r#"
+        test foo() {
+            [foo, bar, baz, (2, 3), (4, 5), (6, 7), (8, 9), biz, buz, fizz, fuzz, alice, bob, carole, i, am, out, of, names] == [0, 0, 0]
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_long_pattern_1() {
+    assert_format!(
+        r#"
+        test foo() {
+            when x is {
+                [True, False, True, False, True, False, True, False, True, False, True, False, True, False, True, False, ..] -> todo
+                _ -> todo
+            }
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_long_pattern_2() {
+    assert_format!(
+        r#"
+        test foo() {
+            when x is {
+                [(1, 2, 3), (4, 5, 6), (7, 8, 9), (10, 11, 12), (13, 14, 15), (16, 17, 18), (19, 20, 21), (22, 23, 24)] -> todo
+                _ -> todo
+            }
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_long_standalone_literal() {
+    assert_format!(
+        r#"
+        test foo() {
+          let left =
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          let right =
+            [
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+              0, 0, 0, 0,
+            ]
+          left == right
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_long_imports() {
+    assert_format!(
+        r#"
+        use aiken/list.{foldr, foldl, is_empty, filter, map, find, any, all, flat_map, partition, push, reduce, reverse, repeat}
+        "#
+    );
+}
+
+#[test]
+fn format_long_pair() {
+    assert_format!(
+        r#"
+        test foo() {
+            expect(Some([
+                Pair(GovernanceActionId { transaction: only7s, proposal_procedure: 2 },
+                Abstain),
+            ])) == whatever
+
+            expect(Some([
+                Foo(GovernanceActionId { transaction: only7s, proposal_procedure: 2 },
+                Abstain),
+            ])) == whatever
+
+            expect(Some([
+                (GovernanceActionId { transaction: only7s, proposal_procedure: 2 },
+                Abstain),
+            ])) == whatever
+        }
+        "#
+    );
+}
+
+#[test]
+fn format_validator_exhaustive_handlers() {
+    assert_format!(
+        r#"
+            validator foo {
+              mint(_redeemer, _policy_id, _self) {
+                True
+              }
+
+              spend(_datum, _redeemer, _policy_id, _self) {
+                True
+              }
+
+              withdraw(_redeemer, _account, _self) {
+                True
+              }
+
+              publish(_redeemer, _certificate, _self) {
+                True
+              }
+
+              vote(_redeemer, _voter, _self) {
+                True
+              }
+
+              propose(_redeemer, _proposal, _self) {
+                True
+              }
+            }
+        "#
+    );
+}
+
+#[test]
+fn format_validator_exhaustive_handlers_extra_default_fallback() {
+    assert_format!(
+        r#"
+            validator foo {
+              mint(_redeemer, _policy_id, _self) {
+                True
+              }
+
+              spend(_datum, _redeemer, _policy_id, _self) {
+                True
+              }
+
+              withdraw(_redeemer, _account, _self) {
+                True
+              }
+
+              publish(_redeemer, _certificate, _self) {
+                True
+              }
+
+              vote(_redeemer, _voter, _self) {
+                True
+              }
+
+              propose(_redeemer, _proposal, _self) {
+                True
+              }
+
+              else(_) {
+                fail
+              }
+            }
+        "#
+    );
+}
+
+#[test]
+fn format_validator_exhaustive_handlers_extra_non_default_fallback() {
+    assert_format!(
+        r#"
+            validator foo {
+              mint(_redeemer, _policy_id, _self) {
+                True
+              }
+
+              spend(_datum, _redeemer, _policy_id, _self) {
+                True
+              }
+
+              withdraw(_redeemer, _account, _self) {
+                True
+              }
+
+              publish(_redeemer, _certificate, _self) {
+                True
+              }
+
+              vote(_redeemer, _voter, _self) {
+                True
+              }
+
+              propose(_redeemer, _proposal, _self) {
+                True
+              }
+
+              else(_) {
+                True
+              }
+            }
+        "#
+    );
+}
+
+#[test]
+fn single_line_alternative_patterns() {
+    assert_format!(
+        r#"
+        fn foo() {
+            when bar is {
+                a | b | c -> True
+                d | e -> {
+                    let x = e + d
+                    x > 10
+                }
+                _ -> False
+            }
+        }
+        "#
+    );
+}
+
+#[test]
+fn multiline_alternative_patterns() {
+    assert_format!(
+        r#"
+        validator direct_proxy {
+          mint(_redeemer: Void, policy_id: PolicyId, self: Transaction) {
+            list.any(
+              self.certificates,
+              fn(certificate) {
+                when certificate is {
+                  RegisterDelegateRepresentative {
+                    delegate_representative: credential,
+                    ..
+                  } | UnregisterDelegateRepresentative {
+                    delegate_representative: credential,
+                    ..
+                  } | RegisterCredential { credential, .. } | UnregisterCredential {
+                    credential,
+                    ..
+                  } | RegisterAndDelegateCredential { credential, .. } ->
+                    credential == Script(policy_id)
+                  _ -> False
+                }
+              },
+            )
+          }
+        }
+        "#
+    );
+}
+
+#[test]
+fn trace_if_false_pipeline() {
+    assert_format!(
+        r#"
+        fn main(self) {
+          (self.extra_signatories |> list.has(self.extra_signatories, config.cold_key))?
+        }
+        "#
+    );
+}
+
+#[test]
+fn trace_if_false_unop() {
+    assert_format!(
+        r#"
+        fn main(self) {
+            (!True)?
+        }
+        "#
+    );
+}
+
+#[test]
+fn trace_if_false_todo() {
+    assert_format!(
+        r#"
+        fn main(self) {
+            (todo @"whatever")?
+        }
+        "#
+    );
+}
+
+#[test]
+fn trace_if_false_fail() {
+    assert_format!(
+        r#"
+        fn main(self) {
+            (fail @"whatever")?
+        }
+        "#
+    );
+}
+
+#[test]
+fn multiline_constant() {
+    assert_format!(
+        r#"
+        const n: Int = {
+            let x = 0
+            x + 1
+        }
+        "#
+    );
+}
+
+#[test]
+fn multiline_if_condition() {
+    assert_format!(
+        r#"
+        fn foo() {
+          if
+          list.is_empty(outputs) && (
+            !list.is_empty(mint_redeemers) || !list.is_empty(cert_redeemers)
+          ){
+            True
+          } else {
+              False
+          }
+        }
+        "#
+    );
+}
+
+#[test]
+fn callback_and_op() {
+    assert_format!(
+        r#"
+        fn foo() {
+            let labels = list.filter(labels, fn(lbl) {
+                and {
+                lbl != sc_missing_admin_approval_for_foreign_assets,
+                lbl != sc_missing_admin_approval_for_certificate_publish,
+              }
+            })
+            labels
+        }
+        "#
+    );
+}
+
+#[test]
+fn multiline_if_is() {
+    assert_format!(
+        r#"
+        fn foo() {
+            if first_asset
+            is
+            Pair(first_asset_policy, first_asset_tokens): Pair<PolicyId, Data> {
+                True
+                } else {
+                    False }
+        }
+        "#
+    );
+}
+
+#[test]
+fn multiline_if_is_2() {
+    assert_format!(
+        r#"
+        fn foo() {
+            if [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0]
+            is
+            Pair(first_asset_policy, first_asset_tokens): Pair<PolicyId, Data> {
+                True
+                } else {
+                    False }
+        }
+        "#
+    );
+}
+
+#[test]
+fn comment_in_pipeline() {
+    assert_format!(
+        r#"
+        fn foo() {
+            a
+            // stuff
+            // warning: wow
+            |> b
+            // Comment
+            |> c
+        }
+        "#
+    );
+}
+
+#[test]
+fn capture_right_hand_side_assign() {
+    assert_format!(
+        r#"
+        fn foo() {
+            let (_aa, bb, _cc) = bar(foo: _a, _b, _)
+            let _ = baz(_d, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23])
+            bb
         }
         "#
     );

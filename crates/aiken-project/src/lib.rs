@@ -12,9 +12,9 @@ pub mod package_name;
 pub mod paths;
 pub mod pretty;
 pub mod telemetry;
-pub mod test_framework;
-pub mod utils;
 pub mod watch;
+
+mod test_framework;
 
 #[cfg(test)]
 mod tests;
@@ -32,36 +32,33 @@ use crate::{
 };
 use aiken_lang::{
     ast::{
-        DataTypeKey, Definition, FunctionAccessKey, ModuleKind, Tracing, TypedDataType,
-        TypedFunction,
+        self, DataTypeKey, Definition, FunctionAccessKey, ModuleKind, Tracing, TypedDataType,
+        TypedFunction, UntypedDefinition,
     },
     builtins,
-    expr::UntypedExpr,
+    expr::{TypedExpr, UntypedExpr},
+    format::{Formatter, MAX_COLUMNS},
     gen_uplc::CodeGenerator,
     line_numbers::LineNumbers,
-    plutus_version::PlutusVersion,
+    test_framework::{Test, TestResult},
     tipo::{Type, TypeInfo},
-    IdGenerator,
+    utils, IdGenerator,
 };
 use export::Export;
 use indexmap::IndexMap;
 use miette::NamedSource;
 use options::{CodeGenMode, Options};
 use package_name::PackageName;
-use pallas::ledger::{
-    addresses::{Address, Network, ShelleyAddress, ShelleyDelegationPart, StakePayload},
-    primitives::conway::{self as cardano, PolicyId},
-    traverse::ComputeHash,
-};
+use pallas_addresses::{Address, Network, ShelleyAddress, ShelleyDelegationPart, StakePayload};
+use pallas_primitives::conway::PolicyId;
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap, HashSet},
     fs::{self, File},
     io::BufReader,
     path::{Path, PathBuf},
     rc::Rc,
 };
 use telemetry::EventListener;
-use test_framework::{Test, TestResult};
 use uplc::{
     ast::{Constant, Name, Program},
     PlutusData,
@@ -80,6 +77,12 @@ pub struct Checkpoint {
     defined_modules: HashMap<String, PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+enum AddModuleBy {
+    Source { name: String, code: String },
+    Path(PathBuf),
+}
+
 pub struct Project<T>
 where
     T: EventListener,
@@ -95,6 +98,7 @@ where
     checks_count: Option<usize>,
     event_listener: T,
     functions: IndexMap<FunctionAccessKey, TypedFunction>,
+    constants: IndexMap<FunctionAccessKey, TypedExpr>,
     data_types: IndexMap<DataTypeKey, TypedDataType>,
     module_sources: HashMap<String, (String, LineNumbers)>,
 }
@@ -130,7 +134,7 @@ where
         module_types.insert("aiken".to_string(), builtins::prelude(&id_gen));
         module_types.insert("aiken/builtin".to_string(), builtins::plutus(&id_gen));
 
-        let functions = builtins::prelude_functions(&id_gen);
+        let functions = builtins::prelude_functions(&id_gen, &module_types);
 
         let data_types = builtins::prelude_data_types(&id_gen);
 
@@ -146,6 +150,7 @@ where
             checks_count: None,
             event_listener,
             functions,
+            constants: IndexMap::new(),
             data_types,
             module_sources: HashMap::new(),
         }
@@ -155,6 +160,7 @@ where
         CodeGenerator::new(
             self.config.plutus,
             utils::indexmap::as_ref_values(&self.functions),
+            utils::indexmap::as_ref_values(&self.constants),
             utils::indexmap::as_ref_values(&self.data_types),
             utils::indexmap::as_str_ref_values(&self.module_types),
             utils::indexmap::as_str_ref_values(&self.module_sources),
@@ -186,10 +192,25 @@ where
         self.defined_modules = checkpoint.defined_modules;
     }
 
-    pub fn build(&mut self, uplc: bool, tracing: Tracing) -> Result<(), Vec<Error>> {
+    pub fn blueprint_path(&self, filepath: Option<&Path>) -> PathBuf {
+        match filepath {
+            Some(filepath) => filepath.to_path_buf(),
+            None => self.root.join(Options::default().blueprint_path),
+        }
+    }
+
+    pub fn build(
+        &mut self,
+        uplc: bool,
+        tracing: Tracing,
+        blueprint_path: PathBuf,
+        env: Option<String>,
+    ) -> Result<(), Vec<Error>> {
         let options = Options {
             code_gen_mode: CodeGenMode::Build(uplc),
             tracing,
+            env,
+            blueprint_path,
         };
 
         self.compile(options)
@@ -207,11 +228,13 @@ where
                 version: self.config.version.clone(),
             });
 
-        self.read_source_files()?;
+        let config = self.config_definitions(None);
+
+        self.read_source_files(config)?;
 
         let mut modules = self.parse_sources(self.config.name.clone())?;
 
-        self.type_check(&mut modules, Tracing::silent(), false)?;
+        self.type_check(&mut modules, Tracing::silent(), None, false)?;
 
         let destination = destination.unwrap_or_else(|| self.root.join("docs"));
 
@@ -252,9 +275,11 @@ where
         seed: u32,
         property_max_success: usize,
         tracing: Tracing,
+        env: Option<String>,
     ) -> Result<(), Vec<Error>> {
         let options = Options {
             tracing,
+            env,
             code_gen_mode: if skip_tests {
                 CodeGenMode::NoOp
             } else {
@@ -266,6 +291,7 @@ where
                     property_max_success,
                 }
             },
+            blueprint_path: self.blueprint_path(None),
         };
 
         self.compile(options)
@@ -283,7 +309,7 @@ where
             let path = dir.clone().join(format!("{}.uplc", validator.title));
 
             let program = &validator.program;
-            let program: Program<Name> = program.try_into().unwrap();
+            let program: Program<Name> = program.inner().try_into().unwrap();
 
             fs::write(&path, program.to_pretty()).map_err(|error| Error::FileIo { error, path })?;
         }
@@ -291,8 +317,30 @@ where
         Ok(())
     }
 
-    pub fn blueprint_path(&self) -> PathBuf {
-        self.root.join("plutus.json")
+    fn config_definitions(&mut self, env: Option<&str>) -> Option<Vec<UntypedDefinition>> {
+        if !self.config.config.is_empty() {
+            let env = env.unwrap_or(ast::DEFAULT_ENV_MODULE);
+
+            match self.config.config.get(env) {
+                None => {
+                    self.warnings.push(Warning::NoConfigurationForEnv {
+                        env: env.to_string(),
+                    });
+                    None
+                }
+                Some(config) => {
+                    let mut conf_definitions = Vec::new();
+
+                    for (identifier, value) in config.iter() {
+                        conf_definitions.push(value.as_definition(identifier));
+                    }
+
+                    Some(conf_definitions)
+                }
+            }
+        } else {
+            None
+        }
     }
 
     pub fn compile(&mut self, options: Options) -> Result<(), Vec<Error>> {
@@ -303,17 +351,21 @@ where
                 version: self.config.version.clone(),
             });
 
-        self.read_source_files()?;
+        let env = options.env.as_deref();
+
+        let config = self.config_definitions(env);
+
+        self.read_source_files(config)?;
 
         let mut modules = self.parse_sources(self.config.name.clone())?;
 
-        self.type_check(&mut modules, options.tracing, true)?;
+        self.type_check(&mut modules, options.tracing, env, true)?;
 
         match options.code_gen_mode {
             CodeGenMode::Build(uplc_dump) => {
                 self.event_listener
                     .handle_event(Event::GeneratingBlueprint {
-                        path: self.blueprint_path(),
+                        path: options.blueprint_path.clone(),
                     });
 
                 self.checked_modules.values_mut().for_each(|m| {
@@ -335,10 +387,10 @@ where
 
                 let json = serde_json::to_string_pretty(&blueprint).unwrap();
 
-                fs::write(self.blueprint_path(), json).map_err(|error| {
+                fs::write(options.blueprint_path.as_path(), json).map_err(|error| {
                     Error::FileIo {
                         error,
-                        path: self.blueprint_path(),
+                        path: options.blueprint_path,
                     }
                     .into()
                 })
@@ -376,7 +428,7 @@ where
                         if e.is_success() {
                             None
                         } else {
-                            Some(e.into_error(verbose))
+                            Some(Error::from_test_result(e, verbose))
                         }
                     })
                     .collect();
@@ -396,8 +448,10 @@ where
 
     pub fn address(
         &self,
-        title: Option<&String>,
-        stake_address: Option<&String>,
+        module_name: Option<&str>,
+        validator_name: Option<&str>,
+        stake_address: Option<&str>,
+        blueprint_path: &Path,
         mainnet: bool,
     ) -> Result<ShelleyAddress, Error> {
         // Parse stake address
@@ -419,7 +473,7 @@ where
         };
 
         // Read blueprint
-        let blueprint = File::open(self.blueprint_path())
+        let blueprint = File::open(blueprint_path)
             .map_err(|_| blueprint::error::Error::InvalidOrMissingFile)?;
         let blueprint: Blueprint = serde_json::from_reader(BufReader::new(blueprint))?;
 
@@ -428,35 +482,41 @@ where
             |known_validators| Error::MoreThanOneValidatorFound { known_validators };
         let when_missing = |known_validators| Error::NoValidatorNotFound { known_validators };
 
-        blueprint.with_validator(title, when_too_many, when_missing, |validator| {
-            // Make sure we're not calculating the address for a minting validator
-            if validator.datum.is_none() {
-                return Err(blueprint::error::Error::UnexpectedMintingValidator.into());
-            }
+        blueprint.with_validator(
+            module_name,
+            validator_name,
+            when_too_many,
+            when_missing,
+            |validator| {
+                let n = validator.parameters.len();
 
-            let n = validator.parameters.len();
-
-            if n > 0 {
-                Err(blueprint::error::Error::ParameterizedValidator { n }.into())
-            } else {
-                let network = if mainnet {
-                    Network::Mainnet
+                if n > 0 {
+                    Err(blueprint::error::Error::ParameterizedValidator { n }.into())
                 } else {
-                    Network::Testnet
-                };
+                    let network = if mainnet {
+                        Network::Mainnet
+                    } else {
+                        Network::Testnet
+                    };
 
-                Ok(validator.program.address(
-                    network,
-                    delegation_part.to_owned(),
-                    &self.config.plutus.into(),
-                ))
-            }
-        })
+                    Ok(validator.program.inner().address(
+                        network,
+                        delegation_part.to_owned(),
+                        &self.config.plutus.into(),
+                    ))
+                }
+            },
+        )
     }
 
-    pub fn policy(&self, title: Option<&String>) -> Result<PolicyId, Error> {
+    pub fn policy(
+        &self,
+        module_name: Option<&str>,
+        validator_name: Option<&str>,
+        blueprint_path: &Path,
+    ) -> Result<PolicyId, Error> {
         // Read blueprint
-        let blueprint = File::open(self.blueprint_path())
+        let blueprint = File::open(blueprint_path)
             .map_err(|_| blueprint::error::Error::InvalidOrMissingFile)?;
         let blueprint: Blueprint = serde_json::from_reader(BufReader::new(blueprint))?;
 
@@ -465,42 +525,48 @@ where
             |known_validators| Error::MoreThanOneValidatorFound { known_validators };
         let when_missing = |known_validators| Error::NoValidatorNotFound { known_validators };
 
-        blueprint.with_validator(title, when_too_many, when_missing, |validator| {
-            // Make sure we're not calculating the policy for a spending validator
-            if validator.datum.is_some() {
-                return Err(blueprint::error::Error::UnexpectedSpendingValidator.into());
-            }
-
-            let n = validator.parameters.len();
-            if n > 0 {
-                Err(blueprint::error::Error::ParameterizedValidator { n }.into())
-            } else {
-                let cbor = validator.program.to_cbor().unwrap();
-
-                let validator_hash = match self.config.plutus {
-                    PlutusVersion::V1 => cardano::PlutusV1Script(cbor.into()).compute_hash(),
-                    PlutusVersion::V2 => cardano::PlutusV2Script(cbor.into()).compute_hash(),
-                    PlutusVersion::V3 => cardano::PlutusV3Script(cbor.into()).compute_hash(),
-                };
-
-                Ok(validator_hash)
-            }
-        })
+        blueprint.with_validator(
+            module_name,
+            validator_name,
+            when_too_many,
+            when_missing,
+            |validator| {
+                let n = validator.parameters.len();
+                if n > 0 {
+                    Err(blueprint::error::Error::ParameterizedValidator { n }.into())
+                } else {
+                    Ok(validator.program.compiled_code_and_hash().1)
+                }
+            },
+        )
     }
 
     pub fn export(&self, module: &str, name: &str, tracing: Tracing) -> Result<Export, Error> {
-        self.checked_modules
-            .get(module)
-            .and_then(|checked_module| {
-                checked_module.ast.definitions().find_map(|def| match def {
-                    Definition::Fn(func) if func.name == name => Some((checked_module, func)),
-                    _ => None,
-                })
+        let checked_module =
+            self.checked_modules
+                .get(module)
+                .ok_or_else(|| Error::ModuleNotFound {
+                    module: module.to_string(),
+                    known_modules: self.checked_modules.keys().cloned().collect(),
+                })?;
+
+        checked_module
+            .ast
+            .definitions()
+            .find_map(|def| match def {
+                Definition::Fn(func) if func.name == name => Some((checked_module, func)),
+                _ => None,
             })
             .map(|(checked_module, func)| {
                 let mut generator = self.new_generator(tracing);
 
-                Export::from_function(func, checked_module, &mut generator, &self.checked_modules)
+                Export::from_function(
+                    func,
+                    checked_module,
+                    &mut generator,
+                    &self.checked_modules,
+                    &self.config.plutus,
+                )
             })
             .transpose()?
             .ok_or_else(|| Error::ExportNotFound {
@@ -511,7 +577,9 @@ where
 
     pub fn construct_parameter_incrementally<F>(
         &self,
-        title: Option<&String>,
+        module_name: Option<&str>,
+        validator_name: Option<&str>,
+        blueprint_path: &Path,
         ask: F,
     ) -> Result<PlutusData, Error>
     where
@@ -521,7 +589,7 @@ where
         ) -> Result<PlutusData, blueprint::error::Error>,
     {
         // Read blueprint
-        let blueprint = File::open(self.blueprint_path())
+        let blueprint = File::open(blueprint_path)
             .map_err(|_| blueprint::error::Error::InvalidOrMissingFile)?;
         let blueprint: Blueprint = serde_json::from_reader(BufReader::new(blueprint))?;
 
@@ -530,22 +598,30 @@ where
             |known_validators| Error::MoreThanOneValidatorFound { known_validators };
         let when_missing = |known_validators| Error::NoValidatorNotFound { known_validators };
 
-        let data = blueprint.with_validator(title, when_too_many, when_missing, |validator| {
-            validator
-                .ask_next_parameter(&blueprint.definitions, &ask)
-                .map_err(|e| e.into())
-        })?;
+        let data = blueprint.with_validator(
+            module_name,
+            validator_name,
+            when_too_many,
+            when_missing,
+            |validator| {
+                validator
+                    .ask_next_parameter(&blueprint.definitions, &ask)
+                    .map_err(|e| e.into())
+            },
+        )?;
 
         Ok(data)
     }
 
     pub fn apply_parameter(
         &self,
-        title: Option<&String>,
+        module_name: Option<&str>,
+        validator_name: Option<&str>,
+        blueprint_path: &Path,
         param: &PlutusData,
     ) -> Result<Blueprint, Error> {
         // Read blueprint
-        let blueprint = File::open(self.blueprint_path())
+        let blueprint = File::open(blueprint_path)
             .map_err(|_| blueprint::error::Error::InvalidOrMissingFile)?;
         let mut blueprint: Blueprint = serde_json::from_reader(BufReader::new(blueprint))?;
 
@@ -554,21 +630,28 @@ where
             |known_validators| Error::MoreThanOneValidatorFound { known_validators };
         let when_missing = |known_validators| Error::NoValidatorNotFound { known_validators };
 
-        let applied_validator =
-            blueprint.with_validator(title, when_too_many, when_missing, |validator| {
+        let applied_validator = blueprint.with_validator(
+            module_name,
+            validator_name,
+            when_too_many,
+            when_missing,
+            |validator| {
                 validator
+                    .clone()
                     .apply(&blueprint.definitions, param)
                     .map_err(|e| e.into())
-            })?;
+            },
+        )?;
+
+        let prefix = |v: &str| v.split('.').take(2).collect::<Vec<&str>>().join(".");
 
         // Overwrite validator
         blueprint.validators = blueprint
             .validators
             .into_iter()
             .map(|validator| {
-                let same_title = validator.title == applied_validator.title;
-                if same_title {
-                    applied_validator.to_owned()
+                if prefix(&applied_validator.title) == prefix(&validator.title) {
+                    applied_validator.clone()
                 } else {
                     validator
                 }
@@ -612,12 +695,28 @@ where
         Ok(())
     }
 
-    fn read_source_files(&mut self) -> Result<(), Error> {
+    fn read_source_files(&mut self, config: Option<Vec<UntypedDefinition>>) -> Result<(), Error> {
+        let env = self.root.join("env");
         let lib = self.root.join("lib");
         let validators = self.root.join("validators");
+        let root = self.root.clone();
+
+        if let Some(defs) = config {
+            self.add_module(
+                AddModuleBy::Source {
+                    name: ast::CONFIG_MODULE.to_string(),
+                    code: Formatter::new()
+                        .definitions(&defs[..])
+                        .to_pretty_string(MAX_COLUMNS),
+                },
+                &root,
+                ModuleKind::Config,
+            )?;
+        }
 
         self.aiken_files(&validators, ModuleKind::Validator)?;
         self.aiken_files(&lib, ModuleKind::Lib)?;
+        self.aiken_files(&env, ModuleKind::Env)?;
 
         Ok(())
     }
@@ -631,12 +730,12 @@ where
     fn parse_sources(&mut self, package_name: PackageName) -> Result<ParsedModules, Vec<Error>> {
         use rayon::prelude::*;
 
-        let (parsed_modules, errors) = self
+        let (parsed_modules, parse_errors, duplicates) = self
             .sources
             .par_drain(0..)
             .fold(
-                || (ParsedModules::new(), Vec::new()),
-                |(mut parsed_modules, mut errors), elem| {
+                || (ParsedModules::new(), Vec::new(), Vec::new()),
+                |(mut parsed_modules, mut parse_errors, mut duplicates), elem| {
                     let Source {
                         path,
                         name,
@@ -653,19 +752,24 @@ where
                                 kind,
                                 ast,
                                 code,
-                                name,
+                                name: name.clone(),
                                 path,
                                 extra,
                                 package: package_name.to_string(),
                             };
 
-                            parsed_modules.insert(module.name.clone(), module);
+                            let path = module.path.clone();
 
-                            (parsed_modules, errors)
+                            if let Some(first) = parsed_modules.insert(module.name.clone(), module)
+                            {
+                                duplicates.push((name, first.path.clone(), path))
+                            }
+
+                            (parsed_modules, parse_errors, duplicates)
                         }
                         Err(errs) => {
                             for error in errs {
-                                errors.push((
+                                parse_errors.push((
                                     path.clone(),
                                     code.clone(),
                                     NamedSource::new(path.display().to_string(), code.clone()),
@@ -673,31 +777,62 @@ where
                                 ))
                             }
 
-                            (parsed_modules, errors)
+                            (parsed_modules, parse_errors, duplicates)
                         }
                     }
                 },
             )
             .reduce(
-                || (ParsedModules::new(), Vec::new()),
-                |(mut parsed_modules, mut errors), (mut parsed, mut errs)| {
+                || (ParsedModules::new(), Vec::new(), Vec::new()),
+                |(mut parsed_modules, mut parse_errors, mut duplicates),
+                 (mut parsed, mut errs, mut dups)| {
+                    let keys_left = parsed_modules.keys().collect::<HashSet<_>>();
+                    let keys_right = parsed.keys().collect::<HashSet<_>>();
+
+                    for module in keys_left.intersection(&keys_right) {
+                        duplicates.push((
+                            module.to_string(),
+                            parsed_modules
+                                .get(module.as_str())
+                                .map(|m| m.path.clone())
+                                .unwrap(),
+                            parsed.get(module.as_str()).map(|m| m.path.clone()).unwrap(),
+                        ));
+                    }
+
                     parsed_modules.extend(parsed.drain());
 
-                    errors.append(&mut errs);
+                    parse_errors.append(&mut errs);
+                    duplicates.append(&mut dups);
 
-                    (parsed_modules, errors)
+                    (parsed_modules, parse_errors, duplicates)
                 },
             );
 
-        let mut errors: Vec<Error> = errors
-            .into_iter()
-            .map(|(path, src, named, error)| Error::Parse {
-                path,
-                src,
-                named,
-                error,
-            })
-            .collect();
+        let mut errors: Vec<Error> = Vec::new();
+
+        errors.extend(
+            duplicates
+                .into_iter()
+                .map(|(module, first, second)| Error::DuplicateModule {
+                    module,
+                    first,
+                    second,
+                })
+                .collect::<Vec<_>>(),
+        );
+
+        errors.extend(
+            parse_errors
+                .into_iter()
+                .map(|(path, src, named, error)| Error::Parse {
+                    path,
+                    src,
+                    named: named.into(),
+                    error,
+                })
+                .collect::<Vec<_>>(),
+        );
 
         for parsed_module in parsed_modules.values() {
             if let Some(first) = self
@@ -723,6 +858,7 @@ where
         &mut self,
         modules: &mut ParsedModules,
         tracing: Tracing,
+        env: Option<&str>,
         validate_module_name: bool,
     ) -> Result<(), Vec<Error>> {
         let our_modules: BTreeSet<String> = modules.keys().cloned().collect();
@@ -735,14 +871,18 @@ where
                     &self.id_gen,
                     &self.config.name.to_string(),
                     tracing,
+                    env,
                     validate_module_name,
                     &mut self.module_sources,
                     &mut self.module_types,
                     &mut self.functions,
+                    &mut self.constants,
                     &mut self.data_types,
                 )?;
 
-                if our_modules.contains(checked_module.name.as_str()) {
+                if our_modules.contains(checked_module.name.as_str())
+                    && checked_module.name.as_str() != ast::CONFIG_MODULE
+                {
                     self.warnings.extend(warnings);
                 }
 
@@ -881,35 +1021,60 @@ where
     }
 
     fn aiken_files(&mut self, dir: &Path, kind: ModuleKind) -> Result<(), Error> {
+        let mut has_default = None;
+
         walkdir::WalkDir::new(dir)
             .follow_links(true)
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.file_type().is_file())
             .try_for_each(|d| {
+                if has_default.is_none() {
+                    has_default = Some(false);
+                }
+
                 let path = d.into_path();
                 let keep = is_aiken_path(&path, dir);
-                let ext = path.extension();
 
-                if !keep && ext.unwrap_or_default() == "ak" {
+                if !keep {
                     self.warnings
                         .push(Warning::InvalidModuleName { path: path.clone() });
                 }
 
                 if keep {
-                    self.add_module(path, dir, kind)
+                    if self.module_name(dir, &path).as_str() == ast::DEFAULT_ENV_MODULE {
+                        has_default = Some(true);
+                    }
+                    self.add_module(AddModuleBy::Path(path), dir, kind)
                 } else {
                     Ok(())
                 }
-            })
+            })?;
+
+        if kind == ModuleKind::Env && has_default == Some(false) {
+            return Err(Error::NoDefaultEnvironment);
+        }
+
+        Ok(())
     }
 
-    fn add_module(&mut self, path: PathBuf, dir: &Path, kind: ModuleKind) -> Result<(), Error> {
-        let name = self.module_name(dir, &path);
-        let code = fs::read_to_string(&path).map_err(|error| Error::FileIo {
-            path: path.clone(),
-            error,
-        })?;
+    fn add_module(
+        &mut self,
+        add_by: AddModuleBy,
+        dir: &Path,
+        kind: ModuleKind,
+    ) -> Result<(), Error> {
+        let (name, code, path) = match add_by {
+            AddModuleBy::Path(path) => {
+                let name = self.module_name(dir, &path);
+                let code = fs::read_to_string(&path).map_err(|error| Error::FileIo {
+                    path: path.clone(),
+                    error,
+                })?;
+                (name, code, path)
+            }
+            AddModuleBy::Source { name, code } => (name, code, dir.to_path_buf()),
+        };
 
         self.sources.push(Source {
             name,

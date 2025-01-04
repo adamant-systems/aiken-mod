@@ -1,12 +1,12 @@
-use pallas::ledger::primitives::conway::Language;
+use pallas_primitives::conway::Language;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Copy, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum PlutusVersion {
     V1,
-    #[default]
     V2,
+    #[default]
     V3,
 }
 

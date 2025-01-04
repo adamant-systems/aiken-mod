@@ -1,21 +1,21 @@
-use crate::{
+pub(crate) use crate::{
     ast::{
-        self, Annotation, ArgBy, ArgName, AssignmentPattern, BinOp, Bls12_381Point,
+        self, Annotation, ArgBy, ArgName, AssignmentKind, AssignmentPattern, BinOp, Bls12_381Point,
         ByteArrayFormatPreference, CallArg, Curve, DataType, DataTypeKey, DefinitionLocation,
         Located, LogicalOpChainKind, ParsedCallArg, Pattern, RecordConstructorArg,
         RecordUpdateSpread, Span, TraceKind, TypedArg, TypedAssignmentKind, TypedClause,
-        TypedDataType, TypedIfBranch, TypedRecordUpdateArg, UnOp, UntypedArg,
+        TypedDataType, TypedIfBranch, TypedPattern, TypedRecordUpdateArg, UnOp, UntypedArg,
         UntypedAssignmentKind, UntypedClause, UntypedIfBranch, UntypedRecordUpdateArg,
     },
-    builtins::void,
     parser::token::Base,
     tipo::{
         check_replaceable_opaque_type, convert_opaque_type, lookup_data_type_by_tipo,
         ModuleValueConstructor, PatternConstructor, Type, TypeVar, ValueConstructor,
+        ValueConstructorVariant,
     },
 };
 use indexmap::IndexMap;
-use pallas::ledger::primitives::alonzo::{Constr, PlutusData};
+use pallas_primitives::alonzo::{Constr, PlutusData};
 use std::{fmt::Debug, rc::Rc};
 use uplc::{
     ast::Data,
@@ -30,6 +30,7 @@ pub enum TypedExpr {
         location: Span,
         tipo: Rc<Type>,
         value: String,
+        base: Base,
     },
 
     String {
@@ -42,12 +43,14 @@ pub enum TypedExpr {
         location: Span,
         tipo: Rc<Type>,
         bytes: Vec<u8>,
+        preferred_format: ByteArrayFormatPreference,
     },
 
     CurvePoint {
         location: Span,
         tipo: Rc<Type>,
         point: Box<Curve>,
+        preferred_format: ByteArrayFormatPreference,
     },
 
     Sequence {
@@ -200,6 +203,95 @@ impl<T> From<Vec1Ref<T>> for Vec1<T> {
 }
 
 impl TypedExpr {
+    pub fn is_simple_expr_to_format(&self) -> bool {
+        match self {
+            Self::String { .. } | Self::UInt { .. } | Self::ByteArray { .. } | Self::Var { .. } => {
+                true
+            }
+            Self::Pair { fst, snd, .. } => {
+                fst.is_simple_expr_to_format() && snd.is_simple_expr_to_format()
+            }
+            Self::Tuple { elems, .. } => elems.iter().all(|e| e.is_simple_expr_to_format()),
+            Self::List { elements, .. } if elements.len() <= 3 => {
+                elements.iter().all(|e| e.is_simple_expr_to_format())
+            }
+            _ => false,
+        }
+    }
+
+    pub fn and_then(self, next: Self) -> Self {
+        if let TypedExpr::Trace {
+            tipo,
+            location,
+            then,
+            text,
+        } = self
+        {
+            return TypedExpr::Trace {
+                tipo,
+                location,
+                then: Box::new(then.and_then(next)),
+                text,
+            };
+        }
+
+        TypedExpr::Sequence {
+            location: self.location(),
+            expressions: vec![self, next],
+        }
+    }
+
+    pub fn sequence(exprs: &[TypedExpr]) -> Self {
+        TypedExpr::Sequence {
+            location: Span::empty(),
+            expressions: exprs.to_vec(),
+        }
+    }
+
+    pub fn let_(value: Self, pattern: TypedPattern, tipo: Rc<Type>, location: Span) -> Self {
+        TypedExpr::Assignment {
+            tipo: tipo.clone(),
+            value: value.into(),
+            pattern,
+            kind: AssignmentKind::let_(),
+            location,
+        }
+    }
+
+    // Create an expect assignment, unless the target type is `Data`; then fallback to a let.
+    pub fn flexible_expect(
+        value: Self,
+        pattern: TypedPattern,
+        tipo: Rc<Type>,
+        location: Span,
+    ) -> Self {
+        TypedExpr::Assignment {
+            tipo: tipo.clone(),
+            value: value.into(),
+            pattern,
+            kind: if tipo.is_data() {
+                AssignmentKind::let_()
+            } else {
+                AssignmentKind::expect()
+            },
+            location,
+        }
+    }
+
+    pub fn local_var(name: &str, tipo: Rc<Type>, location: Span) -> Self {
+        TypedExpr::Var {
+            constructor: ValueConstructor {
+                public: true,
+                variant: ValueConstructorVariant::LocalVariable {
+                    location: Span::empty(),
+                },
+                tipo: tipo.clone(),
+            },
+            name: name.to_string(),
+            location,
+        }
+    }
+
     pub fn tipo(&self) -> Rc<Type> {
         match self {
             Self::Var { constructor, .. } => constructor.tipo.clone(),
@@ -223,9 +315,10 @@ impl TypedExpr {
             | Self::RecordAccess { tipo, .. }
             | Self::RecordUpdate { tipo, .. }
             | Self::CurvePoint { tipo, .. } => tipo.clone(),
-            Self::Pipeline { expressions, .. } | Self::Sequence { expressions, .. } => {
-                expressions.last().map(TypedExpr::tipo).unwrap_or_else(void)
-            }
+            Self::Pipeline { expressions, .. } | Self::Sequence { expressions, .. } => expressions
+                .last()
+                .map(TypedExpr::tipo)
+                .unwrap_or_else(Type::void),
         }
     }
 
@@ -238,6 +331,10 @@ impl TypedExpr {
                 | Self::String { .. }
                 | Self::ByteArray { .. }
         )
+    }
+
+    pub fn is_error_term(&self) -> bool {
+        matches!(self, Self::ErrorTerm { .. })
     }
 
     /// Returns `true` if the typed expr is [`Assignment`].
@@ -377,8 +474,20 @@ impl TypedExpr {
                 expressions.iter().find_map(|e| e.find_node(byte_index))
             }
 
-            TypedExpr::Fn { body, .. } => body
-                .find_node(byte_index)
+            TypedExpr::Fn {
+                body,
+                args,
+                return_annotation,
+                ..
+            } => args
+                .iter()
+                .find_map(|arg| arg.find_node(byte_index))
+                .or_else(|| body.find_node(byte_index))
+                .or_else(|| {
+                    return_annotation
+                        .as_ref()
+                        .and_then(|a| a.find_node(byte_index))
+                })
                 .or(Some(Located::Expression(self))),
 
             TypedExpr::Tuple {
@@ -458,6 +567,25 @@ impl TypedExpr {
             TypedExpr::UnOp { value, .. } => value
                 .find_node(byte_index)
                 .or(Some(Located::Expression(self))),
+        }
+    }
+
+    pub fn void(location: Span) -> Self {
+        TypedExpr::Var {
+            name: "Void".to_string(),
+            constructor: ValueConstructor {
+                public: true,
+                variant: ValueConstructorVariant::Record {
+                    name: "Void".to_string(),
+                    arity: 0,
+                    field_map: None,
+                    location: Span::empty(),
+                    module: String::new(),
+                    constructors_count: 1,
+                },
+                tipo: Type::void(),
+            },
+            location,
         }
     }
 }
@@ -548,7 +676,8 @@ pub enum UntypedExpr {
         kind: TraceKind,
         location: Span,
         then: Box<Self>,
-        text: Box<Self>,
+        label: Box<Self>,
+        arguments: Vec<Self>,
     },
 
     TraceIfFalse {
@@ -632,6 +761,10 @@ impl UntypedExpr {
         tipo: &Type,
     ) -> Result<Self, String> {
         UntypedExpr::do_reify_constant(&mut IndexMap::new(), data_types, cst, tipo)
+    }
+
+    pub fn is_discard(&self) -> bool {
+        matches!(self, UntypedExpr::Var { name, ..} if name.starts_with("_"))
     }
 
     // Reify some opaque 'PlutusData' into an 'UntypedExpr', using a Type annotation. We also need
@@ -879,6 +1012,7 @@ impl UntypedExpr {
             PlutusData::Array(elems) => UntypedExpr::List {
                 location: Span::empty(),
                 elements: elems
+                    .to_vec()
                     .into_iter()
                     .map(UntypedExpr::reify_blind)
                     .collect::<Vec<_>>(),
@@ -913,6 +1047,7 @@ impl UntypedExpr {
                 let ix = convert_tag_to_constr(tag).or(any_constructor).unwrap() as usize;
 
                 let fields = fields
+                    .to_vec()
                     .into_iter()
                     .map(|field| CallArg {
                         location: Span::empty(),
@@ -973,11 +1108,20 @@ impl UntypedExpr {
                     value: from_pallas_bigint(i).to_string(),
                 }),
 
-                PlutusData::BoundedBytes(bytes) => Ok(UntypedExpr::ByteArray {
-                    location: Span::empty(),
-                    bytes: bytes.into(),
-                    preferred_format: ByteArrayFormatPreference::HexadecimalString,
-                }),
+                PlutusData::BoundedBytes(bytes) => {
+                    if tipo.is_string() {
+                        Ok(UntypedExpr::String {
+                            location: Span::empty(),
+                            value: String::from_utf8(bytes.to_vec()).expect("invalid UTF-8 string"),
+                        })
+                    } else {
+                        Ok(UntypedExpr::ByteArray {
+                            location: Span::empty(),
+                            bytes: bytes.into(),
+                            preferred_format: ByteArrayFormatPreference::HexadecimalString,
+                        })
+                    }
+                }
 
                 PlutusData::Array(args) => match tipo {
                     Type::App {
@@ -990,6 +1134,7 @@ impl UntypedExpr {
                             Ok(UntypedExpr::List {
                                 location: Span::empty(),
                                 elements: args
+                                    .to_vec()
                                     .into_iter()
                                     .map(|arg| {
                                         UntypedExpr::do_reify_data(generics, data_types, arg, inner)
@@ -1007,6 +1152,7 @@ impl UntypedExpr {
                     Type::Tuple { elems, .. } => Ok(UntypedExpr::Tuple {
                         location: Span::empty(),
                         elems: args
+                            .to_vec()
                             .into_iter()
                             .zip(elems)
                             .map(|(arg, arg_type)| {
@@ -1016,6 +1162,7 @@ impl UntypedExpr {
                     }),
                     Type::Pair { fst, snd, .. } => {
                         let mut elems = args
+                            .to_vec()
                             .into_iter()
                             .zip([fst, snd])
                             .map(|(arg, arg_type)| {
@@ -1048,6 +1195,13 @@ impl UntypedExpr {
                             ..
                         }) = lookup_data_type_by_tipo(data_types, tipo)
                         {
+                            if constructors.is_empty() {
+                                return Ok(UntypedExpr::Var {
+                                    location: Span::empty(),
+                                    name: "Data".to_string(),
+                                });
+                            }
+
                             let constructor = &constructors[ix];
 
                             typed_parameters
@@ -1069,6 +1223,7 @@ impl UntypedExpr {
                             } else {
                                 let arguments =
                                     fields
+                                        .to_vec()
                                         .into_iter()
                                         .zip(constructor.arguments.iter())
                                         .map(
@@ -1105,7 +1260,9 @@ impl UntypedExpr {
                     }
 
                     Err(format!(
-                        "invalid type annotation {tipo:?} for constructor: {tag:?} with {fields:?}"
+                        "invalid type annotation {tipo:?} for {}{} constructor with fields: {fields:?}",
+                        ix + 1,
+                        ordinal::Ordinal::<usize>(ix + 1).suffix(),
                     ))
                 }
 
@@ -1118,9 +1275,9 @@ impl UntypedExpr {
                     UntypedExpr::do_reify_data(
                         generics,
                         data_types,
-                        PlutusData::Array(
+                        Data::list(
                             kvs.into_iter()
-                                .map(|(k, v)| PlutusData::Array(vec![k, v]))
+                                .map(|(k, v)| Data::list(vec![k, v]))
                                 .collect(),
                         ),
                         tipo,
@@ -1135,10 +1292,11 @@ impl UntypedExpr {
             location,
             kind: TraceKind::Todo,
             then: Box::new(UntypedExpr::ErrorTerm { location }),
-            text: Box::new(reason.unwrap_or_else(|| UntypedExpr::String {
+            label: Box::new(reason.unwrap_or_else(|| UntypedExpr::String {
                 location,
                 value: DEFAULT_TODO_STR.to_string(),
             })),
+            arguments: Vec::new(),
         }
     }
 
@@ -1148,7 +1306,8 @@ impl UntypedExpr {
                 location,
                 kind: TraceKind::Error,
                 then: Box::new(UntypedExpr::ErrorTerm { location }),
-                text: Box::new(reason),
+                label: Box::new(reason),
+                arguments: Vec::new(),
             }
         } else {
             UntypedExpr::ErrorTerm { location }
@@ -1182,17 +1341,24 @@ impl UntypedExpr {
                     value: Some(value),
                     label,
                     location,
-                } => CallArg {
+                } if !value.is_discard() => CallArg {
                     value,
                     label,
                     location,
                 },
                 CallArg {
-                    value: None,
+                    value,
                     label,
                     location,
                 } => {
-                    let name = format!("{}__{index}", ast::CAPTURE_VARIABLE);
+                    let name = format!(
+                        "{}__{index}_{}",
+                        ast::CAPTURE_VARIABLE,
+                        match value {
+                            Some(UntypedExpr::Var { ref name, .. }) => name,
+                            _ => "_",
+                        }
+                    );
 
                     holes.push(ast::UntypedArg {
                         location: Span::empty(),
@@ -1200,7 +1366,7 @@ impl UntypedExpr {
                         doc: None,
                         by: ArgBy::ByName(ast::ArgName::Named {
                             label: name.clone(),
-                            name,
+                            name: name.clone(),
                             location: Span::empty(),
                         }),
                         is_validator_param: false,
@@ -1209,10 +1375,7 @@ impl UntypedExpr {
                     ast::CallArg {
                         label,
                         location,
-                        value: UntypedExpr::Var {
-                            location,
-                            name: format!("{}__{index}", ast::CAPTURE_VARIABLE),
-                        },
+                        value: UntypedExpr::Var { location, name },
                     }
                 }
             })
@@ -1342,11 +1505,23 @@ impl UntypedExpr {
         }
     }
 
-    pub fn is_simple_constant(&self) -> bool {
-        matches!(
-            self,
-            Self::String { .. } | Self::UInt { .. } | Self::ByteArray { .. }
-        )
+    /// Returns true when an UntypedExpr can be displayed in a flex-break manner (i.e. tries to fit as
+    /// much as possible on a single line). When false, long lines with several of those patterns
+    /// will be broken down to one expr per line.
+    pub fn is_simple_expr_to_format(&self) -> bool {
+        match self {
+            Self::String { .. } | Self::UInt { .. } | Self::ByteArray { .. } | Self::Var { .. } => {
+                true
+            }
+            Self::Pair { fst, snd, .. } => {
+                fst.is_simple_expr_to_format() && snd.is_simple_expr_to_format()
+            }
+            Self::Tuple { elems, .. } => elems.iter().all(|e| e.is_simple_expr_to_format()),
+            Self::List { elements, .. } if elements.len() <= 3 => {
+                elements.iter().all(|e| e.is_simple_expr_to_format())
+            }
+            _ => false,
+        }
     }
 
     pub fn lambda(

@@ -1,16 +1,292 @@
 # Changelog
 
-## v1.0.30-alpha - UNRELEASED
+## unreleased
+
+### Added
+
+- **aiken-project**: `export` output now supports the functions `return_type`. @rvcas
+
+### Changed
+
+- **aiken-project**: The `aiken.toml` file no longer supports `v1` and `v2` for the plutus version field. @rvcas
+- **aiken-project**: `Error::TomlLoading` now looks much better - [see](https://github.com/aiken-lang/aiken/issues/1032#issuecomment-2562122101). @rvcas
+
+### Fixed
+
+- **aiken**: panic error when using `aiken uplc decode` on cbor encoded flat bytes. @rvcas
+- **aiken-lang**: comment formatting in pipelines leading to confusion. @rvcas
+- **aiken-lang**: preserve holes discard name in function captures (see [#1080](https://github.com/aiken-lang/aiken/issues/1080)). @KtorZ
+
+## v1.1.9 - 2024-12-13
+
+### Added
+
+- **aiken**: Generate a default _'placeholder.ak'_ validator when using `aiken new`. See [#1061](https://github.com/aiken-lang/aiken/pull/1061) @Waalge
+- **aiken-lang**: New builtins [`unconstr_fields`](https://aiken-lang.github.io/prelude/aiken/builtin.html#unconstr_fields) and [`unconstr_index`](https://aiken-lang.github.io/prelude/aiken/builtin.html#unconstr_index). @Microproofs
+- **aiken-lang**: Added builtins from Chang2 hardfork (except for writeBits). @Microproofs, @KtorZ
+  - [Bitwise operations](https://aiken-lang.github.io/prelude/aiken/builtin.html#Bitwise)
+  - [Ripemd-160 hashing](https://aiken-lang.github.io/prelude/aiken/builtin.html#ripemd_160)
+- **aiken-projects**: The generated documentation may now include maths typesetting rendered using [KaTex](https://katex.org/). See [#1070](https://github.com/aiken-lang/aiken/pull/1070) @adrian052.
+
+  - (Linux & MacOS only) Both inline (delimited by single `$` symbols) and blocks (delimited by doubled `$$` symbols) are now parsed and rendered as SVG upon generating documentation. For example:
+
+    ```
+    $$
+    g^{z} = g^{r +c \cdot x} = g^{r} g^{x \cdot c} = g^{r} (g^{x})^{c} = g^{r} u^{c}
+    $$
+    ```
+
+    will display:
+
+    $$
+    g^{z} = g^{r + c \cdot x} = g^{r} g^{x \cdot c} = g^{r} (g^{x})^{c} = g^{r} u^{c}
+    $$
+
+- **uplc**: New builtins from Chang2 hardfork added to the VM along with costing. @Hadelive, @Microproofs
+
+### Changed
+
+- **aiken**: Fix `aiken blueprint policy` computing hashes as PlutusV1, instead of relying on the plutus version from the Blueprint. @KtorZ
+- **uplc**: Parse tild in identifiers for UPLC nodes. @SupernaviX
+- **examples**: Update "Hello, World!" source code tutorial to match website, now using MeshJS. @jinglescode
+- **examples**: Update "Gift Card" source code tutorial to match website, now using Lucid-Evolution and Weld. @rvcas
+- **aiken-lang**: Fixed a code gen crash when using records in when is expressions. @Microproofs
+
+## v1.1.8
+
+- There's no v1.1.8. Nothing happened. Don't ask questions.
+
+## v1.1.7 - 2024-11-19
+
+### Changed
+
+- **aiken**: Move JSON schema help for `check` under a new dedicated flag `--show-json-schema`. @KtorZ
+- **aiken-lang**: Fix pattern-matching on list wildcard sometimes causing compiler crash following the new _decision trees_ approach. @MicroProofs
+- **uplc**, **aiken**, **aiken-lang**: Update internal dependencies to pallas-0.31.0. @KtorZ
+
+## v1.1.6 - 2024-11-13
+
+### Added
+
+- **aiken**: Optionally provide blueprint file location when using `blueprint apply`. @Riley-Kilgore
+- **aiken**: Output test results as structured JSON when the target output is not a TTY terminal. @Riley-Kilgore, @KtorZ
+
+### Changed
+
+- **aiken**: Fix validator selection for `apply`, `address` and `policy` commands. Parameters are also now correctly applied to all handlers of a given validator, instead of needing to be manually targetted one-by-one. @KtorZ
+- **aiken**: Add more flexibility around the management of Plutus blueprint files for `build`, `address`, `policy` and `apply` commands. See [#1055](https://github.com/aiken-lang/aiken/issues/1055). @KtorZ
+- **aiken**: Rename `--filter_traces` to `--trace_filter` for more consistency with `--trace_level`. An alias for `--filter_traces` still exists for backward compatibility. @KtorZ
+- **aiken-project**: Fix `aiken docs` wrongly formatting list constants as tuples. See [#1048](https://github.com/aiken-lang/aiken/issues/1048). @KtorZ
+- **aiken-project**: Fix `aiken docs` source linking crashing when generating docs for config modules. See [#1044](https://github.com/aiken-lang/aiken/issues/1044). @KtorZ
+- **aiken-project**: Fix `aiken docs` generating very long lines for constants. @KtorZ
+- **aiken-lang**: Leverage [Decision Trees](https://www.cs.tufts.edu/comp/150FP/archive/luc-maranget/jun08.pdf) for compiling pattern matches to UPLC. @MicroProofs
+- **aiken-lang**: Rework optimization passes to safely reduce different kinds of patterns for each pass over the uplc. @MicroProofs
+- **aiken-lang**: Implement a looping mechanism to reduce uplc with deletion optimizations until term count remains the same. @MicroProofs
+
+### Removed
+
+- N/A
+
+## v1.1.5 - 2024-10-19
+
+### Added
+
+- N/A
+
+### Changed
+
+- **uplc**: Fix costing of byteStringToInteger builtins. @Microproofs
+- **aiken-lang**: Fix data-type reification from `Void`; somehow missing from known definition :facepalm:. @KtorZ
+
+### Removed
+
+- N/A
+
+## v1.1.4 - 2024-10-01
+
+### Added
+
+- N/A
+
+### Changed
+
+- **aiken-project**: Generate empty redeemer for `else` handler, to keep full compliance with the blueprint spec. @KtorZ
+- **aiken-lang**: Forbid constants evaluating to generic or unbound functions. Same restrictions as for validators or any exported UPLC programs apply here. @KtorZ & @MicroProofs
+- **aiken-lang**: Fix compiler crash on trace + expect as last expression of a clause. See #1029. @KtorZ
+- **aiken-lang**: Fix redundant warning on introduced identifiers when destructuring validator params. @KtorZ
+- **aiken-lsp**: Compile project using verbose tracing, to avoid having the language server complain about unused imports. @KtorZ
+- **uplc**: Fix (again :grimacing:) cost-models for PlutusV1 & PlutusV2. @MicroProofs
+
+### Removed
+
+- N/A
+
+## v1.1.3 - 2024-09-20
+
+### Added
+
+- N/A
+
+### Changed
+
+- **aiken-project**: Fix documentation link-tree generation messing up with modules when re-inserting the same module. @KtorZ
+- **aiken-project**: Provide intermediate feedback when looking for counterexamples during property tests. @KtorZ
+- **aiken-lang**: Fix formatter adding extra unnecessary newlines after literal lists clause values or assignments. @KtorZ
+- **aiken-lang**: Fix formatting of long multi-line if/is expressions. @KtorZ
+- **aiken-lang**: Fix extraneous white-space added by the formatter after multiline alternative patterns. @KtorZ
+- **aiken-lang**: Fix incorrect warning about unused variable when softcasting without explicit right-pattern. @KtorZ
+- **aiken-lang**: Fix soft cast and hard cast on same type issues that lead to validator errors. @Microproofs
+- **aiken-lang**: Bls constants are automatically converted to a hoisted compressed form with uncompress builtin call. @Microproofs
+- **uplc**: Fix cost-models for PlutusV1 & PlutusV2. @MicroProofs
+
+### Removed
+
+- N/A
+
+## v1.1.2 - 2024-09-13
+
+### Added
+
+- N/A
+
+### Changed
+
+- **aiken-lang**: Fix issues with static recursive optimization. See [#1009](https://github.com/aiken-lang/aiken/issues/1009) @Microproofs
+- **aiken-lang**: Aiken IR now interns variables while building up to ensure uniqueness for local vars. @Microproofs
+- **aiken-lang**: Fix reification of `Data` (failing to reify) & `PRNG` (missing variants' arguments). @KtorZ
+- **aiken-lang**: Adjust reification of `String` to be shown as plain UTF-8 text strings (instead of hex-encoded byte array). @KtorZ
+- **aiken-lang**: Fix formatting of long if-condition over multiline. @KtorZ & @Microproofs
+- **aiken-lang**: Fix formatting of standalone logical binary chains (`and` & `or`) in functions. @KtorZ
+- **uplc**: Fix script context generation failure on missing datum when evaluating transactions. @solidsnakedev
+
+### Removed
+
+- N/A
+
+## v1.1.1 - 2024-09-10
+
+### Added
+
+- N/A
+
+### Changed
+
+- **aiken-lang**: Fix validator's else handler generation. See [#1015](https://github.com/aiken-lang/aiken/issues/1015) @KtorZ
+- **aiken-lang**: Fix underflow in error message reported by the validator arity. See [#1013](https://github.com/aiken-lang/aiken/issues/1013) @KtorZ
+- **aiken-lang**: Fix list-pattern needlessly formatting over multiple lines. @KtorZ
+- **aiken-lang**: Fix formatter on long alternative patterns spanning over multiple lines. @KtorZ
+- **aiken-lang**: Fix needed parentheses under trace-if-false operator for todo, fail, unop & pipelines; removed when formatting. @KtorZ
+- **aiken-lang**: Fix formatter removing curly braces around multi-line constants. It's fine to not have curly braces, but it's the Aiken signature after all. @KtorZ
+- **aiken-lang**: Improve LSP suggestion for module imports. @Riley-Kilgore
+
+### Removed
+
+- N/A
+
+## v1.1.0 - 2024-09-03
 
 ### Added
 
 - **aiken-lang**: also authorize (complete) patterns in function arguments list instead of only variable names. @KtorZ
 
+- **aiken-lang**: new syntax for soft casting otherwise known as `if/is`. See [#959](https://github.com/aiken-lang/aiken/pull/959) or [Control Flow - soft casting](https://aiken-lang.org/language-tour/control-flow#soft-casting-with-ifis) for more details. @rvcas
+
+- **aiken-lang**: optimization: pre-evaluate constant arguments to lambdas when safe to do so. @MicroProofs
+
+- **aiken-lang**: infer type when immediately possible during a patterned type-cast. See [#969](https://github.com/aiken-lang/aiken/pull/979). @KtorZ
+
+- **aiken-lang**: add support for `mk_cons` and `mk_pair_data` builtins. See [#964](https://github.com/aiken-lang/aiken/issues/964). @KtorZ
+
+- **aiken-lang**: pattern-matching on bytearrays is now available. See [#989](https://github.com/aiken-lang/aiken/issues/989). @KtorZ
+
+- **aiken-project**: conditional configuration and environment. See [#937](https://github.com/aiken-lang/aiken/issues/937). @KtorZ
+
+- **aiken-project**: warning on compiler version mismatch. See [de870e2](https://github.com/aiken-lang/aiken/commit/de870e2529eb2336957e228cd30d4850ec2619a2). @rvcas
+
+- **aiken-project**: source links to generated documentation for types, constants and functions. @KtorZ
+
+- **aiken-project**: comments containing Markdown section headings (`#`, `##`, `###` etc.) will now be preserved and rendered in generated documentation. @KtorZ
+
+- **aiken-project**: modules starting with `@hidden` in their docs will be skipped from docs generation. @KtorZ
+
+- **aiken-project**: preserve type-aliases as titles in blueprint generated schemas. @KtorZ
+
+- **uplc**: support evaluation of Plutus V3 transactions, including new purposes introduced in Conway. @KtorZ
+
 ### Changed
+
+- **aiken-lang**: zero-arg functions are **no longer** evaluated at compile-time. However, constants can now hold _any_ expression and are fully evaluated at compile-time. Use `const` whenever a zero-arg function was used, unless you do want to defer execution. @KtorZ @MicroProofs.
+
+- **aiken-lang**: fix zero-arg builtins `mk_nil_data` and `mk_nil_pair_data` invokation. @KtorZ
+
+- **aiken-lang**: rename some builtins. @KtorZ
+
+  | old name           | new name    |
+  | ------------------ | ----------- |
+  | `mk_nil_data`      | `new_list`  |
+  | `mk_pair_data`     | `new_pair`  |
+  | `mk_nil_pair_data` | `new_pairs` |
 
 - **aiken-lang**: duplicate import lines are now automatically merged instead of raising a warning. However, imports can no longer appear anywhere in the file and must come as the first definitions. @KtorZ
 
-- **aiken-lang**: remove warning on discarded expect, allowing to keep 'side-effects' when necessary. See #967. @KtorZ
+- **aiken-lang**: remove warning on discarded expect, allowing to keep 'side-effects' when necessary. See [#967](https://github.com/aiken-lang/aiken/pull/967). @KtorZ
+
+- **aiken-lang**: allow expect as last (or only) expression in function body, when clauses and if branches. Such expressions unify with `Void`. See [#1000](https://github.com/aiken-lang/aiken/pull/1000). @KtorZ
+
+- **aiken-lang**: allow tests to return `Void`. Tests that return `Void` are treated the same as tests that return `True`. See [#1000](https://github.com/aiken-lang/aiken/pull/1000). @KtorZ
+
+- **aiken-lang**: rework traces to be (1) variadic, (2) generic in its arguments and (3) structured. @KtorZ
+
+  In more details:
+
+  1. Enables the `trace` keyword to take one, two or any argument really separated by comma after the first. For example:
+
+     ```ak
+     trace @"a classic trace"
+
+     // ..
+
+     trace @"condition_1": @"foo"
+
+     // ...
+
+     trace @"condition_2": @"foo", @"bar"
+     ```
+
+  2. Enables the `trace` keyword to not only take strings as arguments; but any
+     data-type that is serialisable (i.e. that can be cast to Data). It is fundamentally identical to calling the [`cbor.diagnostic`](https://aiken-lang.github.io/stdlib/aiken/cbor.html#diagnostic) function from the standard lib; except that this is done and glued with the rest of the trace automatically.
+
+     ```ak
+     trace @"condition_1": [1, 2, 3]
+
+     // ...
+
+     let my_var = Some("foo")
+     trace my_var
+     ```
+
+  3. Changes the behavior of the `--trace-level compact` mode to now:
+
+  - remove trace-if-false (`?` operator) traces entirely in this mode;
+  - only keep the label (first trace argument) and error when it isn't a string.
+
+  See also [#978](https://github.com/aiken-lang/aiken/pull/978).
+
+- **aiken-lang**: rework formatter behaviour on long-lines, especially in the presence of binary operators. @KtorZ
+
+- **aiken-lang**: provide better errors for unknown types used in cyclic type definitions. @KtorZ
+
+- **aiken-project**: fix blueprint's apply truncating last character of outputs. See [#987](https://github.com/aiken-lang/aiken/issues/987). @KtorZ
+
+- **aiken-project**: provide better error (include input ref) when inputs are missing during transaction evaluation. See [#974](https://github.com/aiken-lang/aiken/issues/974). @KtorZ
+
+- **aiken-project**: module inhabitants are no longer alphabetically sorted when generating documentation. Instead, the order in which they are defined in the module is used. @KtorZ
+
+- **aiken-project**: the sidebar links to modules within a package is now fully hierarchical and (hopefully) better-looking. @KtorZ
+
+### Removed
+
+- **aiken-lang**: clause guards are no longer part of the language. See [#886](https://github.com/aiken-lang/aiken/issues/886). @KtorZ.
 
 ## v1.0.29-alpha - 2024-06-06
 

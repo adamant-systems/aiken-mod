@@ -1,6 +1,6 @@
 use aiken/builtin
-use aiken/int
-use aiken/list
+use aiken/collection/list
+use aiken/primitive/int
 use benchmarks/knights/chess_set.{
   add_piece, create_board, delete_first, first_piece, is_square_free, last_piece,
 }
@@ -18,9 +18,7 @@ type Direction {
   RD
 }
 
-fn direction_list() {
-  [UL, UR, DL, DR, LU, LD, RU, RD]
-}
+const direction_list = [UL, UR, DL, DR, LU, LD, RU, RD]
 
 fn move(direction: Direction, tile: Tile) -> Tile {
   let (x, y) = tile
@@ -65,8 +63,7 @@ pub fn descendants(board: ChessSet) -> List<ChessSet> {
           |> quicksort(compare_chess_set)
           |> list.map(fn(t) { t.2nd })
       [_] -> singles
-      _ ->
-        []
+      _ -> []
     }
   }
 }
@@ -130,7 +127,7 @@ fn move_knight(board: ChessSet, direction: Direction) -> ChessSet {
 }
 
 fn possible_moves(board: ChessSet) -> List<Direction> {
-  direction_list() |> list.filter(can_move(board, _))
+  direction_list |> list.filter(can_move(board, _))
 }
 
 fn compare_chess_set(a: (Int, ChessSet), b: (Int, ChessSet)) -> Ordering {

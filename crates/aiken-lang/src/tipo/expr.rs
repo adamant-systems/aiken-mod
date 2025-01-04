@@ -11,20 +11,18 @@ use super::{
 use crate::{
     ast::{
         self, Annotation, ArgName, AssignmentKind, AssignmentPattern, BinOp, Bls12_381Point,
-        ByteArrayFormatPreference, CallArg, ClauseGuard, Constant, Curve, Function, IfBranch,
-        LogicalOpChainKind, Pattern, RecordUpdateSpread, Span, TraceKind, TraceLevel, Tracing,
-        TypedArg, TypedCallArg, TypedClause, TypedClauseGuard, TypedIfBranch, TypedPattern,
-        TypedRecordUpdateArg, UnOp, UntypedArg, UntypedAssignmentKind, UntypedClause,
-        UntypedClauseGuard, UntypedFunction, UntypedIfBranch, UntypedPattern,
-        UntypedRecordUpdateArg,
+        ByteArrayFormatPreference, CallArg, Curve, Function, IfBranch, LogicalOpChainKind, Pattern,
+        RecordUpdateSpread, Span, TraceKind, TraceLevel, Tracing, TypedArg, TypedCallArg,
+        TypedClause, TypedIfBranch, TypedPattern, TypedRecordUpdateArg, TypedValidator, UnOp,
+        UntypedArg, UntypedAssignmentKind, UntypedClause, UntypedFunction, UntypedIfBranch,
+        UntypedPattern, UntypedRecordUpdateArg,
     },
-    builtins::{
-        bool, byte_array, function, g1_element, g2_element, int, list, pair, string, tuple, void,
-    },
+    builtins::{from_default_function, BUILTIN},
     expr::{FnStyle, TypedExpr, UntypedExpr},
     format,
-    line_numbers::LineNumbers,
-    tipo::{fields::FieldMap, PatternConstructor, TypeVar},
+    parser::token::Base,
+    tipo::{fields::FieldMap, DefaultFunction, ModuleKind, PatternConstructor, TypeVar},
+    IdGenerator,
 };
 use std::{
     cmp::Ordering,
@@ -34,12 +32,12 @@ use std::{
 };
 use vec1::Vec1;
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn infer_function(
     fun: &UntypedFunction,
     module_name: &str,
     hydrators: &mut HashMap<String, Hydrator>,
     environment: &mut Environment<'_>,
-    lines: &LineNumbers,
     tracing: Tracing,
 ) -> Result<Function<Rc<Type>, TypedExpr, TypedArg>, Error> {
     if let Some(typed_fun) = environment.inferred_functions.get(&fun.name) {
@@ -94,7 +92,7 @@ pub(crate) fn infer_function(
 
     let preregistered_fn = environment
         .get_variable(name)
-        .expect("Could not find preregistered type for function");
+        .unwrap_or_else(|| panic!("Could not find preregistered type for function: {name}"));
 
     let field_map = preregistered_fn.field_map().cloned();
 
@@ -120,7 +118,7 @@ pub(crate) fn infer_function(
         .remove(name)
         .unwrap_or_else(|| panic!("Could not find hydrator for fn {name}"));
 
-    let mut expr_typer = ExprTyper::new(environment, lines, tracing);
+    let mut expr_typer = ExprTyper::new(environment, tracing);
     expr_typer.hydrator = hydrator;
     expr_typer.not_yet_inferred = BTreeSet::from_iter(hydrators.keys().cloned());
 
@@ -153,19 +151,18 @@ pub(crate) fn infer_function(
             environment.current_module,
             hydrators,
             environment,
-            lines,
             tracing,
         )?;
 
         // Then, try again the entire function definition.
-        return infer_function(fun, module_name, hydrators, environment, lines, tracing);
+        return infer_function(fun, module_name, hydrators, environment, tracing);
     }
 
     let (arguments, body, return_type) = inferred?;
 
     let args_types = arguments.iter().map(|a| a.tipo.clone()).collect();
 
-    let tipo = function(args_types, return_type);
+    let tipo = Type::function(args_types, return_type);
 
     let safe_to_generalise = !expr_typer.ungeneralised_function_used;
 
@@ -221,8 +218,6 @@ pub(crate) fn infer_function(
 
 #[derive(Debug)]
 pub(crate) struct ExprTyper<'a, 'b> {
-    pub(crate) lines: &'a LineNumbers,
-
     pub(crate) environment: &'a mut Environment<'b>,
 
     // We tweak the tracing behavior during type-check. Traces are either kept or left out of the
@@ -242,21 +237,17 @@ pub(crate) struct ExprTyper<'a, 'b> {
 }
 
 impl<'a, 'b> ExprTyper<'a, 'b> {
-    pub fn new(
-        environment: &'a mut Environment<'b>,
-        lines: &'a LineNumbers,
-        tracing: Tracing,
-    ) -> Self {
+    pub fn new(environment: &'a mut Environment<'b>, tracing: Tracing) -> Self {
         Self {
             hydrator: Hydrator::new(),
             not_yet_inferred: BTreeSet::new(),
             environment,
             tracing,
             ungeneralised_function_used: false,
-            lines,
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn check_when_exhaustiveness(
         &mut self,
         typed_clauses: &[TypedClause],
@@ -267,14 +258,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         // for clauses that don't have guards.
         let mut patterns = Vec::new();
         for clause in typed_clauses {
-            if let TypedClause {
-                guard: None,
-                pattern,
-                ..
-            } = clause
-            {
-                patterns.push(pattern)
-            }
+            patterns.push(&clause.pattern);
         }
 
         self.environment
@@ -283,6 +267,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn do_infer_call(
         &mut self,
         fun: UntypedExpr,
@@ -296,6 +281,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok((fun, args, typ))
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn do_infer_call_with_known_fun<F>(
         &mut self,
         fun: TypedExpr,
@@ -352,6 +338,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok((fun, arguments, return_type))
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn do_infer_fn(
         &mut self,
         args: Vec<UntypedArg>,
@@ -404,6 +391,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         self.infer_fn_with_known_types(arguments, body, return_type)
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_field_map(
         &mut self,
         constructor: &TypedExpr,
@@ -444,6 +432,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
 
     /// Crawl the AST, annotating each node with the inferred type or
     /// returning an error.
+    #[allow(clippy::result_large_err)]
     pub fn infer(&mut self, expr: UntypedExpr) -> Result<TypedExpr, Error> {
         match expr {
             UntypedExpr::ErrorTerm { location } => Ok(self.infer_error_term(location)),
@@ -453,8 +442,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             UntypedExpr::UInt {
                 location,
                 value,
-                base: _,
-            } => Ok(self.infer_uint(value, location)),
+                base,
+            } => Ok(self.infer_uint(value, base, location)),
 
             UntypedExpr::Sequence {
                 expressions,
@@ -516,9 +505,11 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             UntypedExpr::Trace {
                 location,
                 then,
-                text,
+                label,
+                arguments,
                 kind,
-            } => self.infer_trace(kind, *then, location, *text),
+                ..
+            } => self.infer_trace(kind, *then, location, *label, arguments),
 
             UntypedExpr::When {
                 location,
@@ -567,8 +558,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             UntypedExpr::CurvePoint {
                 location,
                 point,
-                preferred_format: _,
-            } => self.infer_curve_point(*point, location),
+                preferred_format,
+            } => self.infer_curve_point(*point, preferred_format, location),
 
             UntypedExpr::RecordUpdate {
                 location,
@@ -589,6 +580,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_bytearray(
         &mut self,
         bytes: Vec<u8>,
@@ -608,15 +600,22 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok(TypedExpr::ByteArray {
             location,
             bytes,
-            tipo: byte_array(),
+            tipo: Type::byte_array(),
+            preferred_format,
         })
     }
 
-    fn infer_curve_point(&mut self, curve: Curve, location: Span) -> Result<TypedExpr, Error> {
+    #[allow(clippy::result_large_err)]
+    fn infer_curve_point(
+        &mut self,
+        curve: Curve,
+        preferred_format: ByteArrayFormatPreference,
+        location: Span,
+    ) -> Result<TypedExpr, Error> {
         let tipo = match curve {
             Curve::Bls12_381(point) => match point {
-                Bls12_381Point::G1(_) => g1_element(),
-                Bls12_381Point::G2(_) => g2_element(),
+                Bls12_381Point::G1(_) => Type::g1_element(),
+                Bls12_381Point::G2(_) => Type::g2_element(),
             },
         };
 
@@ -624,9 +623,11 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             location,
             point: curve.into(),
             tipo,
+            preferred_format,
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_trace_if_false(
         &mut self,
         value: UntypedExpr,
@@ -645,7 +646,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                     module: String::new(),
                     constructors_count: 2,
                 },
-                tipo: bool(),
+                tipo: Type::bool(),
             },
         };
 
@@ -662,14 +663,14 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                     module: String::new(),
                     constructors_count: 2,
                 },
-                tipo: bool(),
+                tipo: Type::bool(),
             },
         };
 
         let text = match self.tracing.trace_level(false) {
             TraceLevel::Verbose => Some(TypedExpr::String {
                 location,
-                tipo: string(),
+                tipo: Type::string(),
                 value: format!(
                     "{} ? False",
                     format::Formatter::new()
@@ -677,25 +678,21 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                         .to_pretty_string(999)
                 ),
             }),
-            TraceLevel::Compact => Some(TypedExpr::String {
-                location,
-                tipo: string(),
-                value: self
-                    .lines
-                    .line_and_column_number(location.start)
-                    .expect("Spans are within bounds.")
-                    .to_string(),
-            }),
-            TraceLevel::Silent => None,
+            TraceLevel::Compact | TraceLevel::Silent => None,
         };
 
         let typed_value = self.infer(value)?;
 
-        self.unify(bool(), typed_value.tipo(), typed_value.location(), false)?;
+        self.unify(
+            Type::bool(),
+            typed_value.tipo(),
+            typed_value.location(),
+            false,
+        )?;
 
-        match self.tracing.trace_level(false) {
-            TraceLevel::Silent => Ok(typed_value),
-            TraceLevel::Verbose | TraceLevel::Compact => Ok(TypedExpr::If {
+        match text {
+            None => Ok(typed_value),
+            Some(text) => Ok(TypedExpr::If {
                 location,
                 branches: vec1::vec1![IfBranch {
                     condition: typed_value,
@@ -705,15 +702,16 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                 }],
                 final_else: Box::new(TypedExpr::Trace {
                     location,
-                    tipo: bool(),
-                    text: Box::new(text.expect("TraceLevel::Silent excluded from pattern-guard")),
+                    tipo: Type::bool(),
+                    text: Box::new(text),
                     then: Box::new(var_false),
                 }),
-                tipo: bool(),
+                tipo: Type::bool(),
             }),
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_binop(
         &mut self,
         name: BinOp,
@@ -737,22 +735,22 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                 return Ok(TypedExpr::BinOp {
                     location,
                     name,
-                    tipo: bool(),
+                    tipo: Type::bool(),
                     left: Box::new(left),
                     right: Box::new(right),
                 });
             }
-            BinOp::And => (bool(), bool()),
-            BinOp::Or => (bool(), bool()),
-            BinOp::LtInt => (int(), bool()),
-            BinOp::LtEqInt => (int(), bool()),
-            BinOp::GtEqInt => (int(), bool()),
-            BinOp::GtInt => (int(), bool()),
-            BinOp::AddInt => (int(), int()),
-            BinOp::SubInt => (int(), int()),
-            BinOp::MultInt => (int(), int()),
-            BinOp::DivInt => (int(), int()),
-            BinOp::ModInt => (int(), int()),
+            BinOp::And => (Type::bool(), Type::bool()),
+            BinOp::Or => (Type::bool(), Type::bool()),
+            BinOp::LtInt => (Type::int(), Type::bool()),
+            BinOp::LtEqInt => (Type::int(), Type::bool()),
+            BinOp::GtEqInt => (Type::int(), Type::bool()),
+            BinOp::GtInt => (Type::int(), Type::bool()),
+            BinOp::AddInt => (Type::int(), Type::int()),
+            BinOp::SubInt => (Type::int(), Type::int()),
+            BinOp::MultInt => (Type::int(), Type::int()),
+            BinOp::DivInt => (Type::int(), Type::int()),
+            BinOp::ModInt => (Type::int(), Type::int()),
         };
 
         let left = self.infer(left)?;
@@ -784,6 +782,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_record_update(
         &mut self,
         constructor: UntypedExpr,
@@ -910,6 +909,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_un_op(
         &mut self,
         location: Span,
@@ -919,8 +919,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         let value = self.infer(value)?;
 
         let tipo = match op {
-            UnOp::Not => bool(),
-            UnOp::Negate => int(),
+            UnOp::Not => Type::bool(),
+            UnOp::Negate => Type::int(),
         };
 
         self.unify(tipo.clone(), value.tipo(), value.location(), false)?;
@@ -933,12 +933,139 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    fn infer_validator_handler_access(
+        &mut self,
+        container: &UntypedExpr,
+        label: &str,
+        access_location: Span,
+    ) -> Option<Result<TypedExpr, Error>> {
+        match container {
+            UntypedExpr::Var { name, location } => {
+                if let Some((_, available_handlers)) = self
+                    .environment
+                    .module_validators
+                    .get(name.as_str())
+                    .cloned()
+                {
+                    return Some(
+                        self.infer_var(
+                            TypedValidator::handler_name(name.as_str(), label),
+                            *location,
+                        )
+                        .map_err(|err| match err {
+                            Error::UnknownVariable { .. } => Error::UnknownValidatorHandler {
+                                location: access_location.map(|_start, end| (location.end, end)),
+                                available_handlers,
+                            },
+                            _ => err,
+                        }),
+                    );
+                }
+            }
+            UntypedExpr::FieldAccess {
+                label: name,
+                container,
+                location,
+            } => {
+                if let UntypedExpr::Var {
+                    name: ref module,
+                    location: module_location,
+                } = container.as_ref()
+                {
+                    match self.environment.imported_modules.get(module) {
+                        Some((_, info)) if info.kind == ModuleKind::Validator => {
+                            let has_validator = info
+                                .values
+                                .keys()
+                                .any(|k| k.split('.').next() == Some(name));
+
+                            let value_constructors = info
+                                .values
+                                .keys()
+                                .map(|k| k.split('.').next().unwrap_or(k).to_string())
+                                .collect::<Vec<_>>();
+
+                            return Some(
+                                self.infer_module_access(
+                                    module,
+                                    TypedValidator::handler_name(name, label),
+                                    location,
+                                    access_location,
+                                )
+                                .and_then(|access| {
+                                    let export_values = self
+                                        .environment
+                                        .module_values
+                                        .iter()
+                                        .any(|(_, constructor)| constructor.public);
+                                    let export_functions = self
+                                        .environment
+                                        .module_functions
+                                        .iter()
+                                        .any(|(_, function)| function.public);
+                                    let export_validators =
+                                        !self.environment.module_validators.is_empty();
+
+                                    if export_values || export_functions || export_validators {
+                                        return Err(Error::ValidatorImported {
+                                            location: location
+                                                .map(|_start, end| (module_location.end, end)),
+                                            name: name.to_string(),
+                                        });
+                                    }
+
+                                    Ok(access)
+                                })
+                                .map_err(|err| match err {
+                                    Error::UnknownModuleValue { .. } => {
+                                        if has_validator {
+                                            Error::UnknownValidatorHandler {
+                                                location: access_location
+                                                    .map(|_start, end| (location.end, end)),
+                                                available_handlers: Vec::new(),
+                                            }
+                                        } else {
+                                            Error::UnknownModuleValue {
+                                                location: location
+                                                    .map(|_start, end| (module_location.end, end)),
+                                                name: name.to_string(),
+                                                module_name: module.to_string(),
+                                                value_constructors,
+                                            }
+                                        }
+                                    }
+                                    _ => err,
+                                }),
+                            );
+                        }
+                        _ => (),
+                    }
+                }
+            }
+            _ => (),
+        }
+
+        None
+    }
+
+    #[allow(clippy::result_large_err)]
     fn infer_field_access(
         &mut self,
         container: UntypedExpr,
         label: String,
         access_location: Span,
     ) -> Result<TypedExpr, Error> {
+        // NOTE: Before we actually resolve the field access, we try to short-circuit the access if
+        // we detect a validator handler access. This can happen in two cases:
+        //
+        // - Either it is a direct access from a validator in the same module.
+        // - Or it is an attempt to pull a handler from an imported validator module.
+        if let Some(shortcircuit) =
+            self.infer_validator_handler_access(&container, &label, access_location)
+        {
+            return shortcircuit;
+        }
+
         // Attempt to infer the container as a record access. If that fails, we may be shadowing the name
         // of an imported module, so attempt to infer the container as a module access.
         // TODO: Remove this cloning
@@ -964,6 +1091,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_module_access(
         &mut self,
         module_alias: &str,
@@ -979,9 +1107,9 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                 .ok_or_else(|| Error::UnknownModule {
                     name: module_alias.to_string(),
                     location: *module_location,
-                    imported_modules: self
+                    known_modules: self
                         .environment
-                        .imported_modules
+                        .importable_modules
                         .keys()
                         .map(|t| t.to_string())
                         .collect(),
@@ -1032,6 +1160,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_record_access(
         &mut self,
         record: UntypedExpr,
@@ -1044,6 +1173,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         self.infer_known_record_access(record, label, location)
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_known_record_access(
         &mut self,
         record: TypedExpr,
@@ -1131,6 +1261,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_param(
         &mut self,
         untyped_arg: UntypedArg,
@@ -1175,7 +1306,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok((typed_arg, extra_assignment))
     }
 
-    fn infer_assignment(
+    #[allow(clippy::result_large_err)]
+    pub fn infer_assignment(
         &mut self,
         untyped_pattern: UntypedPattern,
         untyped_value: UntypedExpr,
@@ -1184,12 +1316,13 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         location: Span,
     ) -> Result<TypedExpr, Error> {
         let typed_value = self.infer(untyped_value.clone())?;
+
         let mut value_typ = typed_value.tipo();
 
         let value_is_data = value_typ.is_data();
 
         // Check that any type annotation is accurate.
-        let ann_typ = if let Some(ann) = annotation {
+        let pattern = if let Some(ann) = annotation {
             let ann_typ = self
                 .type_from_annotation(ann)
                 .and_then(|t| self.instantiate(t, &mut HashMap::new(), location))?;
@@ -1203,9 +1336,15 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
 
             value_typ = ann_typ.clone();
 
-            Some(ann_typ)
-        } else {
-            if value_is_data && !untyped_pattern.is_var() && !untyped_pattern.is_discard() {
+            // Ensure the pattern matches the type of the value
+            PatternTyper::new(self.environment, &self.hydrator).unify(
+                untyped_pattern.clone(),
+                value_typ.clone(),
+                Some(ann_typ),
+                kind.is_let(),
+            )
+        } else if value_is_data && !kind.is_let() {
+            let cast_data_no_ann = || {
                 let ann = Annotation::Constructor {
                     location: Span::empty(),
                     module: None,
@@ -1213,33 +1352,91 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                     arguments: vec![],
                 };
 
-                return Err(Error::CastDataNoAnn {
+                Err(Error::CastDataNoAnn {
                     location,
                     value: UntypedExpr::Assignment {
                         location,
-                        value: untyped_value.into(),
-                        patterns: AssignmentPattern::new(untyped_pattern, Some(ann), Span::empty())
-                            .into(),
+                        value: untyped_value.clone().into(),
+                        patterns: AssignmentPattern::new(
+                            untyped_pattern.clone(),
+                            Some(ann),
+                            Span::empty(),
+                        )
+                        .into(),
                         kind,
                     },
-                });
+                })
+            };
+
+            if !untyped_pattern.is_var() && !untyped_pattern.is_discard() {
+                let ann_typ = self.new_unbound_var();
+
+                match PatternTyper::new(self.environment, &self.hydrator).unify(
+                    untyped_pattern.clone(),
+                    ann_typ.clone(),
+                    None,
+                    false,
+                ) {
+                    Ok(pattern) if ann_typ.is_monomorphic() => {
+                        self.unify(
+                            ann_typ.clone(),
+                            value_typ.clone(),
+                            typed_value.type_defining_location(),
+                            true,
+                        )?;
+
+                        value_typ = ann_typ.clone();
+
+                        Ok(pattern)
+                    }
+                    Ok(..) | Err(..) => cast_data_no_ann(),
+                }
+            } else {
+                cast_data_no_ann()
             }
-
-            None
-        };
-
-        // Ensure the pattern matches the type of the value
-        let pattern = PatternTyper::new(self.environment, &self.hydrator).unify(
-            untyped_pattern.clone(),
-            value_typ.clone(),
-            ann_typ,
-            kind.is_let(),
-        )?;
+        } else {
+            // Ensure the pattern matches the type of the value
+            PatternTyper::new(self.environment, &self.hydrator).unify(
+                untyped_pattern.clone(),
+                value_typ.clone(),
+                None,
+                kind.is_let(),
+            )
+        }?;
 
         // If `expect` is explicitly used, we still check exhaustiveness but instead of returning an
         // error we emit a warning which explains that using `expect` is unnecessary.
         match kind {
-            AssignmentKind::Is => (),
+            AssignmentKind::Is => {
+                let pattern_var_name = match pattern {
+                    Pattern::Var { ref name, .. } => Some(name),
+                    _ => None,
+                };
+
+                let value_var_name = match typed_value {
+                    TypedExpr::Var { ref name, .. } => Some(name),
+                    _ => None,
+                };
+
+                // In case where we have no explicit pattern, we end up introducing a new let
+                // binding with the same name as the value. However, the assigned value may not
+                // necessarily be used, resulting in an annoying warning when one only wants to
+                // assert a type.
+                //
+                // if foo is Int { // foo is unused here but shouldn't generated warnings.
+                //   True
+                // } else {
+                //   False
+                // }
+                //
+                // The following check removes the warning by marking the new let-binding as used
+                // in this particular context.
+                if let Some(pattern_var_name) = pattern_var_name {
+                    if Some(pattern_var_name) == value_var_name {
+                        self.environment.increment_usage(pattern_var_name);
+                    }
+                }
+            }
             AssignmentKind::Let { .. } => {
                 self.environment
                     .check_exhaustiveness(&[&pattern], location, true)?
@@ -1304,6 +1501,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_call(
         &mut self,
         fun: UntypedExpr,
@@ -1322,6 +1520,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_call_argument(
         &mut self,
         value: UntypedExpr,
@@ -1370,6 +1569,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok(value)
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_clause(
         &mut self,
         clause: UntypedClause,
@@ -1377,21 +1577,22 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
     ) -> Result<Vec<TypedClause>, Error> {
         let UntypedClause {
             patterns,
-            guard,
             then,
             location,
         } = clause;
 
-        let (guard, then, typed_patterns) = self.in_new_scope(|scope| {
+        let (then, typed_patterns) = self.in_new_scope(|scope| {
             let typed_patterns = scope.infer_clause_pattern(patterns, subject, &location)?;
 
-            let guard = scope.infer_optional_clause_guard(guard)?;
+            let then = if let Some(filler) =
+                recover_from_no_assignment(assert_no_assignment(&then), then.location())?
+            {
+                scope.infer(then)?.and_then(filler)
+            } else {
+                scope.infer(then)?
+            };
 
-            assert_no_assignment(&then)?;
-
-            let then = scope.infer(then)?;
-
-            Ok::<_, Error>((guard, then, typed_patterns))
+            Ok::<_, Error>((then, typed_patterns))
         })?;
 
         Ok(typed_patterns
@@ -1399,219 +1600,12 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             .map(|pattern| TypedClause {
                 location,
                 pattern,
-                guard: guard.clone(),
                 then: then.clone(),
             })
             .collect())
     }
 
-    fn infer_clause_guard(&mut self, guard: UntypedClauseGuard) -> Result<TypedClauseGuard, Error> {
-        match guard {
-            ClauseGuard::Var { location, name, .. } => {
-                let constructor = self.infer_value_constructor(&None, &name, &location)?;
-
-                // We cannot support all values in guard expressions as the BEAM does not
-                match &constructor.variant {
-                    ValueConstructorVariant::LocalVariable { .. } => (),
-
-                    ValueConstructorVariant::ModuleFn { .. }
-                    | ValueConstructorVariant::Record { .. } => {
-                        return Err(Error::NonLocalClauseGuardVariable { location, name });
-                    }
-
-                    ValueConstructorVariant::ModuleConstant { literal, .. } => {
-                        return Ok(ClauseGuard::Constant(literal.clone()));
-                    }
-                };
-
-                Ok(ClauseGuard::Var {
-                    location,
-                    name,
-                    tipo: constructor.tipo,
-                })
-            }
-
-            ClauseGuard::Not {
-                location, value, ..
-            } => {
-                let value = self.infer_clause_guard(*value)?;
-
-                self.unify(bool(), value.tipo(), value.location(), false)?;
-
-                Ok(ClauseGuard::Not {
-                    location,
-                    value: Box::new(value),
-                })
-            }
-
-            ClauseGuard::And {
-                location,
-                left,
-                right,
-                ..
-            } => {
-                let left = self.infer_clause_guard(*left)?;
-
-                self.unify(bool(), left.tipo(), left.location(), false)?;
-
-                let right = self.infer_clause_guard(*right)?;
-
-                self.unify(bool(), right.tipo(), right.location(), false)?;
-
-                Ok(ClauseGuard::And {
-                    location,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                })
-            }
-
-            ClauseGuard::Or {
-                location,
-                left,
-                right,
-                ..
-            } => {
-                let left = self.infer_clause_guard(*left)?;
-
-                self.unify(bool(), left.tipo(), left.location(), false)?;
-
-                let right = self.infer_clause_guard(*right)?;
-
-                self.unify(bool(), right.tipo(), right.location(), false)?;
-
-                Ok(ClauseGuard::Or {
-                    location,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                })
-            }
-
-            ClauseGuard::Equals {
-                location,
-                left,
-                right,
-                ..
-            } => {
-                let left = self.infer_clause_guard(*left)?;
-                let right = self.infer_clause_guard(*right)?;
-
-                self.unify(left.tipo(), right.tipo(), location, false)?;
-
-                Ok(ClauseGuard::Equals {
-                    location,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                })
-            }
-
-            ClauseGuard::NotEquals {
-                location,
-                left,
-                right,
-                ..
-            } => {
-                let left = self.infer_clause_guard(*left)?;
-                let right = self.infer_clause_guard(*right)?;
-
-                self.unify(left.tipo(), right.tipo(), location, false)?;
-
-                Ok(ClauseGuard::NotEquals {
-                    location,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                })
-            }
-
-            ClauseGuard::GtInt {
-                location,
-                left,
-                right,
-                ..
-            } => {
-                let left = self.infer_clause_guard(*left)?;
-
-                self.unify(int(), left.tipo(), left.location(), false)?;
-
-                let right = self.infer_clause_guard(*right)?;
-
-                self.unify(int(), right.tipo(), right.location(), false)?;
-
-                Ok(ClauseGuard::GtInt {
-                    location,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                })
-            }
-
-            ClauseGuard::GtEqInt {
-                location,
-                left,
-                right,
-                ..
-            } => {
-                let left = self.infer_clause_guard(*left)?;
-
-                self.unify(int(), left.tipo(), left.location(), false)?;
-
-                let right = self.infer_clause_guard(*right)?;
-
-                self.unify(int(), right.tipo(), right.location(), false)?;
-
-                Ok(ClauseGuard::GtEqInt {
-                    location,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                })
-            }
-
-            ClauseGuard::LtInt {
-                location,
-                left,
-                right,
-                ..
-            } => {
-                let left = self.infer_clause_guard(*left)?;
-
-                self.unify(int(), left.tipo(), left.location(), false)?;
-
-                let right = self.infer_clause_guard(*right)?;
-
-                self.unify(int(), right.tipo(), right.location(), false)?;
-
-                Ok(ClauseGuard::LtInt {
-                    location,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                })
-            }
-
-            ClauseGuard::LtEqInt {
-                location,
-                left,
-                right,
-                ..
-            } => {
-                let left = self.infer_clause_guard(*left)?;
-
-                self.unify(int(), left.tipo(), left.location(), false)?;
-
-                let right = self.infer_clause_guard(*right)?;
-
-                self.unify(int(), right.tipo(), right.location(), false)?;
-
-                Ok(ClauseGuard::LtEqInt {
-                    location,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                })
-            }
-
-            ClauseGuard::Constant(constant) => {
-                self.infer_const(&None, constant).map(ClauseGuard::Constant)
-            }
-        }
-    }
-
+    #[allow(clippy::result_large_err)]
     fn infer_clause_pattern(
         &mut self,
         patterns: Vec1<UntypedPattern>,
@@ -1633,64 +1627,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok(typed_patterns)
     }
 
-    // TODO: extract the type annotation checking into a infer_module_const
-    // function that uses this function internally
-    pub fn infer_const(
-        &mut self,
-        annotation: &Option<Annotation>,
-        value: Constant,
-    ) -> Result<Constant, Error> {
-        let inferred = match value {
-            Constant::Int {
-                location,
-                value,
-                base,
-            } => Ok(Constant::Int {
-                location,
-                value,
-                base,
-            }),
-
-            Constant::String { location, value } => Ok(Constant::String { location, value }),
-
-            Constant::ByteArray {
-                location,
-                bytes,
-                preferred_format,
-            } => {
-                let _ = self.infer_bytearray(bytes.clone(), preferred_format, location)?;
-                Ok(Constant::ByteArray {
-                    location,
-                    bytes,
-                    preferred_format,
-                })
-            }
-            Constant::CurvePoint {
-                location,
-                point,
-                preferred_format,
-            } => Ok(Constant::CurvePoint {
-                location,
-                point,
-                preferred_format,
-            }),
-        }?;
-
-        // Check type annotation is accurate.
-        if let Some(ann) = annotation {
-            let const_ann = self.type_from_annotation(ann)?;
-
-            self.unify(
-                const_ann.clone(),
-                inferred.tipo(),
-                inferred.location(),
-                const_ann.is_data(),
-            )?;
-        };
-
-        Ok(inferred)
-    }
-
+    #[allow(clippy::result_large_err)]
     fn infer_if(
         &mut self,
         branches: Vec1<UntypedIfBranch>,
@@ -1719,8 +1656,13 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             typed_branches.push(typed_branch);
         }
 
-        assert_no_assignment(&final_else)?;
-        let typed_final_else = self.infer(final_else)?;
+        let typed_final_else = if let Some(filler) =
+            recover_from_no_assignment(assert_no_assignment(&final_else), final_else.location())?
+        {
+            self.infer(final_else)?.and_then(filler)
+        } else {
+            self.infer(final_else)?
+        };
 
         self.unify(
             first_body_type.clone(),
@@ -1737,6 +1679,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_if_branch(&mut self, branch: UntypedIfBranch) -> Result<TypedIfBranch, Error> {
         let (condition, body, is) = match branch.is {
             Some(is) => self.in_new_scope(|typer| {
@@ -1746,7 +1689,12 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                     location,
                 } = is;
 
-                let TypedExpr::Assignment { value, pattern, .. } = typer.infer_assignment(
+                let TypedExpr::Assignment {
+                    value,
+                    pattern,
+                    tipo,
+                    ..
+                } = typer.infer_assignment(
                     pattern,
                     branch.condition.clone(),
                     AssignmentKind::is(),
@@ -1763,23 +1711,35 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                     })
                 }
 
-                assert_no_assignment(&branch.body)?;
-                let body = typer.infer(branch.body.clone())?;
+                let body = if let Some(filler) = recover_from_no_assignment(
+                    assert_no_assignment(&branch.body),
+                    branch.body.location(),
+                )? {
+                    typer.infer(branch.body.clone())?.and_then(filler)
+                } else {
+                    typer.infer(branch.body.clone())?
+                };
 
-                Ok((*value, body, Some(pattern)))
+                Ok((*value, body, Some((pattern, tipo))))
             })?,
             None => {
                 let condition = self.infer(branch.condition.clone())?;
 
                 self.unify(
-                    bool(),
+                    Type::bool(),
                     condition.tipo(),
                     condition.type_defining_location(),
                     false,
                 )?;
 
-                assert_no_assignment(&branch.body)?;
-                let body = self.infer(branch.body.clone())?;
+                let body = if let Some(filler) = recover_from_no_assignment(
+                    assert_no_assignment(&branch.body),
+                    branch.body.location(),
+                )? {
+                    self.infer(branch.body.clone())?.and_then(filler)
+                } else {
+                    self.infer(branch.body.clone())?
+                };
 
                 (condition, body, None)
             }
@@ -1793,7 +1753,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
-    fn infer_fn(
+    #[allow(clippy::result_large_err)]
+    pub fn infer_fn(
         &mut self,
         args: Vec<UntypedArg>,
         expected_args: &[Rc<Type>],
@@ -1807,7 +1768,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
 
         let args_types = args.iter().map(|a| a.tipo.clone()).collect();
 
-        let tipo = function(args_types, return_type);
+        let tipo = Type::function(args_types, return_type);
 
         Ok(TypedExpr::Fn {
             location,
@@ -1819,13 +1780,16 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn infer_fn_with_known_types(
         &mut self,
         args: Vec<TypedArg>,
         body: UntypedExpr,
         return_type: Option<Rc<Type>>,
     ) -> Result<(Vec<TypedArg>, TypedExpr, Rc<Type>), Error> {
-        assert_no_assignment(&body)?;
+        let location = body.location();
+
+        let no_assignment = assert_no_assignment(&body);
 
         let (body_rigid_names, body_infer) = self.in_new_scope(|body_typer| {
             let mut argument_names = HashMap::with_capacity(args.len());
@@ -1862,7 +1826,14 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             Ok((body_typer.hydrator.rigid_names(), body_typer.infer(body)))
         })?;
 
-        let body = body_infer.map_err(|e| e.with_unify_error_rigid_names(&body_rigid_names))?;
+        let inferred_body =
+            body_infer.map_err(|e| e.with_unify_error_rigid_names(&body_rigid_names));
+
+        let body = if let Some(filler) = recover_from_no_assignment(no_assignment, location)? {
+            inferred_body?.and_then(filler)
+        } else {
+            inferred_body?
+        };
 
         // Check that any return type is accurate.
         let return_type = match return_type {
@@ -1889,14 +1860,16 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok((args, body, return_type))
     }
 
-    fn infer_uint(&mut self, value: String, location: Span) -> TypedExpr {
+    fn infer_uint(&mut self, value: String, base: Base, location: Span) -> TypedExpr {
         TypedExpr::UInt {
             location,
             value,
-            tipo: int(),
+            tipo: Type::int(),
+            base,
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_list(
         &mut self,
         elements: Vec<UntypedExpr>,
@@ -1920,7 +1893,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         ensure_serialisable(false, tipo.clone(), location)?;
 
         // Type check the ..tail, if there is one
-        let tipo = list(tipo);
+        let tipo = Type::list(tipo);
 
         let tail = match tail {
             Some(tail) => {
@@ -1942,25 +1915,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
-    fn infer_optional_clause_guard(
-        &mut self,
-        guard: Option<UntypedClauseGuard>,
-    ) -> Result<Option<TypedClauseGuard>, Error> {
-        match guard {
-            // If there is no guard we do nothing
-            None => Ok(None),
-
-            // If there is a guard we assert that it is of type Bool
-            Some(guard) => {
-                let guard = self.infer_clause_guard(guard)?;
-
-                self.unify(bool(), guard.tipo(), guard.location(), false)?;
-
-                Ok(Some(guard))
-            }
-        }
-    }
-
+    #[allow(clippy::result_large_err)]
     fn infer_logical_op_chain(
         &mut self,
         kind: LogicalOpChainKind,
@@ -1971,11 +1926,10 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
 
         for expression in expressions {
             assert_no_assignment(&expression)?;
-
             let typed_expression = self.infer(expression)?;
 
             self.unify(
-                bool(),
+                Type::bool(),
                 typed_expression.tipo(),
                 typed_expression.location(),
                 false,
@@ -1999,7 +1953,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             .rev()
             .reduce(|acc, typed_expression| TypedExpr::BinOp {
                 location,
-                tipo: bool(),
+                tipo: Type::bool(),
                 name,
                 left: typed_expression.into(),
                 right: acc.into(),
@@ -2009,6 +1963,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok(chain)
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_pipeline(&mut self, expressions: Vec1<UntypedExpr>) -> Result<TypedExpr, Error> {
         PipeTyper::infer(self, expressions)
     }
@@ -2019,7 +1974,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         mut continuation: Vec<UntypedExpr>,
     ) -> UntypedExpr {
         let UntypedExpr::Assignment {
-            location: _,
+            location,
             value,
             kind,
             patterns,
@@ -2031,7 +1986,15 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         let value_location = value.location();
 
         let call_location = Span {
-            start: value_location.end,
+            start: location.start,
+            end: continuation
+                .last()
+                .map(|expr| expr.location().end)
+                .unwrap_or_else(|| value_location.end),
+        };
+
+        let lambda_span = Span {
+            start: location.end, // Start immediately after the assignment
             end: continuation
                 .last()
                 .map(|expr| expr.location().end)
@@ -2061,7 +2024,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                         location: var_location,
                     };
 
-                    names.push((name, assignment_pattern_location, annotation));
+                    names.push((name, var_location, annotation));
                 }
                 Pattern::Discard {
                     name,
@@ -2073,15 +2036,17 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                         location: var_location,
                     };
 
-                    names.push((name, assignment_pattern_location, annotation));
+                    names.push((name, var_location, annotation));
                 }
                 _ => {
                     let name = format!("{}_{}", ast::BACKPASS_VARIABLE, index);
 
+                    let pattern_location = pattern.location();
+
                     let arg_name = ArgName::Named {
                         label: name.clone(),
                         name: name.clone(),
-                        location: pattern.location(),
+                        location: pattern_location,
                     };
 
                     let pattern_is_var = pattern.is_var();
@@ -2091,7 +2056,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                         UntypedExpr::Assignment {
                             location: assignment_pattern_location,
                             value: UntypedExpr::Var {
-                                location: assignment_pattern_location,
+                                location: pattern_location,
                                 name: name.clone(),
                             }
                             .into(),
@@ -2115,7 +2080,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                         },
                     );
 
-                    names.push((arg_name, assignment_pattern_location, annotation));
+                    names.push((arg_name, pattern_location, annotation));
                 }
             }
         }
@@ -2129,9 +2094,9 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                 let mut new_arguments = Vec::new();
                 new_arguments.extend(arguments);
                 new_arguments.push(CallArg {
-                    location: call_location,
+                    location: lambda_span,
                     label: None,
-                    value: UntypedExpr::lambda(names, continuation, call_location),
+                    value: UntypedExpr::lambda(names, continuation, lambda_span),
                 });
 
                 UntypedExpr::Call {
@@ -2162,9 +2127,9 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                     location: call_location,
                     fun: value,
                     arguments: vec![CallArg {
-                        location: call_location,
+                        location: lambda_span,
                         label: None,
-                        value: UntypedExpr::lambda(names, continuation, call_location),
+                        value: UntypedExpr::lambda(names, continuation, lambda_span),
                     }],
                 };
 
@@ -2189,14 +2154,15 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                 location: call_location,
                 fun: value,
                 arguments: vec![CallArg {
-                    location: call_location,
+                    location: lambda_span,
                     label: None,
-                    value: UntypedExpr::lambda(names, continuation, call_location),
+                    value: UntypedExpr::lambda(names, continuation, lambda_span),
                 }],
             },
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_seq(&mut self, location: Span, untyped: Vec<UntypedExpr>) -> Result<TypedExpr, Error> {
         // Search for backpassing.
         let mut breakpoint = None;
@@ -2249,21 +2215,33 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
 
                 let typed_expression = scope.infer(expression)?;
 
-                expressions.push(match i.cmp(&(count - 1)) {
+                match i.cmp(&(count - 1)) {
                     // When the expression is the last in a sequence, we enforce it is NOT
                     // an assignment (kind of treat assignments like statements).
                     Ordering::Equal => {
-                        no_assignment?;
-                        typed_expression
+                        if let Some(filler) =
+                            recover_from_no_assignment(no_assignment, typed_expression.location())?
+                        {
+                            match typed_expression.and_then(filler) {
+                                TypedExpr::Sequence {
+                                    expressions: seq, ..
+                                } => expressions.extend(seq),
+                                trace => expressions.push(trace),
+                            }
+                        } else {
+                            expressions.push(typed_expression);
+                        }
                     }
 
                     // This isn't the final expression in the sequence, so it *must*
                     // be a let-binding; we do not allow anything else.
-                    Ordering::Less => assert_assignment(typed_expression)?,
+                    Ordering::Less => {
+                        expressions.push(assert_assignment(typed_expression)?);
+                    }
 
                     // Can't actually happen
-                    Ordering::Greater => typed_expression,
-                })
+                    Ordering::Greater => unreachable!(),
+                }
             }
 
             Ok(expressions)
@@ -2301,10 +2279,11 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         TypedExpr::String {
             location,
             value,
-            tipo: string(),
+            tipo: Type::string(),
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_pair(
         &mut self,
         fst: UntypedExpr,
@@ -2319,12 +2298,13 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
 
         Ok(TypedExpr::Pair {
             location,
-            tipo: pair(typed_fst.tipo(), typed_snd.tipo()),
+            tipo: Type::pair(typed_fst.tipo(), typed_snd.tipo()),
             fst: typed_fst.into(),
             snd: typed_snd.into(),
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_tuple(&mut self, elems: Vec<UntypedExpr>, location: Span) -> Result<TypedExpr, Error> {
         let mut typed_elems = vec![];
 
@@ -2337,7 +2317,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             typed_elems.push(typed_elem);
         }
 
-        let tipo = tuple(typed_elems.iter().map(|e| e.tipo()).collect());
+        let tipo = Type::tuple(typed_elems.iter().map(|e| e.tipo()).collect());
 
         Ok(TypedExpr::Tuple {
             location,
@@ -2346,6 +2326,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_tuple_index(
         &mut self,
         tuple_or_pair: UntypedExpr,
@@ -2403,17 +2384,39 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         TypedExpr::ErrorTerm { location, tipo }
     }
 
+    #[allow(clippy::result_large_err)]
+    fn infer_trace_arg(&mut self, arg: UntypedExpr) -> Result<TypedExpr, Error> {
+        let typed_arg = self.infer(arg)?;
+        match self.unify(
+            Type::string(),
+            typed_arg.tipo(),
+            typed_arg.location(),
+            false,
+        ) {
+            Err(_) => {
+                self.unify(Type::data(), typed_arg.tipo(), typed_arg.location(), true)?;
+                Ok(diagnose_expr(typed_arg))
+            }
+            Ok(()) => Ok(typed_arg),
+        }
+    }
+
+    #[allow(clippy::result_large_err)]
     fn infer_trace(
         &mut self,
         kind: TraceKind,
         then: UntypedExpr,
         location: Span,
-        text: UntypedExpr,
+        label: UntypedExpr,
+        arguments: Vec<UntypedExpr>,
     ) -> Result<TypedExpr, Error> {
-        let text = self.infer(text)?;
-        self.unify(string(), text.tipo(), text.location(), false)?;
+        let typed_arguments = arguments
+            .into_iter()
+            .map(|arg| self.infer_trace_arg(arg))
+            .collect::<Result<Vec<_>, Error>>()?;
 
         let then = self.infer(then)?;
+
         let tipo = then.tipo();
 
         if let TraceKind::Todo = kind {
@@ -2425,29 +2428,46 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
 
         match self.tracing.trace_level(false) {
             TraceLevel::Silent => Ok(then),
-            TraceLevel::Compact => Ok(TypedExpr::Trace {
-                location,
-                tipo,
-                then: Box::new(then),
-                text: Box::new(TypedExpr::String {
+            TraceLevel::Compact => {
+                let text = self.infer(label)?;
+                self.unify(Type::string(), text.tipo(), text.location(), false)?;
+                Ok(TypedExpr::Trace {
                     location,
-                    tipo: string(),
-                    value: self
-                        .lines
-                        .line_and_column_number(location.start)
-                        .expect("Spans are within bounds.")
-                        .to_string(),
-                }),
-            }),
-            TraceLevel::Verbose => Ok(TypedExpr::Trace {
-                location,
-                tipo,
-                then: Box::new(then),
-                text: Box::new(text),
-            }),
+                    tipo,
+                    then: Box::new(then),
+                    text: Box::new(text),
+                })
+            }
+            TraceLevel::Verbose => {
+                let label = self.infer_trace_arg(label)?;
+
+                let text = if typed_arguments.is_empty() {
+                    label
+                } else {
+                    let delimiter = |ix| TypedExpr::String {
+                        location: Span::empty(),
+                        tipo: Type::string(),
+                        value: if ix == 0 { ": " } else { ", " }.to_string(),
+                    };
+                    typed_arguments
+                        .into_iter()
+                        .enumerate()
+                        .fold(label, |text, (ix, arg)| {
+                            append_string_expr(append_string_expr(text, delimiter(ix)), arg)
+                        })
+                };
+
+                Ok(TypedExpr::Trace {
+                    location,
+                    tipo,
+                    then: Box::new(then),
+                    text: Box::new(text),
+                })
+            }
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn infer_value_constructor(
         &mut self,
         module: &Option<String>,
@@ -2514,9 +2534,9 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                     .ok_or_else(|| Error::UnknownModule {
                         location: *location,
                         name: module_name.to_string(),
-                        imported_modules: self
+                        known_modules: self
                             .environment
-                            .imported_modules
+                            .importable_modules
                             .keys()
                             .map(|t| t.to_string())
                             .collect(),
@@ -2551,6 +2571,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_var(&mut self, name: String, location: Span) -> Result<TypedExpr, Error> {
         let constructor = self.infer_value_constructor(&None, &name, &location)?;
 
@@ -2561,6 +2582,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn infer_when(
         &mut self,
         subject: UntypedExpr,
@@ -2621,6 +2643,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn instantiate(
         &mut self,
         t: Rc<Type>,
@@ -2632,15 +2655,18 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         Ok(result)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn new_unbound_var(&mut self) -> Rc<Type> {
         self.environment.new_unbound_var()
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn type_from_annotation(&mut self, annotation: &Annotation) -> Result<Rc<Type>, Error> {
         self.hydrator
             .type_from_annotation(annotation, self.environment)
     }
 
+    #[allow(clippy::result_large_err)]
     fn unify(
         &mut self,
         t1: Rc<Type>,
@@ -2652,11 +2678,38 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
     }
 }
 
+#[allow(clippy::result_large_err)]
+fn recover_from_no_assignment(
+    result: Result<(), Error>,
+    span: Span,
+) -> Result<Option<TypedExpr>, Error> {
+    if let Err(Error::LastExpressionIsAssignment {
+        ref patterns,
+        ref kind,
+        ..
+    }) = result
+    {
+        if matches!(kind, AssignmentKind::Expect { ..} if patterns.len() == 1) {
+            return Ok(Some(TypedExpr::void(span)));
+        }
+    }
+
+    result.map(|()| None)
+}
+
+#[allow(clippy::result_large_err)]
 fn assert_no_assignment(expr: &UntypedExpr) -> Result<(), Error> {
     match expr {
-        UntypedExpr::Assignment { value, .. } => Err(Error::LastExpressionIsAssignment {
+        UntypedExpr::Assignment {
+            value,
+            patterns,
+            kind,
+            ..
+        } => Err(Error::LastExpressionIsAssignment {
             location: expr.location(),
             expr: *value.clone(),
+            patterns: patterns.clone(),
+            kind: *kind,
         }),
         UntypedExpr::Trace { then, .. } => assert_no_assignment(then),
         UntypedExpr::Fn { .. }
@@ -2684,12 +2737,13 @@ fn assert_no_assignment(expr: &UntypedExpr) -> Result<(), Error> {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn assert_assignment(expr: TypedExpr) -> Result<TypedExpr, Error> {
     if !matches!(expr, TypedExpr::Assignment { .. }) {
         if expr.tipo().is_void() {
             return Ok(TypedExpr::Assignment {
                 location: expr.location(),
-                tipo: void(),
+                tipo: Type::void(),
                 value: expr.clone().into(),
                 pattern: Pattern::Constructor {
                     is_record: false,
@@ -2702,7 +2756,7 @@ fn assert_assignment(expr: TypedExpr) -> Result<TypedExpr, Error> {
                     arguments: vec![],
                     module: None,
                     spread_location: None,
-                    tipo: void(),
+                    tipo: Type::void(),
                 },
                 kind: AssignmentKind::let_(),
             });
@@ -2716,6 +2770,7 @@ fn assert_assignment(expr: TypedExpr) -> Result<TypedExpr, Error> {
     Ok(expr)
 }
 
+#[allow(clippy::result_large_err)]
 pub fn ensure_serialisable(is_top_level: bool, t: Rc<Type>, location: Span) -> Result<(), Error> {
     match t.deref() {
         Type::App {
@@ -2782,5 +2837,118 @@ pub fn ensure_serialisable(is_top_level: bool, t: Rc<Type>, location: Span) -> R
             ensure_serialisable(false, fst.clone(), location)?;
             ensure_serialisable(false, snd.clone(), location)
         }
+    }
+}
+
+fn diagnose_expr(expr: TypedExpr) -> TypedExpr {
+    // NOTE: The IdGenerator is unused. See similar note in 'append_string_expr'
+    let decode_utf8_constructor =
+        from_default_function(DefaultFunction::DecodeUtf8, &IdGenerator::new());
+
+    let decode_utf8 = TypedExpr::ModuleSelect {
+        location: expr.location(),
+        tipo: decode_utf8_constructor.tipo.clone(),
+        label: DefaultFunction::DecodeUtf8.aiken_name(),
+        module_name: BUILTIN.to_string(),
+        module_alias: BUILTIN.to_string(),
+        constructor: decode_utf8_constructor.variant.to_module_value_constructor(
+            decode_utf8_constructor.tipo,
+            BUILTIN,
+            &DefaultFunction::AppendString.aiken_name(),
+        ),
+    };
+
+    let diagnostic = TypedExpr::Var {
+        location: expr.location(),
+        name: "diagnostic".to_string(),
+        constructor: ValueConstructor {
+            public: true,
+            tipo: Type::function(vec![Type::data(), Type::byte_array()], Type::byte_array()),
+            variant: ValueConstructorVariant::ModuleFn {
+                name: "diagnostic".to_string(),
+                field_map: None,
+                module: "".to_string(),
+                arity: 2,
+                location: Span::empty(),
+                builtin: None,
+            },
+        },
+    };
+
+    let location = expr.location();
+
+    TypedExpr::Call {
+        tipo: Type::string(),
+        fun: Box::new(decode_utf8.clone()),
+        args: vec![CallArg {
+            label: None,
+            location: expr.location(),
+            value: TypedExpr::Call {
+                tipo: Type::byte_array(),
+                fun: Box::new(diagnostic.clone()),
+                args: vec![
+                    CallArg {
+                        label: None,
+                        value: expr,
+                        location,
+                    },
+                    CallArg {
+                        label: None,
+                        location,
+                        value: TypedExpr::ByteArray {
+                            tipo: Type::byte_array(),
+                            bytes: vec![],
+                            location,
+                            preferred_format: ByteArrayFormatPreference::HexadecimalString,
+                        },
+                    },
+                ],
+                location,
+            },
+        }],
+        location,
+    }
+}
+
+fn append_string_expr(left: TypedExpr, right: TypedExpr) -> TypedExpr {
+    // NOTE: The IdGenerator is unused here, as it's only necessary for generic builtin
+    // functions such as if_then_else or head_list. However, if such functions were needed,
+    // passing a brand new IdGenerator here would be WRONG and cause issues down the line.
+    //
+    // So this is merely a small work-around for convenience. The proper way here would be to
+    // pull the function definition for append_string from the pre-registered builtins
+    // functions somewhere in the environment.
+    let value_constructor =
+        from_default_function(DefaultFunction::AppendString, &IdGenerator::new());
+
+    let append_string = TypedExpr::ModuleSelect {
+        location: Span::empty(),
+        tipo: value_constructor.tipo.clone(),
+        label: DefaultFunction::AppendString.aiken_name(),
+        module_name: BUILTIN.to_string(),
+        module_alias: BUILTIN.to_string(),
+        constructor: value_constructor.variant.to_module_value_constructor(
+            value_constructor.tipo,
+            BUILTIN,
+            &DefaultFunction::AppendString.aiken_name(),
+        ),
+    };
+
+    TypedExpr::Call {
+        location: Span::empty(),
+        tipo: Type::string(),
+        fun: Box::new(append_string.clone()),
+        args: vec![
+            CallArg {
+                label: None,
+                location: left.location(),
+                value: left,
+            },
+            CallArg {
+                label: None,
+                location: right.location(),
+                value: right,
+            },
+        ],
     }
 }

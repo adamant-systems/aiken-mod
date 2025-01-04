@@ -37,9 +37,10 @@ fn create_project(args: Args, package_name: &PackageName) -> miette::Result<()> 
         })?;
     }
 
-    create_lib(&root, package_name)?;
+    create_lib(&root)?;
 
     if !args.lib {
+        create_env(&root)?;
         create_validators(&root)?;
     }
 
@@ -94,14 +95,71 @@ fn print_success_message(package_name: &PackageName) {
     )
 }
 
-fn create_lib(root: &Path, package_name: &PackageName) -> miette::Result<()> {
-    let lib = root.join("lib").join(&package_name.repo);
+fn create_env(root: &Path) -> miette::Result<()> {
+    let env = root.join("env");
+    fs::create_dir_all(env).into_diagnostic()
+}
+
+fn create_lib(root: &Path) -> miette::Result<()> {
+    let lib = root.join("lib");
     fs::create_dir_all(lib).into_diagnostic()
 }
 
 fn create_validators(root: &Path) -> miette::Result<()> {
     let validators = root.join("validators");
-    fs::create_dir_all(validators).into_diagnostic()
+    fs::create_dir_all(&validators).into_diagnostic()?;
+    create_validator_placeholder(&validators)
+}
+
+fn create_validator_placeholder(validators: &Path) -> miette::Result<()> {
+    fs::write(
+        validators.join("placeholder.ak"),
+        indoc! {
+            r#"
+            use cardano/address.{Credential}
+            use cardano/assets.{PolicyId}
+            use cardano/certificate.{Certificate}
+            use cardano/governance.{ProposalProcedure, Voter}
+            use cardano/transaction.{Transaction, OutputReference}
+
+            validator placeholder {
+              mint(_redeemer: Data, _policy_id: PolicyId, _self: Transaction) {
+                todo @"mint logic goes here"
+              }
+
+              spend(_datum: Option<Data>, _redeemer: Data, _utxo: OutputReference, _self: Transaction) {
+                todo @"spend logic goes here"
+              }
+
+              withdraw(_redeemer: Data, _account: Credential, _self: Transaction) {
+                todo @"withdraw logic goes here"
+              }
+
+              publish(_redeemer: Data, _certificate: Certificate, _self: Transaction) {
+                todo @"publish logic goes here"
+              }
+
+              vote(_redeemer: Data, _voter: Voter, _self: Transaction) {
+                todo @"vote logic goes here"
+              }
+
+              propose(_redeemer: Data, _proposal: ProposalProcedure, _self: Transaction) {
+                todo @"propose logic goes here"
+              }
+
+              // // If needs be, remove any of unneeded handlers above, and use:
+              //
+              // else(_ctx: ScriptContext) {
+              //   todo @"fallback logic if none of the other purposes match"
+              // }
+              //
+              // // You will also need an additional import:
+              // //
+              // // use cardano/script_context.{ScriptContext}
+            }
+            "#,
+        },
+    ).into_diagnostic()
 }
 
 fn readme(root: &Path, project_name: &str) -> miette::Result<()> {
@@ -113,11 +171,9 @@ fn readme(root: &Path, project_name: &str) -> miette::Result<()> {
 
                 Write validators in the `validators` folder, and supporting functions in the `lib` folder using `.ak` as a file extension.
 
-                For example, as `validators/always_true.ak`
-
-                ```gleam
-                validator {{
-                  fn spend(_datum: Data, _redeemer: Data, _context: Data) -> Bool {{
+                ```aiken
+                validator my_first_validator {{
+                  spend(_datum: Option<Data>, _redeemer: Data, _output_reference: Data, _context: Data) {{
                     True
                   }}
                 }}
@@ -129,13 +185,25 @@ fn readme(root: &Path, project_name: &str) -> miette::Result<()> {
                 aiken build
                 ```
 
+                ## Configuring
+
+                **aiken.toml**
+                ```toml
+                [config.default]
+                network_id = 41
+                ```
+
+                Or, alternatively, write conditional environment modules under `env`.
+
                 ## Testing
 
                 You can write tests in any module using the `test` keyword. For example:
 
-                ```gleam
+                ```aiken
+                use config
+
                 test foo() {{
-                  1 + 1 == 2
+                  config.network_id + 1 == 42
                 }}
                 ```
 
@@ -176,10 +244,10 @@ fn create_github_action(root: &Path) -> miette::Result<()> {
     fs::create_dir_all(&workflows).into_diagnostic()?;
 
     fs::write(
-        workflows.join("tests.yml"),
+        workflows.join("continuous-integration.yml"),
         formatdoc! {
             r#"
-            name: Tests
+            name: Continuous Integration
 
             on:
               push:
@@ -191,11 +259,9 @@ fn create_github_action(root: &Path) -> miette::Result<()> {
                 runs-on: ubuntu-latest
                 steps:
                   - uses: actions/checkout@v3
-
-                  - uses: aiken-lang/setup-aiken@v0.1.0
+                  - uses: aiken-lang/setup-aiken@v1
                     with:
                       version: {version}
-
                   - run: aiken fmt --check
                   - run: aiken check -D
                   - run: aiken build
