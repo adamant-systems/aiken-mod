@@ -94,7 +94,9 @@ impl BuiltinRuntime {
 
         let result = self.fun.call(language.into(), &self.args, logs);
 
-        calls.push(BuiltinCall { fun: self.fun, args: self.args.clone(), result: result.clone() });
+        if self.fun.should_log_call() {
+            calls.push(BuiltinCall { fun: self.fun, args, result: result.clone() });
+        }
 
         result
     }
@@ -117,6 +119,100 @@ impl From<DefaultFunction> for BuiltinRuntime {
 }
 
 impl DefaultFunction {
+    pub fn should_log_call(&self) -> bool {
+        match self {
+            DefaultFunction::AddInteger => true,
+            DefaultFunction::SubtractInteger => true,
+            DefaultFunction::MultiplyInteger => true,
+            DefaultFunction::DivideInteger => true,
+            DefaultFunction::QuotientInteger => true,
+            DefaultFunction::RemainderInteger => true,
+            DefaultFunction::ModInteger => true,
+            DefaultFunction::EqualsInteger => true,
+            DefaultFunction::LessThanInteger => true,
+            DefaultFunction::LessThanEqualsInteger => true,
+            DefaultFunction::AppendByteString => true,
+            DefaultFunction::ConsByteString => true,
+            DefaultFunction::SliceByteString => true,
+            DefaultFunction::LengthOfByteString => true,
+            DefaultFunction::IndexByteString => true,
+            DefaultFunction::EqualsByteString => true,
+            DefaultFunction::LessThanByteString => true,
+            DefaultFunction::LessThanEqualsByteString => true,
+            DefaultFunction::Sha2_256 => true,
+            DefaultFunction::Sha3_256 => true,
+            DefaultFunction::Blake2b_224 => true,
+            DefaultFunction::Blake2b_256 => true,
+            DefaultFunction::Keccak_256 => true,
+            DefaultFunction::VerifyEd25519Signature => true,
+            DefaultFunction::VerifyEcdsaSecp256k1Signature => true,
+            DefaultFunction::VerifySchnorrSecp256k1Signature => true,
+            DefaultFunction::AppendString => true,
+            DefaultFunction::EqualsString => true,
+            DefaultFunction::EncodeUtf8 => true,
+            DefaultFunction::DecodeUtf8 => true,
+            // DefaultFunction::IfThenElse => 1,
+            // DefaultFunction::ChooseUnit => 1,
+            // DefaultFunction::Trace => 1,
+            // DefaultFunction::FstPair => 2,
+            // DefaultFunction::SndPair => 2,
+            // DefaultFunction::ChooseList => 2,
+            // DefaultFunction::MkCons => 1,
+            // DefaultFunction::HeadList => 1,
+            // DefaultFunction::TailList => 1,
+            // DefaultFunction::NullList => 1,
+            // DefaultFunction::ChooseData => 1,
+            // DefaultFunction::ConstrData => 0,
+            // DefaultFunction::MapData => 0,
+            // DefaultFunction::ListData => 0,
+            // DefaultFunction::IData => 0,
+            // DefaultFunction::BData => 0,
+            // DefaultFunction::UnConstrData => 0,
+            // DefaultFunction::UnMapData => 0,
+            // DefaultFunction::UnListData => 0,
+            // DefaultFunction::UnIData => 0,
+            // DefaultFunction::UnBData => 0,
+            DefaultFunction::EqualsData => true,
+            DefaultFunction::SerialiseData => true,
+            // DefaultFunction::MkPairData => 0,
+            // DefaultFunction::MkNilData => 0,
+            // DefaultFunction::MkNilPairData => 0,
+            // DefaultFunction::Bls12_381_G1_Add => 0,
+            // DefaultFunction::Bls12_381_G1_Neg => 0,
+            // DefaultFunction::Bls12_381_G1_ScalarMul => 0,
+            // DefaultFunction::Bls12_381_G1_Equal => 0,
+            // DefaultFunction::Bls12_381_G1_Compress => 0,
+            // DefaultFunction::Bls12_381_G1_Uncompress => 0,
+            // DefaultFunction::Bls12_381_G1_HashToGroup => 0,
+            // DefaultFunction::Bls12_381_G2_Add => 0,
+            // DefaultFunction::Bls12_381_G2_Neg => 0,
+            // DefaultFunction::Bls12_381_G2_ScalarMul => 0,
+            // DefaultFunction::Bls12_381_G2_Equal => 0,
+            // DefaultFunction::Bls12_381_G2_Compress => 0,
+            // DefaultFunction::Bls12_381_G2_Uncompress => 0,
+            // DefaultFunction::Bls12_381_G2_HashToGroup => 0,
+            // DefaultFunction::Bls12_381_MillerLoop => 0,
+            // DefaultFunction::Bls12_381_MulMlResult => 0,
+            // DefaultFunction::Bls12_381_FinalVerify => 0,
+            DefaultFunction::IntegerToByteString => true,
+            DefaultFunction::ByteStringToInteger => true,
+            DefaultFunction::AndByteString => true,
+            DefaultFunction::OrByteString => true,
+            DefaultFunction::XorByteString => true,
+            DefaultFunction::ComplementByteString => true,
+            DefaultFunction::ReadBit => true,
+            DefaultFunction::WriteBits => true,
+            DefaultFunction::ReplicateByte => true,
+            DefaultFunction::ShiftByteString => true,
+            DefaultFunction::RotateByteString => true,
+            DefaultFunction::CountSetBits => true,
+            DefaultFunction::FindFirstSetBit => true,
+            DefaultFunction::Ripemd_160 => true,
+            // DefaultFunction::ExpModInteger => 0,
+            _ => false
+        }
+    }
+    
     pub fn arg_is_unit(&self) -> bool {
         match self {
             DefaultFunction::MkNilData | DefaultFunction::MkNilPairData => true,
