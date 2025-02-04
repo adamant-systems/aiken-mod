@@ -49,6 +49,7 @@ use vec1::{vec1, Vec1};
 pub enum Test {
     UnitTest(UnitTest),
     PropertyTest(PropertyTest),
+    Benchmark(Benchmark),
 }
 
 unsafe impl Send for Test {}
@@ -116,14 +117,19 @@ impl Test {
         })
     }
 
-    pub fn from_function_definition(
+    pub fn from_test_definition(
         generator: &mut CodeGenerator<'_>,
         test: TypedTest,
         module_name: String,
         input_path: PathBuf,
+        is_benchmark: bool,
     ) -> Test {
         if test.arguments.is_empty() {
-            Self::unit_test(generator, test, module_name, input_path)
+            if is_benchmark {
+                unreachable!("benchmark must have at least one argument");
+            } else {
+                Self::unit_test(generator, test, module_name, input_path)
+            }
         } else {
             let parameter = test.arguments.first().unwrap().to_owned();
 
@@ -142,24 +148,57 @@ impl Test {
                 &module_name,
             );
 
-            // NOTE: We need not to pass any parameter to the fuzzer here because the fuzzer
+            // NOTE: We need not to pass any parameter to the fuzzer/sampler here because the fuzzer
             // argument is a Data constructor which needs not any conversion. So we can just safely
             // apply onto it later.
-            let fuzzer = generator.clone().generate_raw(&via, &[], &module_name);
+            let generator_program = generator.clone().generate_raw(&via, &[], &module_name);
 
-            Self::property_test(
-                input_path,
-                module_name,
-                test.name,
-                test.on_test_failure,
-                program,
-                Fuzzer {
-                    program: fuzzer,
-                    stripped_type_info,
-                    type_info,
-                },
-            )
+            if is_benchmark {
+                Test::Benchmark(Benchmark {
+                    input_path,
+                    module: module_name,
+                    name: test.name,
+                    program,
+                    on_test_failure: test.on_test_failure,
+                    sampler: Sampler {
+                        program: generator_program,
+                        type_info,
+                        stripped_type_info,
+                    },
+                })
+            } else {
+                Self::property_test(
+                    input_path,
+                    module_name,
+                    test.name,
+                    test.on_test_failure,
+                    program,
+                    Fuzzer {
+                        program: generator_program,
+                        stripped_type_info,
+                        type_info,
+                    },
+                )
+            }
         }
+    }
+
+    pub fn from_benchmark_definition(
+        generator: &mut CodeGenerator<'_>,
+        test: TypedTest,
+        module_name: String,
+        input_path: PathBuf,
+    ) -> Test {
+        Self::from_test_definition(generator, test, module_name, input_path, true)
+    }
+
+    pub fn from_function_definition(
+        generator: &mut CodeGenerator<'_>,
+        test: TypedTest,
+        module_name: String,
+        input_path: PathBuf,
+    ) -> Test {
+        Self::from_test_definition(generator, test, module_name, input_path, false)
     }
 }
 
@@ -333,7 +372,9 @@ impl PropertyTest {
         let mut counterexample = None;
 
         while *remaining > 0 && counterexample.is_none() {
-            (prng, counterexample) = self.run_once(prng, labels, plutus_version)?;
+            let (next_prng, cex) = self.run_once(prng, labels, plutus_version)?;
+            prng = next_prng;
+            counterexample = cex;
             *remaining -= 1;
         }
 
@@ -437,6 +478,88 @@ impl PropertyTest {
     }
 }
 
+/// ----- Benchmark -----------------------------------------------------------------
+
+#[derive(Debug, Clone)]
+pub struct Sampler<T> {
+    pub program: Program<T>,
+
+    pub type_info: Rc<Type>,
+
+    /// A version of the Fuzzer's type that has gotten rid of
+    /// all erasable opaque type. This is needed in order to
+    /// generate Plutus data with the appropriate shape.
+    pub stripped_type_info: Rc<Type>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Benchmark {
+    pub input_path: PathBuf,
+    pub module: String,
+    pub name: String,
+    pub on_test_failure: OnTestFailure,
+    pub program: Program<Name>,
+    pub sampler: Sampler<Name>,
+}
+
+unsafe impl Send for Benchmark {}
+
+impl Benchmark {
+    pub fn benchmark(
+        self,
+        seed: u32,
+        max_iterations: usize,
+        plutus_version: &PlutusVersion,
+    ) -> Vec<BenchmarkResult> {
+        let mut results = Vec::with_capacity(max_iterations);
+        let mut iteration = 0;
+        let mut prng = Prng::from_seed(seed);
+
+        while max_iterations > iteration {
+            let fuzzer = self
+                .sampler
+                .program
+                .apply_data(Data::integer(num_bigint::BigInt::from(iteration as i64)));
+            match prng.sample(&fuzzer) {
+                Ok(Some((new_prng, value))) => {
+                    prng = new_prng;
+                    let mut eval_result = self.eval(&value, plutus_version);
+                    results.push(BenchmarkResult {
+                        test: self.clone(),
+                        cost: eval_result.cost(),
+                        success: true,
+                        traces: eval_result.logs().to_vec(),
+                    });
+                }
+
+                Ok(None) => {
+                    break;
+                }
+                Err(e) => {
+                    results.push(BenchmarkResult {
+                        test: self.clone(),
+                        cost: ExBudget::default(),
+                        success: false,
+                        traces: vec![format!("Fuzzer error: {}", e)],
+                    });
+                    break;
+                }
+            }
+            iteration += 1;
+        }
+
+        results
+    }
+
+    pub fn eval(&self, value: &PlutusData, plutus_version: &PlutusVersion) -> EvalResult {
+        let program = self.program.apply_data(value.clone());
+
+        Program::<NamedDeBruijn>::try_from(program)
+            .unwrap()
+            .eval_version(ExBudget::max(), &plutus_version.into())
+    }
+}
+
 /// ----- PRNG -----------------------------------------------------------------
 ///
 /// A Pseudo-random generator (PRNG) used to produce random values for fuzzers.
@@ -527,6 +650,7 @@ impl Prng {
     pub fn sample(
         &self,
         fuzzer: &Program<Name>,
+        // iteration: usize,
     ) -> Result<Option<(Prng, PlutusData)>, FuzzerError> {
         let program = Program::<NamedDeBruijn>::try_from(fuzzer.apply_data(self.uplc())).unwrap();
         let mut result = program.eval(ExBudget::max());
@@ -941,10 +1065,11 @@ where
 //
 // ----------------------------------------------------------------------------
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TestResult<U, T> {
     UnitTestResult(UnitTestResult<U>),
     PropertyTestResult(PropertyTestResult<T>),
+    Benchmark(BenchmarkResult),
 }
 
 unsafe impl<U, T> Send for TestResult<U, T> {}
@@ -959,6 +1084,7 @@ impl TestResult<(Constant, Rc<Type>), PlutusData> {
             TestResult::PropertyTestResult(test) => {
                 TestResult::PropertyTestResult(test.reify(data_types))
             }
+            TestResult::Benchmark(result) => TestResult::Benchmark(result),
         }
     }
 }
@@ -981,6 +1107,7 @@ impl<U, T> TestResult<U, T> {
                 }
                 OnTestFailure::SucceedImmediately => counterexample.is_some(),
             },
+            TestResult::Benchmark(BenchmarkResult { success, .. }) => *success,
         }
     }
 
@@ -990,6 +1117,7 @@ impl<U, T> TestResult<U, T> {
             TestResult::PropertyTestResult(PropertyTestResult { ref test, .. }) => {
                 test.module.as_str()
             }
+            TestResult::Benchmark(BenchmarkResult { ref test, .. }) => test.module.as_str(),
         }
     }
 
@@ -999,20 +1127,20 @@ impl<U, T> TestResult<U, T> {
             TestResult::PropertyTestResult(PropertyTestResult { ref test, .. }) => {
                 test.name.as_str()
             }
+            TestResult::Benchmark(BenchmarkResult { ref test, .. }) => test.name.as_str(),
         }
     }
 
     pub fn traces(&self) -> &[String] {
         match self {
-            TestResult::UnitTestResult(UnitTestResult { ref traces, .. })
-            | TestResult::PropertyTestResult(PropertyTestResult { ref traces, .. }) => {
-                traces.as_slice()
-            }
+            TestResult::UnitTestResult(UnitTestResult { traces, .. })
+            | TestResult::PropertyTestResult(PropertyTestResult { traces, .. }) => traces,
+            TestResult::Benchmark(BenchmarkResult { traces, .. }) => traces,
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnitTestResult<T> {
     pub success: bool,
     pub spent_budget: ExBudget,
@@ -1058,7 +1186,7 @@ impl UnitTestResult<(Constant, Rc<Type>)> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PropertyTestResult<T> {
     pub test: PropertyTest,
     pub counterexample: Result<Option<T>, uplc::machine::Error>,
@@ -1342,6 +1470,17 @@ impl Assertion<UntypedExpr> {
         )
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct BenchmarkResult {
+    pub test: Benchmark,
+    pub cost: ExBudget,
+    pub success: bool,
+    pub traces: Vec<String>,
+}
+
+unsafe impl Send for BenchmarkResult {}
+unsafe impl Sync for BenchmarkResult {}
 
 #[cfg(test)]
 mod test {

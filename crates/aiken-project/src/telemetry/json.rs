@@ -39,6 +39,30 @@ impl EventListener for Json {
                 });
                 println!("{}", serde_json::to_string_pretty(&json_output).unwrap());
             }
+            Event::FinishedBenchmarks { tests, seed } => {
+                let benchmark_results: Vec<_> = tests
+                    .into_iter()
+                    .filter_map(|test| {
+                        if let TestResult::Benchmark(result) = test {
+                            Some(serde_json::json!({
+                                "name": result.test.name,
+                                "module": result.test.module,
+                                "memory": result.cost.mem,
+                                "cpu": result.cost.cpu
+                            }))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let json = serde_json::json!({
+                    "benchmarks": benchmark_results,
+                    "seed": seed,
+                });
+
+                println!("{}", serde_json::to_string_pretty(&json).unwrap());
+            }
             _ => super::Terminal.handle_event(event),
         }
     }
@@ -50,6 +74,7 @@ fn fmt_test_json(result: &TestResult<UntypedExpr, UntypedExpr>) -> serde_json::V
         TestResult::PropertyTestResult(PropertyTestResult { ref test, .. }) => {
             &test.on_test_failure
         }
+        TestResult::Benchmark(_) => unreachable!("benchmark returned in JSON output"),
     };
 
     let mut test = json!({
@@ -95,6 +120,7 @@ fn fmt_test_json(result: &TestResult<UntypedExpr, UntypedExpr>) -> serde_json::V
                 Err(err) => json!({"error": err.to_string()}),
             };
         }
+        TestResult::Benchmark(_) => unreachable!("benchmark returned in JSON output"),
     }
 
     if !result.traces().is_empty() {

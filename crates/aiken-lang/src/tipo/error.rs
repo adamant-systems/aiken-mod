@@ -1452,6 +1452,21 @@ fn suggest_unify(
             expected,
             given
         },
+        Some(UnifyErrorSituation::SamplerAnnotationMismatch) => formatdoc! {
+            r#"While comparing the return annotation of a Sampler with its actual return type, I realized that both don't match.
+
+               I am inferring the Sampler should return:
+
+                   {}
+
+               but I found a conflicting annotation saying it returns:
+
+                   {}
+
+               Either, fix (or remove) the annotation or adjust the Sampler to return the expected type."#,
+            expected,
+            given
+        },
         None => formatdoc! {
             r#"I am inferring the following type:
 
@@ -1823,6 +1838,16 @@ pub enum Warning {
         location: Span,
         value: String,
     },
+
+    #[error("I tripped over a confusing constructor destructuring")]
+    #[diagnostic(help("Try instead: \n\n{}", format_pattern_suggestion(suggestion)))]
+    #[diagnostic(code("syntax::unused_record_fields"))]
+    #[diagnostic(url("https://aiken-lang.org/language-tour/custom-types#destructuring"))]
+    UnusedRecordFields {
+        #[label("prefer destructuring with named fields")]
+        location: Span,
+        suggestion: UntypedPattern,
+    },
 }
 
 impl ExtraData for Warning {
@@ -1850,6 +1875,10 @@ impl ExtraData for Warning {
             Warning::UnusedImportedValueOrType { location, .. } => {
                 Some(format!("{},{}", true, location.start))
             }
+
+            Warning::UnusedRecordFields { suggestion, .. } => {
+                Some(Formatter::new().pattern(suggestion).to_pretty_string(80))
+            }
         }
     }
 }
@@ -1869,6 +1898,8 @@ pub enum UnifyErrorSituation {
     Operator(BinOp),
 
     FuzzerAnnotationMismatch,
+
+    SamplerAnnotationMismatch,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1880,6 +1911,23 @@ pub enum UnknownRecordFieldSituation {
 pub fn format_suggestion(sample: &UntypedExpr) -> String {
     Formatter::new()
         .expr(sample, false)
+        .to_pretty_string(70)
+        .lines()
+        .enumerate()
+        .map(|(ix, line)| {
+            if ix == 0 {
+                format!("╰─▶ {line}")
+            } else {
+                format!("    {line}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+pub fn format_pattern_suggestion(sample: &UntypedPattern) -> String {
+    Formatter::new()
+        .pattern(sample)
         .to_pretty_string(70)
         .lines()
         .enumerate()

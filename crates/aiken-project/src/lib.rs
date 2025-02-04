@@ -297,6 +297,29 @@ where
         self.compile(options)
     }
 
+    pub fn benchmark(
+        &mut self,
+        match_tests: Option<Vec<String>>,
+        exact_match: bool,
+        seed: u32,
+        times_to_run: usize,
+        env: Option<String>,
+    ) -> Result<(), Vec<Error>> {
+        let options = Options {
+            tracing: Tracing::silent(),
+            env,
+            code_gen_mode: CodeGenMode::Benchmark {
+                match_tests,
+                exact_match,
+                seed,
+                times_to_run,
+            },
+            blueprint_path: self.blueprint_path(None),
+        };
+
+        self.compile(options)
+    }
+
     pub fn dump_uplc(&self, blueprint: &Blueprint) -> Result<(), Error> {
         let dir = self.root.join("artifacts");
 
@@ -435,6 +458,41 @@ where
 
                 self.event_listener
                     .handle_event(Event::FinishedTests { seed, tests });
+
+                if !errors.is_empty() {
+                    Err(errors)
+                } else {
+                    Ok(())
+                }
+            }
+            CodeGenMode::Benchmark {
+                match_tests,
+                exact_match,
+                seed,
+                times_to_run,
+            } => {
+                let tests =
+                    self.collect_benchmarks(false, match_tests, exact_match, options.tracing)?;
+
+                if !tests.is_empty() {
+                    self.event_listener.handle_event(Event::RunningBenchmarks);
+                }
+
+                let tests = self.run_benchmarks(tests, seed, times_to_run);
+
+                let errors: Vec<Error> = tests
+                    .iter()
+                    .filter_map(|e| {
+                        if e.is_success() {
+                            None
+                        } else {
+                            Some(Error::from_test_result(e, false))
+                        }
+                    })
+                    .collect();
+
+                self.event_listener
+                    .handle_event(Event::FinishedBenchmarks { seed, tests });
 
                 if !errors.is_empty() {
                     Err(errors)
@@ -894,8 +952,9 @@ where
         Ok(())
     }
 
-    fn collect_tests(
+    fn collect_test_items(
         &mut self,
+        kind: &str, // "test" or "bench"
         verbose: bool,
         match_tests: Option<Vec<String>>,
         exact_match: bool,
@@ -933,7 +992,13 @@ where
             }
 
             for def in checked_module.ast.definitions() {
-                if let Definition::Test(func) = def {
+                let func = match (kind, def) {
+                    ("test", Definition::Test(func)) => Some(func),
+                    ("bench", Definition::Benchmark(func)) => Some(func),
+                    _ => None,
+                };
+
+                if let Some(func) = func {
                     if let Some(match_tests) = &match_tests {
                         let is_match = match_tests.iter().any(|(module, names)| {
                             let matched_module =
@@ -983,15 +1048,44 @@ where
                 })
             }
 
-            tests.push(Test::from_function_definition(
-                &mut generator,
-                test.to_owned(),
-                module_name,
-                input_path,
-            ));
+            tests.push(match kind {
+                "test" => Test::from_function_definition(
+                    &mut generator,
+                    test.to_owned(),
+                    module_name,
+                    input_path,
+                ),
+                "bench" => Test::from_benchmark_definition(
+                    &mut generator,
+                    test.to_owned(),
+                    module_name,
+                    input_path,
+                ),
+                _ => unreachable!("Invalid test kind"),
+            });
         }
 
         Ok(tests)
+    }
+
+    fn collect_tests(
+        &mut self,
+        verbose: bool,
+        match_tests: Option<Vec<String>>,
+        exact_match: bool,
+        tracing: Tracing,
+    ) -> Result<Vec<Test>, Error> {
+        self.collect_test_items("test", verbose, match_tests, exact_match, tracing)
+    }
+
+    fn collect_benchmarks(
+        &mut self,
+        verbose: bool,
+        match_tests: Option<Vec<String>>,
+        exact_match: bool,
+        tracing: Tracing,
+    ) -> Result<Vec<Test>, Error> {
+        self.collect_test_items("bench", verbose, match_tests, exact_match, tracing)
     }
 
     fn run_tests(
@@ -1013,6 +1107,36 @@ where
                 Test::PropertyTest(property_test) => {
                     property_test.run(seed, property_max_success, plutus_version)
                 }
+                Test::Benchmark(_) => unreachable!("Benchmarks cannot be run in PBT."),
+            })
+            .collect::<Vec<TestResult<(Constant, Rc<Type>), PlutusData>>>()
+            .into_iter()
+            .map(|test| test.reify(&data_types))
+            .collect()
+    }
+
+    fn run_benchmarks(
+        &self,
+        tests: Vec<Test>,
+        seed: u32,
+        property_max_success: usize,
+    ) -> Vec<TestResult<UntypedExpr, UntypedExpr>> {
+        use rayon::prelude::*;
+
+        let data_types = utils::indexmap::as_ref_values(&self.data_types);
+        let plutus_version = &self.config.plutus;
+
+        tests
+            .into_par_iter()
+            .flat_map(|test| match test {
+                Test::UnitTest(_) | Test::PropertyTest(_) => {
+                    unreachable!("Tests cannot be ran during benchmarking.")
+                }
+                Test::Benchmark(benchmark) => benchmark
+                    .benchmark(seed, property_max_success, plutus_version)
+                    .into_iter()
+                    .map(TestResult::Benchmark)
+                    .collect::<Vec<_>>(),
             })
             .collect::<Vec<TestResult<(Constant, Rc<Type>), PlutusData>>>()
             .into_iter()

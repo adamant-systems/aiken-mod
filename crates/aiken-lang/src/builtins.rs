@@ -481,13 +481,29 @@ pub fn prelude(id_gen: &IdGenerator) -> TypeInfo {
     //
     // pub type Fuzzer<a> =
     //   fn(PRNG) -> Option<(PRNG, a)>
-    let fuzzer_value = Type::generic_var(id_gen.next());
+    let fuzzer_generic = Type::generic_var(id_gen.next());
     prelude.types.insert(
         well_known::FUZZER.to_string(),
         TypeConstructor {
             location: Span::empty(),
-            parameters: vec![fuzzer_value.clone()],
-            tipo: Type::fuzzer(fuzzer_value),
+            parameters: vec![fuzzer_generic.clone()],
+            tipo: Type::fuzzer(fuzzer_generic),
+            module: "".to_string(),
+            public: true,
+        },
+    );
+
+    // Sampler
+    //
+    // pub type Sampler<a> =
+    //   fn(Int) -> Fuzzer<a>
+    let sampler_generic = Type::generic_var(id_gen.next());
+    prelude.types.insert(
+        well_known::SAMPLER.to_string(),
+        TypeConstructor {
+            location: Span::empty(),
+            parameters: vec![sampler_generic.clone()],
+            tipo: Type::sampler(sampler_generic),
             module: "".to_string(),
             public: true,
         },
@@ -509,12 +525,8 @@ pub fn plutus(id_gen: &IdGenerator) -> TypeInfo {
     };
 
     for builtin in DefaultFunction::iter() {
-        // FIXME: Disabling WriteBits for now, since its signature requires the ability to create
-        // list of raw integers, which isn't possible through Aiken at the moment.
-        if !matches!(builtin, DefaultFunction::WriteBits) {
-            let value = from_default_function(builtin, id_gen);
-            plutus.values.insert(builtin.aiken_name(), value);
-        }
+        let value = from_default_function(builtin, id_gen);
+        plutus.values.insert(builtin.aiken_name(), value);
     }
 
     let index_tipo = Type::function(vec![Type::data()], Type::int());

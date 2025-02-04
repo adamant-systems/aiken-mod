@@ -3713,7 +3713,7 @@ impl<'a> CodeGenerator<'a> {
                     interner.program(&mut program);
 
                     let eval_program: Program<NamedDeBruijn> =
-                        program.clean_up().try_into().unwrap();
+                        program.clean_up_no_inlines().try_into().unwrap();
 
                     Some(
                         eval_program
@@ -3823,7 +3823,7 @@ impl<'a> CodeGenerator<'a> {
                             interner.program(&mut program);
 
                             let eval_program: Program<NamedDeBruijn> =
-                                program.clean_up().try_into().unwrap();
+                                program.clean_up_no_inlines().try_into().unwrap();
 
                             let evaluated_term: Term<NamedDeBruijn> = eval_program
                                 .eval(ExBudget::default())
@@ -4029,7 +4029,7 @@ impl<'a> CodeGenerator<'a> {
                 } else {
                     let term = arg_stack.pop().unwrap();
 
-                    match term.pierce_no_inlines() {
+                    match term.pierce_no_inlines_ref() {
                         Term::Var(_) => Some(term.force()),
                         Term::Delay(inner_term) => Some(inner_term.as_ref().clone()),
                         Term::Apply { .. } => Some(term.force()),
@@ -4357,7 +4357,7 @@ impl<'a> CodeGenerator<'a> {
                     known_data_to_type(term, &tipo)
                 };
 
-                if extract_constant(term.pierce_no_inlines()).is_some() {
+                if extract_constant(term.pierce_no_inlines_ref()).is_some() {
                     let mut program = self.new_program(term);
 
                     let mut interner = CodeGenInterner::new();
@@ -4365,7 +4365,7 @@ impl<'a> CodeGenerator<'a> {
                     interner.program(&mut program);
 
                     let eval_program: Program<NamedDeBruijn> =
-                        program.clean_up().try_into().unwrap();
+                        program.clean_up_no_inlines().try_into().unwrap();
 
                     let evaluated_term: Term<NamedDeBruijn> = eval_program
                         .eval(ExBudget::default())
@@ -4380,7 +4380,7 @@ impl<'a> CodeGenerator<'a> {
             Air::CastToData { tipo } => {
                 let mut term = arg_stack.pop().unwrap();
 
-                if extract_constant(term.pierce_no_inlines()).is_some() {
+                if extract_constant(term.pierce_no_inlines_ref()).is_some() {
                     term = builder::convert_type_to_data(term, &tipo);
 
                     let mut program = self.new_program(term);
@@ -4390,7 +4390,7 @@ impl<'a> CodeGenerator<'a> {
                     interner.program(&mut program);
 
                     let eval_program: Program<NamedDeBruijn> =
-                        program.clean_up().try_into().unwrap();
+                        program.clean_up_no_inlines().try_into().unwrap();
 
                     let evaluated_term: Term<NamedDeBruijn> = eval_program
                         .eval(ExBudget::default())
@@ -4793,7 +4793,7 @@ impl<'a> CodeGenerator<'a> {
                     .apply(term);
 
                 if arg_vec.iter().all(|item| {
-                    let maybe_const = extract_constant(item.pierce_no_inlines());
+                    let maybe_const = extract_constant(item.pierce_no_inlines_ref());
                     maybe_const.is_some()
                 }) {
                     let mut program = self.new_program(term);
@@ -4803,7 +4803,7 @@ impl<'a> CodeGenerator<'a> {
                     interner.program(&mut program);
 
                     let eval_program: Program<NamedDeBruijn> =
-                        program.clean_up().try_into().unwrap();
+                        program.clean_up_no_inlines().try_into().unwrap();
 
                     let evaluated_term: Term<NamedDeBruijn> = eval_program
                         .eval(ExBudget::default())

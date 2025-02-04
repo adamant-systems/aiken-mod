@@ -520,7 +520,7 @@ impl hash::Hash for Name {
 
 impl PartialEq for Name {
     fn eq(&self, other: &Self) -> bool {
-        self.unique == other.unique
+        self.unique == other.unique && self.text == other.text
     }
 }
 

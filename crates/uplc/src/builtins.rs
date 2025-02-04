@@ -6,7 +6,19 @@ use strum_macros::EnumIter;
 /// All the possible builtin functions in Untyped Plutus Core.
 #[repr(u8)]
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, PartialEq, Eq, Copy, EnumIter, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Copy,
+    EnumIter,
+    serde::Serialize,
+    serde::Deserialize,
+    Hash,
+    PartialOrd,
+    Ord,
+)]
 pub enum DefaultFunction {
     // Integer functions
     AddInteger = 0,
@@ -293,7 +305,26 @@ impl TryFrom<u8> for DefaultFunction {
             v if v == DefaultFunction::ByteStringToInteger as u8 => {
                 Ok(DefaultFunction::ByteStringToInteger)
             }
-
+            v if v == DefaultFunction::AndByteString as u8 => Ok(DefaultFunction::AndByteString),
+            v if v == DefaultFunction::OrByteString as u8 => Ok(DefaultFunction::OrByteString),
+            v if v == DefaultFunction::XorByteString as u8 => Ok(DefaultFunction::XorByteString),
+            v if v == DefaultFunction::ComplementByteString as u8 => {
+                Ok(DefaultFunction::ComplementByteString)
+            }
+            v if v == DefaultFunction::ReadBit as u8 => Ok(DefaultFunction::ReadBit),
+            v if v == DefaultFunction::WriteBits as u8 => Ok(DefaultFunction::WriteBits),
+            v if v == DefaultFunction::ReplicateByte as u8 => Ok(DefaultFunction::ReplicateByte),
+            v if v == DefaultFunction::ShiftByteString as u8 => {
+                Ok(DefaultFunction::ShiftByteString)
+            }
+            v if v == DefaultFunction::RotateByteString as u8 => {
+                Ok(DefaultFunction::RotateByteString)
+            }
+            v if v == DefaultFunction::CountSetBits as u8 => Ok(DefaultFunction::CountSetBits),
+            v if v == DefaultFunction::FindFirstSetBit as u8 => {
+                Ok(DefaultFunction::FindFirstSetBit)
+            }
+            v if v == DefaultFunction::Ripemd_160 as u8 => Ok(DefaultFunction::Ripemd_160),
             _ => Err(de::Error::Message(format!(
                 "Default Function not found - {v}"
             ))),
