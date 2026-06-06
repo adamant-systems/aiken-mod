@@ -2024,6 +2024,54 @@ fn discarded_let_bindings() {
 }
 
 #[test]
+fn unused_expect_bindings_are_not_erased() {
+    let source_code = r#"
+        use aiken/builtin
+
+        type Small {
+          Small(Int)
+        }
+
+        test foo() {
+            let raw = builtin.list_data([builtin.constr_data(0, [])])
+
+            expect xs: List<Small> = raw
+
+            True
+        }
+    "#;
+
+    let (warnings, ast) = check_validator(parse(source_code)).unwrap();
+
+    assert!(
+        warnings
+            .iter()
+            .any(|warning| matches!(warning, Warning::UnusedVariable { name, .. } if name == "xs"))
+    );
+
+    let test_def = ast
+        .definitions
+        .iter()
+        .find_map(|def| match def {
+            Definition::Test(def) => Some(def),
+            _ => None,
+        })
+        .expect("expected a test definition");
+
+    match &test_def.body {
+        TypedExpr::Sequence { expressions, .. } => {
+            assert_eq!(expressions.len(), 3);
+            assert!(matches!(expressions[0], TypedExpr::Assignment { .. }));
+            assert!(
+                matches!(expressions[1], TypedExpr::Assignment { kind, .. } if kind.is_expect()),
+                "unused expect assignment should remain in the transformed AST"
+            );
+        }
+        _ => unreachable!("test body isn't a sequence"),
+    }
+}
+
+#[test]
 fn backpassing_type_annotation() {
     let source_code = r#"
         pub type Foo {
