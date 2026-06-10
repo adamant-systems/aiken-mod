@@ -138,8 +138,8 @@ pub enum Error {
     WriteBitsOutOfBounds,
     #[error("illegal operation on empty ByteArray")]
     EmptyByteArray,
-    #[error("blst error {0:?}")]
-    Blst(blst::BLST_ERROR),
+    #[error("bls error {0}")]
+    Bls(String),
     #[error("blst::hashToGroup")]
     HashToCurveDstTooBig,
     #[cfg(not(target_family = "wasm"))]

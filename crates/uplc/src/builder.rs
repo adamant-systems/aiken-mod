@@ -55,11 +55,11 @@ where
         Term::Constant(Constant::ByteString(b).into())
     }
 
-    pub fn bls12_381_g1(b: blst::blst_p1) -> Self {
+    pub fn bls12_381_g1(b: crate::bls::Bls12_381G1Element) -> Self {
         Term::Constant(Constant::Bls12_381G1Element(b.into()).into())
     }
 
-    pub fn bls12_381_g2(b: blst::blst_p2) -> Self {
+    pub fn bls12_381_g2(b: crate::bls::Bls12_381G2Element) -> Self {
         Term::Constant(Constant::Bls12_381G2Element(b.into()).into())
     }
 

@@ -1,6 +1,7 @@
 use super::{
     Error, Trace, Value,
     cost_model::{BuiltinCosts, ExBudget},
+    provenance::{Provenance, ProvenanceTable},
     value::{from_pallas_bigint, to_pallas_bigint},
 };
 use crate::{
@@ -14,24 +15,8 @@ use itertools::Itertools;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{FromPrimitive, Signed, Zero};
-use once_cell::sync::Lazy;
 use pallas_primitives::conway::{Language, PlutusData};
-use std::{mem::size_of, ops::Deref, rc::Rc};
-
-static SCALAR_PERIOD: Lazy<BigInt> = Lazy::new(|| {
-    BigInt::from_bytes_be(
-        num_bigint::Sign::Plus,
-        &[
-            0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48, 0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1,
-            0xd8, 0x05, 0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe, 0xff, 0xff, 0xff, 0xff,
-            0x00, 0x00, 0x00, 0x01,
-        ],
-    )
-});
-
-const BLST_P1_COMPRESSED_SIZE: usize = 48;
-
-const BLST_P2_COMPRESSED_SIZE: usize = 96;
+use std::{ops::Deref, rc::Rc};
 
 pub const INTEGER_TO_BYTE_STRING_MAXIMUM_OUTPUT_LENGTH: i64 = 8192;
 
@@ -55,6 +40,20 @@ pub struct BuiltinRuntime {
     pub(super) args: Vec<Value>,
     pub fun: DefaultFunction,
     pub(super) forces: u32,
+}
+
+/// A recorded builtin invocation (function + argument values + result), captured during evaluation
+/// for trace analysis. EVERY builtin call is recorded — the machine does no filtering, so consumers
+/// get the complete trace and decide what to surface. The argument/result `Value`s carry their
+/// provenance (see [`crate::machine::value`]).
+#[derive(Debug, Clone)]
+pub struct BuiltinCall {
+    pub fun: DefaultFunction,
+    pub args: Vec<Value>,
+    pub result: Result<Value, Error>,
+    /// Provenance of each argument value (same order as `args`), resolved at call time. `None` means
+    /// the operand carries no provenance — i.e. a constant baked into the script.
+    pub arg_provenance: Vec<Option<Rc<Provenance>>>,
 }
 
 impl BuiltinRuntime {
@@ -82,8 +81,29 @@ impl BuiltinRuntime {
         self.forces += 1;
     }
 
-    pub fn call(&self, language: &Language, traces: &mut Vec<Trace>) -> Result<Value, Error> {
-        self.fun.call(language.into(), &self.args, traces)
+    pub fn call(
+        &self,
+        language: &Language,
+        traces: &mut Vec<Trace>,
+        calls: &mut Vec<BuiltinCall>,
+        provenance: &mut ProvenanceTable,
+    ) -> Result<Value, Error> {
+        let result = self.fun.call(language.into(), &self.args, traces);
+
+        // Propagate provenance from the arguments to the result (data-navigation builtins extend the
+        // path; everything else marks the result as derived).
+        provenance.propagate(self.fun, &self.args, &result);
+
+        // Record every call — no machine-side filtering; consumers (UI) filter as they like.
+        let arg_provenance = self.args.iter().map(|a| provenance.get(a)).collect();
+        calls.push(BuiltinCall {
+            fun: self.fun,
+            args: self.args.clone(),
+            result: result.clone(),
+            arg_provenance,
+        });
+
+        result
     }
 
     pub fn push(&mut self, arg: Value) -> Result<(), Error> {
@@ -1118,15 +1138,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_bls12_381_g1_element()?;
                 let arg2 = args[1].unwrap_bls12_381_g1_element()?;
 
-                let mut out = blst::blst_p1::default();
-
-                unsafe {
-                    blst::blst_p1_add_or_double(
-                        &mut out as *mut _,
-                        arg1 as *const _,
-                        arg2 as *const _,
-                    );
-                }
+                let out = arg1.add(arg2);
 
                 let constant = Constant::Bls12_381G1Element(out.into());
 
@@ -1135,15 +1147,7 @@ impl DefaultFunction {
             DefaultFunction::Bls12_381_G1_Neg => {
                 let arg1 = args[0].unwrap_bls12_381_g1_element()?;
 
-                let mut out = *arg1;
-
-                unsafe {
-                    blst::blst_p1_cneg(
-                        &mut out as *mut _,
-                        // This was true in the Cardano code
-                        true,
-                    );
-                }
+                let out = arg1.neg();
 
                 let constant = Constant::Bls12_381G1Element(out.into());
 
@@ -1153,38 +1157,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_integer()?;
                 let arg2 = args[1].unwrap_bls12_381_g1_element()?;
 
-                let size_scalar = size_of::<blst::blst_scalar>();
-
-                let arg1 = arg1.mod_floor(&SCALAR_PERIOD);
-
-                let (_, mut arg1) = arg1.to_bytes_be();
-
-                if size_scalar > arg1.len() {
-                    let diff = size_scalar - arg1.len();
-
-                    let mut new_vec = vec![0; diff];
-
-                    new_vec.append(&mut arg1);
-
-                    arg1 = new_vec;
-                }
-
-                let mut out = blst::blst_p1::default();
-                let mut scalar = blst::blst_scalar::default();
-
-                unsafe {
-                    blst::blst_scalar_from_bendian(
-                        &mut scalar as *mut _,
-                        arg1.as_ptr() as *const _,
-                    );
-
-                    blst::blst_p1_mult(
-                        &mut out as *mut _,
-                        arg2 as *const _,
-                        scalar.b.as_ptr() as *const _,
-                        size_scalar * 8,
-                    );
-                }
+                let out = crate::bls::Bls12_381G1Element::scalar_mul(arg1, arg2);
 
                 let constant = Constant::Bls12_381G1Element(out.into());
 
@@ -1194,9 +1167,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_bls12_381_g1_element()?;
                 let arg2 = args[1].unwrap_bls12_381_g1_element()?;
 
-                let is_equal = unsafe { blst::blst_p1_is_equal(arg1, arg2) };
-
-                let constant = Constant::Bool(is_equal);
+                let constant = Constant::Bool(arg1.equal(arg2));
 
                 Ok(Value::Con(constant.into()))
             }
@@ -1212,7 +1183,7 @@ impl DefaultFunction {
             DefaultFunction::Bls12_381_G1_Uncompress => {
                 let arg1 = args[0].unwrap_byte_string()?;
 
-                let out = blst::blst_p1::uncompress(arg1)?;
+                let out = crate::bls::Bls12_381G1Element::uncompress(arg1)?;
 
                 let constant = Constant::Bls12_381G1Element(out.into());
 
@@ -1222,24 +1193,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_byte_string()?;
                 let arg2 = args[1].unwrap_byte_string()?;
 
-                if arg2.len() > 255 {
-                    return Err(Error::HashToCurveDstTooBig);
-                }
-
-                let mut out = blst::blst_p1::default();
-                let aug = [];
-
-                unsafe {
-                    blst::blst_hash_to_g1(
-                        &mut out as *mut _,
-                        arg1.as_ptr(),
-                        arg1.len(),
-                        arg2.as_ptr(),
-                        arg2.len(),
-                        aug.as_ptr(),
-                        0,
-                    );
-                };
+                let out = crate::bls::Bls12_381G1Element::hash_to_group(arg1, arg2)?;
 
                 let constant = Constant::Bls12_381G1Element(out.into());
 
@@ -1249,15 +1203,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_bls12_381_g2_element()?;
                 let arg2 = args[1].unwrap_bls12_381_g2_element()?;
 
-                let mut out = blst::blst_p2::default();
-
-                unsafe {
-                    blst::blst_p2_add_or_double(
-                        &mut out as *mut _,
-                        arg1 as *const _,
-                        arg2 as *const _,
-                    );
-                }
+                let out = arg1.add(arg2);
 
                 let constant = Constant::Bls12_381G2Element(out.into());
 
@@ -1266,15 +1212,7 @@ impl DefaultFunction {
             DefaultFunction::Bls12_381_G2_Neg => {
                 let arg1 = args[0].unwrap_bls12_381_g2_element()?;
 
-                let mut out = *arg1;
-
-                unsafe {
-                    blst::blst_p2_cneg(
-                        &mut out as *mut _,
-                        // This was true in the Cardano code
-                        true,
-                    );
-                }
+                let out = arg1.neg();
 
                 let constant = Constant::Bls12_381G2Element(out.into());
 
@@ -1284,38 +1222,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_integer()?;
                 let arg2 = args[1].unwrap_bls12_381_g2_element()?;
 
-                let size_scalar = size_of::<blst::blst_scalar>();
-
-                let arg1 = arg1.mod_floor(&SCALAR_PERIOD);
-
-                let (_, mut arg1) = arg1.to_bytes_be();
-
-                if size_scalar > arg1.len() {
-                    let diff = size_scalar - arg1.len();
-
-                    let mut new_vec = vec![0; diff];
-
-                    new_vec.append(&mut arg1);
-
-                    arg1 = new_vec;
-                }
-
-                let mut out = blst::blst_p2::default();
-                let mut scalar = blst::blst_scalar::default();
-
-                unsafe {
-                    blst::blst_scalar_from_bendian(
-                        &mut scalar as *mut _,
-                        arg1.as_ptr() as *const _,
-                    );
-
-                    blst::blst_p2_mult(
-                        &mut out as *mut _,
-                        arg2 as *const _,
-                        scalar.b.as_ptr() as *const _,
-                        size_scalar * 8,
-                    );
-                }
+                let out = crate::bls::Bls12_381G2Element::scalar_mul(arg1, arg2);
 
                 let constant = Constant::Bls12_381G2Element(out.into());
 
@@ -1325,9 +1232,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_bls12_381_g2_element()?;
                 let arg2 = args[1].unwrap_bls12_381_g2_element()?;
 
-                let is_equal = unsafe { blst::blst_p2_is_equal(arg1, arg2) };
-
-                let constant = Constant::Bool(is_equal);
+                let constant = Constant::Bool(arg1.equal(arg2));
 
                 Ok(Value::Con(constant.into()))
             }
@@ -1343,7 +1248,7 @@ impl DefaultFunction {
             DefaultFunction::Bls12_381_G2_Uncompress => {
                 let arg1 = args[0].unwrap_byte_string()?;
 
-                let out = blst::blst_p2::uncompress(arg1)?;
+                let out = crate::bls::Bls12_381G2Element::uncompress(arg1)?;
 
                 let constant = Constant::Bls12_381G2Element(out.into());
 
@@ -1353,24 +1258,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_byte_string()?;
                 let arg2 = args[1].unwrap_byte_string()?;
 
-                if arg2.len() > 255 {
-                    return Err(Error::HashToCurveDstTooBig);
-                }
-
-                let mut out = blst::blst_p2::default();
-                let aug = [];
-
-                unsafe {
-                    blst::blst_hash_to_g2(
-                        &mut out as *mut _,
-                        arg1.as_ptr(),
-                        arg1.len(),
-                        arg2.as_ptr(),
-                        arg2.len(),
-                        aug.as_ptr(),
-                        0,
-                    );
-                };
+                let out = crate::bls::Bls12_381G2Element::hash_to_group(arg1, arg2)?;
 
                 let constant = Constant::Bls12_381G2Element(out.into());
 
@@ -1380,17 +1268,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_bls12_381_g1_element()?;
                 let arg2 = args[1].unwrap_bls12_381_g2_element()?;
 
-                let mut out = blst::blst_fp12::default();
-
-                let mut affine1 = blst::blst_p1_affine::default();
-                let mut affine2 = blst::blst_p2_affine::default();
-
-                unsafe {
-                    blst::blst_p1_to_affine(&mut affine1 as *mut _, arg1);
-                    blst::blst_p2_to_affine(&mut affine2 as *mut _, arg2);
-
-                    blst::blst_miller_loop(&mut out as *mut _, &affine2, &affine1);
-                }
+                let out = crate::bls::miller_loop(arg1, arg2);
 
                 let constant = Constant::Bls12_381MlResult(out.into());
 
@@ -1400,11 +1278,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_bls12_381_ml_result()?;
                 let arg2 = args[1].unwrap_bls12_381_ml_result()?;
 
-                let mut out = blst::blst_fp12::default();
-
-                unsafe {
-                    blst::blst_fp12_mul(&mut out as *mut _, arg1, arg2);
-                }
+                let out = crate::bls::ml_result_mul(arg1, arg2);
 
                 let constant = Constant::Bls12_381MlResult(out.into());
 
@@ -1414,7 +1288,7 @@ impl DefaultFunction {
                 let arg1 = args[0].unwrap_bls12_381_ml_result()?;
                 let arg2 = args[1].unwrap_bls12_381_ml_result()?;
 
-                let verified = unsafe { blst::blst_fp12_finalverify(arg1, arg2) };
+                let verified = crate::bls::final_verify(arg1, arg2);
 
                 let constant = Constant::Bool(verified);
 
@@ -1770,93 +1644,7 @@ impl DefaultFunction {
     }
 }
 
-pub trait Compressable {
-    fn compress(&self) -> Vec<u8>;
-
-    fn uncompress(bytes: &[u8]) -> Result<Self, Error>
-    where
-        Self: std::marker::Sized;
-}
-
-impl Compressable for blst::blst_p1 {
-    fn compress(&self) -> Vec<u8> {
-        let mut out = [0; BLST_P1_COMPRESSED_SIZE];
-
-        unsafe {
-            blst::blst_p1_compress(&mut out as *mut _, self);
-        };
-
-        out.to_vec()
-    }
-
-    fn uncompress(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() != BLST_P1_COMPRESSED_SIZE {
-            return Err(Error::Blst(blst::BLST_ERROR::BLST_BAD_ENCODING));
-        }
-
-        let mut affine = blst::blst_p1_affine::default();
-
-        let mut out = blst::blst_p1::default();
-
-        unsafe {
-            let err = blst::blst_p1_uncompress(&mut affine as *mut _, bytes.as_ptr());
-
-            if err != blst::BLST_ERROR::BLST_SUCCESS {
-                return Err(Error::Blst(err));
-            }
-
-            blst::blst_p1_from_affine(&mut out as *mut _, &affine);
-
-            let in_group = blst::blst_p1_in_g1(&out);
-
-            if !in_group {
-                return Err(Error::Blst(blst::BLST_ERROR::BLST_POINT_NOT_IN_GROUP));
-            }
-        };
-
-        Ok(out)
-    }
-}
-
-impl Compressable for blst::blst_p2 {
-    fn compress(&self) -> Vec<u8> {
-        let mut out = [0; BLST_P2_COMPRESSED_SIZE];
-
-        unsafe {
-            blst::blst_p2_compress(&mut out as *mut _, self);
-        };
-
-        out.to_vec()
-    }
-
-    fn uncompress(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() != BLST_P2_COMPRESSED_SIZE {
-            return Err(Error::Blst(blst::BLST_ERROR::BLST_BAD_ENCODING));
-        }
-
-        let mut affine = blst::blst_p2_affine::default();
-
-        let mut out = blst::blst_p2::default();
-
-        unsafe {
-            let err = blst::blst_p2_uncompress(&mut affine as *mut _, bytes.as_ptr());
-
-            if err != blst::BLST_ERROR::BLST_SUCCESS {
-                return Err(Error::Blst(err));
-            }
-
-            blst::blst_p2_from_affine(&mut out as *mut _, &affine);
-
-            let in_group = blst::blst_p2_in_g2(&out);
-
-            if !in_group {
-                return Err(Error::Blst(blst::BLST_ERROR::BLST_POINT_NOT_IN_GROUP));
-            }
-        };
-
-        Ok(out)
-    }
-}
+pub use crate::bls::Compressable;
 
 pub fn convert_tag_to_constr(tag: u64) -> Option<u64> {
     if (121..=127).contains(&tag) {

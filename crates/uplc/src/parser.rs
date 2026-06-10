@@ -1,7 +1,7 @@
 use crate::{
     ast::{Constant, Data, Name, Program, Term, Type},
     builtins::DefaultFunction,
-    machine::{runtime::Compressable, value::to_pallas_bigint},
+    machine::value::to_pallas_bigint,
 };
 use interner::Interner;
 use num_bigint::BigInt;
@@ -210,14 +210,14 @@ peg::parser! {
               hex::decode(String::from_iter(i)).map_err(|_| "Invalid bls element hex")
             }
 
-        rule g1_element() -> blst::blst_p1
+        rule g1_element() -> crate::bls::Bls12_381G1Element
           = element:bls_element() {?
-              blst::blst_p1::uncompress(&element).map_err(|_| "Invalid bls g1 element encoding")
+              crate::bls::Bls12_381G1Element::uncompress(&element).map_err(|_| "Invalid bls g1 element encoding")
             }
 
-        rule g2_element() -> blst::blst_p2
+        rule g2_element() -> crate::bls::Bls12_381G2Element
           = element:bls_element() {?
-              blst::blst_p2::uncompress(&element).map_err(|_| "Invalid bls g2 element encoding")
+              crate::bls::Bls12_381G2Element::uncompress(&element).map_err(|_| "Invalid bls g2 element encoding")
         }
 
         rule string() -> String

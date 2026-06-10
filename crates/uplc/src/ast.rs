@@ -410,9 +410,9 @@ pub enum Constant {
     // Apply(Box<Constant>, Type),
     // tag: 8
     Data(PlutusData),
-    Bls12_381G1Element(Box<blst::blst_p1>),
-    Bls12_381G2Element(Box<blst::blst_p2>),
-    Bls12_381MlResult(Box<blst::blst_fp12>),
+    Bls12_381G1Element(Box<crate::bls::Bls12_381G1Element>),
+    Bls12_381G2Element(Box<crate::bls::Bls12_381G2Element>),
+    Bls12_381MlResult(Box<crate::bls::Bls12_381MlResult>),
 }
 
 pub struct Data;
@@ -878,6 +878,7 @@ impl Program<NamedDeBruijn> {
             initial_budget,
             machine.traces,
             machine.spend_counter.map(|i| i.into()),
+            machine.builtin_calls,
         )
     }
 
@@ -893,6 +894,7 @@ impl Program<NamedDeBruijn> {
             initial_budget,
             machine.traces,
             machine.spend_counter.map(|i| i.into()),
+            machine.builtin_calls,
         )
     }
 
@@ -919,6 +921,7 @@ impl Program<NamedDeBruijn> {
             budget,
             machine.traces,
             machine.spend_counter.map(|i| i.into()),
+            machine.builtin_calls,
         )
     }
 
@@ -938,6 +941,49 @@ impl Program<NamedDeBruijn> {
             initial_budget,
             machine.traces,
             machine.spend_counter.map(|i| i.into()),
+            machine.builtin_calls,
+        )
+    }
+
+    /// Like [`Self::eval_version`], but additionally seeds **value provenance** from the applied
+    /// argument roots so the recorded builtin trace can report, for each operand, the exact path it
+    /// was reached by. `roots` maps a label (e.g. "context", "redeemer", "datum[0]") to the exact
+    /// `PlutusData` that was applied via [`Self::apply_data`]; the matching applied constant is found
+    /// on the `Apply` spine and tagged as the path origin.
+    pub fn eval_with_provenance(
+        self,
+        initial_budget: ExBudget,
+        version: &Language,
+        roots: &[(String, PlutusData)],
+    ) -> EvalResult {
+        let mut machine = Machine::new(version.clone(), CostModel::default(), initial_budget, 200);
+
+        // Seed each applied root constant (by its exact Rc) with its path origin.
+        let labelled: Vec<(Rc<str>, &PlutusData)> = roots
+            .iter()
+            .map(|(l, d)| (Rc::from(l.as_str()), d))
+            .collect();
+        let mut term = &self.term;
+        while let Term::Apply { function, argument } = term {
+            if let Term::Constant(rc) = argument.as_ref() {
+                if let Constant::Data(d) = rc.as_ref() {
+                    if let Some((label, _)) = labelled.iter().find(|(_, rd)| *rd == d) {
+                        machine.provenance.seed(label.clone(), rc);
+                    }
+                }
+            }
+            term = function.as_ref();
+        }
+
+        let term = machine.run(self.term);
+
+        EvalResult::new(
+            term,
+            machine.ex_budget,
+            initial_budget,
+            machine.traces,
+            machine.spend_counter.map(|i| i.into()),
+            machine.builtin_calls,
         )
     }
 }

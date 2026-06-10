@@ -6,6 +6,7 @@ pub mod cost_model;
 mod discharge;
 mod error;
 pub mod eval_result;
+pub mod provenance;
 pub mod runtime;
 pub mod value;
 
@@ -15,7 +16,8 @@ use pallas_primitives::conway::Language;
 
 use self::{
     cost_model::CostModel,
-    runtime::BuiltinRuntime,
+    provenance::ProvenanceTable,
+    runtime::{BuiltinCall, BuiltinRuntime},
     value::{Env, Value},
 };
 
@@ -83,6 +85,8 @@ pub struct Machine {
     unbudgeted_steps: [u32; 10],
     pub traces: Vec<Trace>,
     pub spend_counter: Option<[i64; (TERM_COUNT + BUILTIN_COUNT) * 2]>,
+    pub builtin_calls: Vec<BuiltinCall>,
+    pub provenance: ProvenanceTable,
     version: Language,
 }
 
@@ -100,6 +104,8 @@ impl Machine {
             unbudgeted_steps: [0; 10],
             traces: vec![],
             spend_counter: None,
+            builtin_calls: vec![],
+            provenance: ProvenanceTable::default(),
             version,
         }
     }
@@ -117,6 +123,8 @@ impl Machine {
             unbudgeted_steps: [0; 10],
             traces: vec![],
             spend_counter: Some([0; (TERM_COUNT + BUILTIN_COUNT) * 2]),
+            builtin_calls: vec![],
+            provenance: ProvenanceTable::default(),
             version,
         }
     }
@@ -384,7 +392,12 @@ impl Machine {
             counter[i + 1] += cost.cpu;
         }
 
-        runtime.call(&self.version, &mut self.traces)
+        runtime.call(
+            &self.version,
+            &mut self.traces,
+            &mut self.builtin_calls,
+            &mut self.provenance,
+        )
     }
 
     fn lookup_var(&mut self, name: &NamedDeBruijn, env: &[Value]) -> Result<Value, Error> {
@@ -473,7 +486,7 @@ impl From<&Constant> for Type {
 mod tests {
     use num_bigint::BigInt;
 
-    use super::{cost_model::ExBudget, runtime::Compressable};
+    use super::cost_model::ExBudget;
     use crate::{
         ast::{Constant, NamedDeBruijn, Program, Term},
         builtins::DefaultFunction,
@@ -616,7 +629,7 @@ mod tests {
 
     #[test]
     fn bls_g1_add_associative() {
-        let a = blst::blst_p1::uncompress(&[
+        let a = crate::bls::Bls12_381G1Element::uncompress(&[
             0xab, 0xd6, 0x18, 0x64, 0xf5, 0x19, 0x74, 0x80, 0x32, 0x55, 0x1e, 0x42, 0xe0, 0xac,
             0x41, 0x7f, 0xd8, 0x28, 0xf0, 0x79, 0x45, 0x4e, 0x3e, 0x3c, 0x98, 0x91, 0xc5, 0xc2,
             0x9e, 0xd7, 0xf1, 0x0b, 0xde, 0xcc, 0x04, 0x68, 0x54, 0xe3, 0x93, 0x1c, 0xb7, 0x00,
@@ -624,7 +637,7 @@ mod tests {
         ])
         .unwrap();
 
-        let b = blst::blst_p1::uncompress(&[
+        let b = crate::bls::Bls12_381G1Element::uncompress(&[
             0x95, 0x0d, 0xfd, 0x33, 0xda, 0x26, 0x82, 0x26, 0x0c, 0x76, 0x03, 0x8d, 0xfb, 0x8b,
             0xad, 0x6e, 0x84, 0xae, 0x9d, 0x59, 0x9a, 0x3c, 0x15, 0x18, 0x15, 0x94, 0x5a, 0xc1,
             0xe6, 0xef, 0x6b, 0x10, 0x27, 0xcd, 0x91, 0x7f, 0x39, 0x07, 0x47, 0x9d, 0x20, 0xd6,
@@ -632,7 +645,7 @@ mod tests {
         ])
         .unwrap();
 
-        let c = blst::blst_p1::uncompress(&[
+        let c = crate::bls::Bls12_381G1Element::uncompress(&[
             0xb9, 0x62, 0xfd, 0x0c, 0xc8, 0x10, 0x48, 0xe0, 0xcf, 0x75, 0x57, 0xbf, 0x3e, 0x4b,
             0x6e, 0xdc, 0x5a, 0xb4, 0xbf, 0xb3, 0xdc, 0x87, 0xf8, 0x3a, 0xf4, 0x28, 0xb6, 0x30,
             0x07, 0x27, 0xb1, 0x39, 0xc4, 0x04, 0xab, 0x15, 0x9b, 0xdf, 0x2e, 0xae, 0xa3, 0xf6,
@@ -642,11 +655,13 @@ mod tests {
 
         let term: Term<NamedDeBruijn> = Term::bls12_381_g1_equal()
             .apply(
-                Term::bls12_381_g1_add().apply(Term::bls12_381_g1(a)).apply(
-                    Term::bls12_381_g1_add()
-                        .apply(Term::bls12_381_g1(b))
-                        .apply(Term::bls12_381_g1(c)),
-                ),
+                Term::bls12_381_g1_add()
+                    .apply(Term::bls12_381_g1(a.clone()))
+                    .apply(
+                        Term::bls12_381_g1_add()
+                            .apply(Term::bls12_381_g1(b.clone()))
+                            .apply(Term::bls12_381_g1(c.clone())),
+                    ),
             )
             .apply(
                 Term::bls12_381_g1_add()
@@ -672,7 +687,7 @@ mod tests {
 
     #[test]
     fn bls_g2_add_associative() {
-        let a = blst::blst_p1::uncompress(&[
+        let a = crate::bls::Bls12_381G1Element::uncompress(&[
             0xab, 0xd6, 0x18, 0x64, 0xf5, 0x19, 0x74, 0x80, 0x32, 0x55, 0x1e, 0x42, 0xe0, 0xac,
             0x41, 0x7f, 0xd8, 0x28, 0xf0, 0x79, 0x45, 0x4e, 0x3e, 0x3c, 0x98, 0x91, 0xc5, 0xc2,
             0x9e, 0xd7, 0xf1, 0x0b, 0xde, 0xcc, 0x04, 0x68, 0x54, 0xe3, 0x93, 0x1c, 0xb7, 0x00,
@@ -680,7 +695,7 @@ mod tests {
         ])
         .unwrap();
 
-        let b = blst::blst_p1::uncompress(&[
+        let b = crate::bls::Bls12_381G1Element::uncompress(&[
             0x95, 0x0d, 0xfd, 0x33, 0xda, 0x26, 0x82, 0x26, 0x0c, 0x76, 0x03, 0x8d, 0xfb, 0x8b,
             0xad, 0x6e, 0x84, 0xae, 0x9d, 0x59, 0x9a, 0x3c, 0x15, 0x18, 0x15, 0x94, 0x5a, 0xc1,
             0xe6, 0xef, 0x6b, 0x10, 0x27, 0xcd, 0x91, 0x7f, 0x39, 0x07, 0x47, 0x9d, 0x20, 0xd6,
@@ -688,7 +703,7 @@ mod tests {
         ])
         .unwrap();
 
-        let c = blst::blst_p1::uncompress(&[
+        let c = crate::bls::Bls12_381G1Element::uncompress(&[
             0xb9, 0x62, 0xfd, 0x0c, 0xc8, 0x10, 0x48, 0xe0, 0xcf, 0x75, 0x57, 0xbf, 0x3e, 0x4b,
             0x6e, 0xdc, 0x5a, 0xb4, 0xbf, 0xb3, 0xdc, 0x87, 0xf8, 0x3a, 0xf4, 0x28, 0xb6, 0x30,
             0x07, 0x27, 0xb1, 0x39, 0xc4, 0x04, 0xab, 0x15, 0x9b, 0xdf, 0x2e, 0xae, 0xa3, 0xf6,
@@ -698,11 +713,13 @@ mod tests {
 
         let term: Term<NamedDeBruijn> = Term::bls12_381_g1_equal()
             .apply(
-                Term::bls12_381_g1_add().apply(Term::bls12_381_g1(a)).apply(
-                    Term::bls12_381_g1_add()
-                        .apply(Term::bls12_381_g1(b))
-                        .apply(Term::bls12_381_g1(c)),
-                ),
+                Term::bls12_381_g1_add()
+                    .apply(Term::bls12_381_g1(a.clone()))
+                    .apply(
+                        Term::bls12_381_g1_add()
+                            .apply(Term::bls12_381_g1(b.clone()))
+                            .apply(Term::bls12_381_g1(c.clone())),
+                    ),
             )
             .apply(
                 Term::bls12_381_g1_add()

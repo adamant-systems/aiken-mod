@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod bls;
 pub mod builder;
 pub mod builtins;
 mod debruijn;

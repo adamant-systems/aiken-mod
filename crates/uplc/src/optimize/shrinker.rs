@@ -1,11 +1,11 @@
 use super::interner::CodeGenInterner;
+use crate::bls::{Bls12_381G1Element, Bls12_381G2Element};
 use crate::{
     ast::{Constant, Data, Name, NamedDeBruijn, Program, Term, Type},
     builder::{CONSTR_FIELDS_EXPOSER, CONSTR_INDEX_EXPOSER, INDICES_CONVERTER},
     builtins::DefaultFunction,
-    machine::{cost_model::ExBudget, runtime::Compressable, value::from_pallas_bigint},
+    machine::{cost_model::ExBudget, value::from_pallas_bigint},
 };
-use blst::{blst_p1, blst_p2};
 use indexmap::IndexMap;
 use itertools::{FoldWhile, Itertools};
 use pallas_primitives::conway::{BigInt, PlutusData};
@@ -980,8 +980,8 @@ pub struct Context {
     pub constants_to_flip: Vec<usize>,
     pub write_bits_indices_arg: Vec<usize>,
     pub builtins_map: IndexMap<DefaultFunction, ()>,
-    pub blst_p1_list: Vec<blst_p1>,
-    pub blst_p2_list: Vec<blst_p2>,
+    pub blst_p1_list: Vec<Bls12_381G1Element>,
+    pub blst_p2_list: Vec<Bls12_381G2Element>,
     pub write_bits_convert: bool,
     pub node_count: usize,
 }
@@ -1490,7 +1490,7 @@ impl Term<Name> {
                     {
                         *self = Term::var(format!("blst_p1_index_{index}"));
                     } else {
-                        context.blst_p1_list.push(*blst_p1.as_ref());
+                        context.blst_p1_list.push(blst_p1.as_ref().clone());
                         *self =
                             Term::var(format!("blst_p1_index_{}", context.blst_p1_list.len() - 1));
                     }
@@ -1503,7 +1503,7 @@ impl Term<Name> {
                     {
                         *self = Term::var(format!("blst_p2_index_{index}"));
                     } else {
-                        context.blst_p2_list.push(*blst_p2.as_ref());
+                        context.blst_p2_list.push(blst_p2.as_ref().clone());
                         *self =
                             Term::var(format!("blst_p2_index_{}", context.blst_p2_list.len() - 1));
                     }

@@ -9,7 +9,7 @@ use crate::{
 use num_bigint::BigInt;
 use num_traits::{Signed, ToPrimitive, Zero};
 use pallas_primitives::conway::{self, PlutusData};
-use std::{collections::VecDeque, mem::size_of, ops::Deref, rc::Rc};
+use std::{collections::VecDeque, ops::Deref, rc::Rc};
 
 pub(super) type Env = Rc<Vec<Value>>;
 
@@ -186,7 +186,9 @@ impl Value {
         Ok(list)
     }
 
-    pub(super) fn unwrap_bls12_381_g1_element(&self) -> Result<&blst::blst_p1, Error> {
+    pub(super) fn unwrap_bls12_381_g1_element(
+        &self,
+    ) -> Result<&crate::bls::Bls12_381G1Element, Error> {
         let inner = self.unwrap_constant()?;
 
         let Constant::Bls12_381G1Element(element) = inner else {
@@ -196,7 +198,9 @@ impl Value {
         Ok(element)
     }
 
-    pub(super) fn unwrap_bls12_381_g2_element(&self) -> Result<&blst::blst_p2, Error> {
+    pub(super) fn unwrap_bls12_381_g2_element(
+        &self,
+    ) -> Result<&crate::bls::Bls12_381G2Element, Error> {
         let inner = self.unwrap_constant()?;
 
         let Constant::Bls12_381G2Element(element) = inner else {
@@ -206,7 +210,9 @@ impl Value {
         Ok(element)
     }
 
-    pub(super) fn unwrap_bls12_381_ml_result(&self) -> Result<&blst::blst_fp12, Error> {
+    pub(super) fn unwrap_bls12_381_ml_result(
+        &self,
+    ) -> Result<&crate::bls::Bls12_381MlResult, Error> {
         let inner = self.unwrap_constant()?;
 
         let Constant::Bls12_381MlResult(element) = inner else {
@@ -288,9 +294,9 @@ impl Value {
                     Value::Con(l.clone()).to_ex_mem() + Value::Con(r.clone()).to_ex_mem()
                 }
                 Constant::Data(item) => self.data_to_ex_mem(item),
-                Constant::Bls12_381G1Element(_) => size_of::<blst::blst_p1>() as i64 / 8,
-                Constant::Bls12_381G2Element(_) => size_of::<blst::blst_p2>() as i64 / 8,
-                Constant::Bls12_381MlResult(_) => size_of::<blst::blst_fp12>() as i64 / 8,
+                Constant::Bls12_381G1Element(element) => element.ex_mem(),
+                Constant::Bls12_381G2Element(element) => element.ex_mem(),
+                Constant::Bls12_381MlResult(element) => element.ex_mem(),
             },
             Value::Delay(_, _) => 1,
             Value::Lambda { .. } => 1,

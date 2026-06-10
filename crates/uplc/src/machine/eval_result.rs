@@ -1,4 +1,4 @@
-use super::{Error, Trace, cost_model::ExBudget};
+use super::{Error, Trace, cost_model::ExBudget, runtime::BuiltinCall};
 use crate::ast::{Constant, NamedDeBruijn, Term};
 use pallas_primitives::conway::Language;
 
@@ -9,6 +9,7 @@ pub struct EvalResult {
     pub initial_budget: ExBudget,
     pub traces: Vec<Trace>,
     pub debug_cost: Option<Vec<i64>>,
+    pub builtin_calls: Vec<BuiltinCall>,
 }
 
 impl EvalResult {
@@ -18,6 +19,7 @@ impl EvalResult {
         initial_budget: ExBudget,
         traces: Vec<Trace>,
         debug_cost: Option<Vec<i64>>,
+        builtin_calls: Vec<BuiltinCall>,
     ) -> EvalResult {
         EvalResult {
             result,
@@ -25,7 +27,14 @@ impl EvalResult {
             initial_budget,
             traces,
             debug_cost,
+            builtin_calls,
         }
+    }
+
+    /// The recorded builtin-call trace (see [`BuiltinCall`]). Takes ownership, leaving the result's
+    /// copy empty.
+    pub fn builtin_calls(&mut self) -> Vec<BuiltinCall> {
+        std::mem::take(&mut self.builtin_calls)
     }
 
     pub fn cost(&self) -> ExBudget {
@@ -133,7 +142,14 @@ mod tests {
         lang: Language,
         allow_bool_in_v3: bool,
     ) -> bool {
-        EvalResult::new(term, ExBudget::default(), ExBudget::default(), vec![], None)
-            .failed(allow_bool_in_v3, &lang)
+        EvalResult::new(
+            term,
+            ExBudget::default(),
+            ExBudget::default(),
+            vec![],
+            None,
+            vec![],
+        )
+        .failed(allow_bool_in_v3, &lang)
     }
 }

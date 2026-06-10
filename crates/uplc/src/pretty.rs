@@ -1,10 +1,7 @@
 use crate::{
     ast::{Constant, Program, Term, Type},
     flat::Binder,
-    machine::{
-        runtime::{Compressable, convert_tag_to_constr},
-        value::from_pallas_bigint,
-    },
+    machine::{runtime::convert_tag_to_constr, value::from_pallas_bigint},
 };
 use pallas_primitives::conway::{Constr, PlutusData};
 use pretty::RcDoc;
