@@ -6,6 +6,8 @@
 
 - **aiken-lang**: Preserve typed `expect` assignments during unused-binding cleanup so `Data` validation still runs even when the bound name is unused. Fixes [#1325](https://github.com/aiken-lang/aiken/issues/1325). @knoal
 
+- **uplc**: Evaluate phase-two scripts with protocol-aware builtin semantics and parse PlutusV3 PV11 cost models. @colll78
+
 ## v1.1.22 - 2026-05-15
 
 ### Added
