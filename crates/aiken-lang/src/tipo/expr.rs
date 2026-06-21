@@ -2418,8 +2418,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         let expressions = sequence
             .into_iter()
             .filter(|expr| {
-                if let TypedExpr::Assignment { pattern, .. } = expr {
-                    !unused.contains(&pattern.location())
+                if let TypedExpr::Assignment { pattern, kind, .. } = expr {
+                    !(kind.is_let() && unused.contains(&pattern.location()))
                 } else {
                     true
                 }
