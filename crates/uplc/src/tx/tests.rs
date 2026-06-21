@@ -1775,3 +1775,37 @@ fn eval_extraneous_redeemer() {
         _ => unreachable!(),
     };
 }
+
+#[test]
+fn apply_params_to_script_rejects_malformed_params_cbor() {
+    let result = super::apply_params_to_script(&[0xd6, 0xec], &[]);
+
+    assert!(matches!(result, Err(super::error::Error::ApplyParamsError)));
+}
+
+#[test]
+fn apply_params_to_script_rejects_non_array_params() {
+    let result = super::apply_params_to_script(&[0x00], &[]);
+
+    assert!(matches!(result, Err(super::error::Error::ApplyParamsError)));
+}
+
+#[test]
+fn apply_params_to_script_rejects_invalid_params_without_panicking() {
+    // Malformed params CBOR used to panic at `decode_fragment(...).unwrap()`.
+    const MALFORMED_PARAMS_CBOR: &[u8] = &[0xd6, 0xec];
+
+    // Well-formed PlutusData that is not an array used to panic at `_ => unreachable!()`.
+    // This is PlutusData::BigInt(0) encoded as CBOR.
+    const NON_ARRAY_PARAMS_CBOR: &[u8] = &[0x00];
+
+    assert!(matches!(
+        super::apply_params_to_script(MALFORMED_PARAMS_CBOR, &[]),
+        Err(super::error::Error::ApplyParamsError)
+    ));
+
+    assert!(matches!(
+        super::apply_params_to_script(NON_ARRAY_PARAMS_CBOR, &[]),
+        Err(super::error::Error::ApplyParamsError)
+    ));
+}

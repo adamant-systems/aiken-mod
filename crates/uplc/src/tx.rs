@@ -346,9 +346,9 @@ pub fn apply_params_to_script(
     params_bytes: &[u8], // PlutusData array
     plutus_script_bytes: &[u8],
 ) -> Result<Vec<u8>, Error> {
-    let params = match PlutusData::decode_fragment(params_bytes).unwrap() {
-        PlutusData::Array(res) => res,
-        _ => unreachable!(),
+    let params = match PlutusData::decode_fragment(params_bytes) {
+        Ok(PlutusData::Array(res)) => res,
+        Ok(_) | Err(_) => return Err(Error::ApplyParamsError),
     };
 
     let mut buffer = Vec::new();
