@@ -6,7 +6,7 @@ use chumsky::prelude::*;
 
 pub fn decorators() -> impl Parser<Token, Vec<ast::Decorator>, Error = ParseError> {
     let tag_value = select! { Token::Int { value, base }  => (value, base) }.validate(
-        |(value_str, base), span, emit| match usize::from_str_radix(&value_str, 10) {
+        |(value_str, base), span, emit| match value_str.parse() {
             Err(_) => {
                 emit(ParseError::invalid_decorator_tag(span));
                 ast::DecoratorKind::List
