@@ -3,19 +3,10 @@ use crate::builtins::DefaultFunction;
 use num_traits::Signed;
 use pallas_primitives::conway::Language;
 use std::collections::HashMap;
-
 use strum::{Display, EnumIter};
 
-macro_rules! hashmap {
-    // map-like
-    ($($k:expr => $v:expr),* $(,)?) => {{
-        core::convert::From::from([$(($k, $v),)*])
-    }};
-    // set-like
-    ($($v:expr),* $(,)?) => {{
-        core::convert::From::from([$($v,)*])
-    }};
-}
+// available in a language version.
+const UNAVAILABLE_BUILTIN_COST_PLACEHOLDER: i64 = 30000000000;
 
 /// Can be negative
 #[derive(Debug, Clone, PartialEq, Eq, Copy, serde::Serialize)]
@@ -25,10 +16,25 @@ pub struct ExBudget {
 }
 
 // Existing default cost models use a large sentinel for builtins that are not
-// available in a language version.
-const UNAVAILABLE_BUILTIN_COST: i64 = 30000000000;
-
 impl ExBudget {
+    pub fn default_startup_cost() -> Self {
+        Self { mem: 100, cpu: 100 }
+    }
+
+    pub fn default_machine_cost() -> Self {
+        Self {
+            mem: 100,
+            cpu: 16000,
+        }
+    }
+
+    pub fn unavailable_machine_cost() -> Self {
+        Self {
+            mem: UNAVAILABLE_BUILTIN_COST_PLACEHOLDER,
+            cpu: UNAVAILABLE_BUILTIN_COST_PLACEHOLDER,
+        }
+    }
+
     pub fn occurrences(&mut self, n: i64) {
         self.mem *= n;
         self.cpu *= n;
@@ -127,129 +133,46 @@ impl MachineCosts {
 
     pub fn v1() -> Self {
         Self {
-            startup: ExBudget { mem: 100, cpu: 100 },
-            var: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            constant: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            lambda: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            delay: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            force: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            apply: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            builtin: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            // Placeholder values
-            constr: ExBudget {
-                mem: 30000000000,
-                cpu: 30000000000,
-            },
-            case: ExBudget {
-                mem: 30000000000,
-                cpu: 30000000000,
-            },
+            startup: ExBudget::default_startup_cost(),
+            var: ExBudget::default_machine_cost(),
+            constant: ExBudget::default_machine_cost(),
+            lambda: ExBudget::default_machine_cost(),
+            delay: ExBudget::default_machine_cost(),
+            force: ExBudget::default_machine_cost(),
+            apply: ExBudget::default_machine_cost(),
+            builtin: ExBudget::default_machine_cost(),
+            constr: ExBudget::unavailable_machine_cost(),
+            case: ExBudget::unavailable_machine_cost(),
         }
     }
 
     pub fn v2() -> Self {
         Self {
-            startup: ExBudget { mem: 100, cpu: 100 },
-            var: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            constant: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            lambda: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            delay: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            force: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            apply: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            builtin: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            // Placeholder values
-            constr: ExBudget {
-                mem: 30000000000,
-                cpu: 30000000000,
-            },
-            case: ExBudget {
-                mem: 30000000000,
-                cpu: 30000000000,
-            },
+            startup: ExBudget::default_startup_cost(),
+            var: ExBudget::default_machine_cost(),
+            constant: ExBudget::default_machine_cost(),
+            lambda: ExBudget::default_machine_cost(),
+            delay: ExBudget::default_machine_cost(),
+            force: ExBudget::default_machine_cost(),
+            apply: ExBudget::default_machine_cost(),
+            builtin: ExBudget::default_machine_cost(),
+            constr: ExBudget::unavailable_machine_cost(),
+            case: ExBudget::unavailable_machine_cost(),
         }
     }
 
     pub fn v3() -> Self {
         Self {
-            startup: ExBudget { mem: 100, cpu: 100 },
-            var: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            constant: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            lambda: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            delay: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            force: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            apply: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            builtin: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            constr: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
-            case: ExBudget {
-                mem: 100,
-                cpu: 16000,
-            },
+            startup: ExBudget::default_startup_cost(),
+            var: ExBudget::default_machine_cost(),
+            constant: ExBudget::default_machine_cost(),
+            lambda: ExBudget::default_machine_cost(),
+            delay: ExBudget::default_machine_cost(),
+            force: ExBudget::default_machine_cost(),
+            apply: ExBudget::default_machine_cost(),
+            builtin: ExBudget::default_machine_cost(),
+            constr: ExBudget::default_machine_cost(),
+            case: ExBudget::default_machine_cost(),
         }
     }
 }
@@ -258,6 +181,1399 @@ impl Default for MachineCosts {
     fn default() -> Self {
         MachineCosts::v3()
     }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
+pub enum ParamName {
+    AddInteger_cpu_arguments_intercept,
+    AddInteger_cpu_arguments_slope,
+    AddInteger_memory_arguments_intercept,
+    AddInteger_memory_arguments_slope,
+    AndByteString_cpu_arguments_intercept,
+    AndByteString_cpu_arguments_slope1,
+    AndByteString_cpu_arguments_slope2,
+    AndByteString_memory_arguments_intercept,
+    AndByteString_memory_arguments_slope,
+    AppendByteString_cpu_arguments_intercept,
+    AppendByteString_cpu_arguments_slope,
+    AppendByteString_memory_arguments_intercept,
+    AppendByteString_memory_arguments_slope,
+    AppendString_cpu_arguments_intercept,
+    AppendString_cpu_arguments_slope,
+    AppendString_memory_arguments_intercept,
+    AppendString_memory_arguments_slope,
+    BData_cpu_arguments,
+    BData_memory_arguments,
+    Blake2b_224_cpu_arguments_intercept,
+    Blake2b_224_cpu_arguments_slope,
+    Blake2b_224_memory_arguments,
+    Blake2b_256_cpu_arguments_intercept,
+    Blake2b_256_cpu_arguments_slope,
+    Blake2b_256_memory_arguments,
+    Bls12_381_G1_add_cpu_arguments,
+    Bls12_381_G1_add_memory_arguments,
+    Bls12_381_G1_compress_cpu_arguments,
+    Bls12_381_G1_compress_memory_arguments,
+    Bls12_381_G1_equal_cpu_arguments,
+    Bls12_381_G1_equal_memory_arguments,
+    Bls12_381_G1_hashToGroup_cpu_arguments_intercept,
+    Bls12_381_G1_hashToGroup_cpu_arguments_slope,
+    Bls12_381_G1_hashToGroup_memory_arguments,
+    Bls12_381_G1_multiScalarMul_cpu_arguments_intercept,
+    Bls12_381_G1_multiScalarMul_cpu_arguments_slope,
+    Bls12_381_G1_multiScalarMul_memory_arguments,
+    Bls12_381_G1_neg_cpu_arguments,
+    Bls12_381_G1_neg_memory_arguments,
+    Bls12_381_G1_scalarMul_cpu_arguments_intercept,
+    Bls12_381_G1_scalarMul_cpu_arguments_slope,
+    Bls12_381_G1_scalarMul_memory_arguments,
+    Bls12_381_G1_uncompress_cpu_arguments,
+    Bls12_381_G1_uncompress_memory_arguments,
+    Bls12_381_G2_add_cpu_arguments,
+    Bls12_381_G2_add_memory_arguments,
+    Bls12_381_G2_compress_cpu_arguments,
+    Bls12_381_G2_compress_memory_arguments,
+    Bls12_381_G2_equal_cpu_arguments,
+    Bls12_381_G2_equal_memory_arguments,
+    Bls12_381_G2_hashToGroup_cpu_arguments_intercept,
+    Bls12_381_G2_hashToGroup_cpu_arguments_slope,
+    Bls12_381_G2_hashToGroup_memory_arguments,
+    Bls12_381_G2_multiScalarMul_cpu_arguments_intercept,
+    Bls12_381_G2_multiScalarMul_cpu_arguments_slope,
+    Bls12_381_G2_multiScalarMul_memory_arguments,
+    Bls12_381_G2_neg_cpu_arguments,
+    Bls12_381_G2_neg_memory_arguments,
+    Bls12_381_G2_scalarMul_cpu_arguments_intercept,
+    Bls12_381_G2_scalarMul_cpu_arguments_slope,
+    Bls12_381_G2_scalarMul_memory_arguments,
+    Bls12_381_G2_uncompress_cpu_arguments,
+    Bls12_381_G2_uncompress_memory_arguments,
+    Bls12_381_finalVerify_cpu_arguments,
+    Bls12_381_finalVerify_memory_arguments,
+    Bls12_381_millerLoop_cpu_arguments,
+    Bls12_381_millerLoop_memory_arguments,
+    Bls12_381_mulMlResult_cpu_arguments,
+    Bls12_381_mulMlResult_memory_arguments,
+    ByteStringToInteger_cpu_arguments_c0,
+    ByteStringToInteger_cpu_arguments_c1,
+    ByteStringToInteger_cpu_arguments_c2,
+    ByteStringToInteger_memory_arguments_intercept,
+    ByteStringToInteger_memory_arguments_slope,
+    CekApplyCost_exBudgetCPU,
+    CekApplyCost_exBudgetMemory,
+    CekBuiltinCost_exBudgetCPU,
+    CekBuiltinCost_exBudgetMemory,
+    CekCaseCost_exBudgetCPU,
+    CekCaseCost_exBudgetMemory,
+    CekConstCost_exBudgetCPU,
+    CekConstCost_exBudgetMemory,
+    CekConstrCost_exBudgetCPU,
+    CekConstrCost_exBudgetMemory,
+    CekDelayCost_exBudgetCPU,
+    CekDelayCost_exBudgetMemory,
+    CekForceCost_exBudgetCPU,
+    CekForceCost_exBudgetMemory,
+    CekLamCost_exBudgetCPU,
+    CekLamCost_exBudgetMemory,
+    CekStartupCost_exBudgetCPU,
+    CekStartupCost_exBudgetMemory,
+    CekVarCost_exBudgetCPU,
+    CekVarCost_exBudgetMemory,
+    ChooseData_cpu_arguments,
+    ChooseData_memory_arguments,
+    ChooseList_cpu_arguments,
+    ChooseList_memory_arguments,
+    ChooseUnit_cpu_arguments,
+    ChooseUnit_memory_arguments,
+    ComplementByteString_cpu_arguments_intercept,
+    ComplementByteString_cpu_arguments_slope,
+    ComplementByteString_memory_arguments_intercept,
+    ComplementByteString_memory_arguments_slope,
+    ConsByteString_cpu_arguments_intercept,
+    ConsByteString_cpu_arguments_slope,
+    ConsByteString_memory_arguments_intercept,
+    ConsByteString_memory_arguments_slope,
+    ConstrData_cpu_arguments,
+    ConstrData_memory_arguments,
+    CountSetBits_cpu_arguments_intercept,
+    CountSetBits_cpu_arguments_slope,
+    CountSetBits_memory_arguments,
+    DecodeUtf8_cpu_arguments_intercept,
+    DecodeUtf8_cpu_arguments_slope,
+    DecodeUtf8_memory_arguments_intercept,
+    DecodeUtf8_memory_arguments_slope,
+    DivideInteger_cpu_arguments_constant,
+    DivideInteger_cpu_arguments_model_arguments_c00,
+    DivideInteger_cpu_arguments_model_arguments_c01,
+    DivideInteger_cpu_arguments_model_arguments_c02,
+    DivideInteger_cpu_arguments_model_arguments_c10,
+    DivideInteger_cpu_arguments_model_arguments_c11,
+    DivideInteger_cpu_arguments_model_arguments_c20,
+    DivideInteger_cpu_arguments_model_arguments_intercept,
+    DivideInteger_cpu_arguments_model_arguments_minimum,
+    DivideInteger_cpu_arguments_model_arguments_slope,
+    DivideInteger_memory_arguments_intercept,
+    DivideInteger_memory_arguments_minimum,
+    DivideInteger_memory_arguments_slope,
+    DropList_cpu_arguments_intercept,
+    DropList_cpu_arguments_slope,
+    DropList_memory_arguments,
+    EncodeUtf8_cpu_arguments_intercept,
+    EncodeUtf8_cpu_arguments_slope,
+    EncodeUtf8_memory_arguments_intercept,
+    EncodeUtf8_memory_arguments_slope,
+    EqualsByteString_cpu_arguments_constant,
+    EqualsByteString_cpu_arguments_intercept,
+    EqualsByteString_cpu_arguments_slope,
+    EqualsByteString_memory_arguments,
+    EqualsData_cpu_arguments_intercept,
+    EqualsData_cpu_arguments_slope,
+    EqualsData_memory_arguments,
+    EqualsInteger_cpu_arguments_intercept,
+    EqualsInteger_cpu_arguments_slope,
+    EqualsInteger_memory_arguments,
+    EqualsString_cpu_arguments_constant,
+    EqualsString_cpu_arguments_intercept,
+    EqualsString_cpu_arguments_slope,
+    EqualsString_memory_arguments,
+    ExpModInteger_cpu_arguments_coefficient00,
+    ExpModInteger_cpu_arguments_coefficient11,
+    ExpModInteger_cpu_arguments_coefficient12,
+    ExpModInteger_memory_arguments_intercept,
+    ExpModInteger_memory_arguments_slope,
+    FindFirstSetBit_cpu_arguments_intercept,
+    FindFirstSetBit_cpu_arguments_slope,
+    FindFirstSetBit_memory_arguments,
+    FstPair_cpu_arguments,
+    FstPair_memory_arguments,
+    HeadList_cpu_arguments,
+    HeadList_memory_arguments,
+    IData_cpu_arguments,
+    IData_memory_arguments,
+    IfThenElse_cpu_arguments,
+    IfThenElse_memory_arguments,
+    IndexArray_cpu_arguments,
+    IndexArray_memory_arguments,
+    IndexByteString_cpu_arguments,
+    IndexByteString_memory_arguments,
+    InsertCoin_cpu_arguments_intercept,
+    InsertCoin_cpu_arguments_slope,
+    InsertCoin_memory_arguments_intercept,
+    InsertCoin_memory_arguments_slope,
+    IntegerToByteString_cpu_arguments_c0,
+    IntegerToByteString_cpu_arguments_c1,
+    IntegerToByteString_cpu_arguments_c2,
+    IntegerToByteString_memory_arguments_intercept,
+    IntegerToByteString_memory_arguments_slope,
+    Keccak_256_cpu_arguments_intercept,
+    Keccak_256_cpu_arguments_slope,
+    Keccak_256_memory_arguments,
+    LengthOfArray_cpu_arguments,
+    LengthOfArray_memory_arguments,
+    LengthOfByteString_cpu_arguments,
+    LengthOfByteString_memory_arguments,
+    LessThanByteString_cpu_arguments_intercept,
+    LessThanByteString_cpu_arguments_slope,
+    LessThanByteString_memory_arguments,
+    LessThanEqualsByteString_cpu_arguments_intercept,
+    LessThanEqualsByteString_cpu_arguments_slope,
+    LessThanEqualsByteString_memory_arguments,
+    LessThanEqualsInteger_cpu_arguments_intercept,
+    LessThanEqualsInteger_cpu_arguments_slope,
+    LessThanEqualsInteger_memory_arguments,
+    LessThanInteger_cpu_arguments_intercept,
+    LessThanInteger_cpu_arguments_slope,
+    LessThanInteger_memory_arguments,
+    ListData_cpu_arguments,
+    ListData_memory_arguments,
+    ListToArray_cpu_arguments_intercept,
+    ListToArray_cpu_arguments_slope,
+    ListToArray_memory_arguments_intercept,
+    ListToArray_memory_arguments_slope,
+    LookupCoin_cpu_arguments_intercept,
+    LookupCoin_cpu_arguments_slope,
+    LookupCoin_memory_arguments,
+    MapData_cpu_arguments,
+    MapData_memory_arguments,
+    MkCons_cpu_arguments,
+    MkCons_memory_arguments,
+    MkNilData_cpu_arguments,
+    MkNilData_memory_arguments,
+    MkNilPairData_cpu_arguments,
+    MkNilPairData_memory_arguments,
+    MkPairData_cpu_arguments,
+    MkPairData_memory_arguments,
+    ModInteger_cpu_arguments_constant,
+    ModInteger_cpu_arguments_model_arguments_c00,
+    ModInteger_cpu_arguments_model_arguments_c01,
+    ModInteger_cpu_arguments_model_arguments_c02,
+    ModInteger_cpu_arguments_model_arguments_c10,
+    ModInteger_cpu_arguments_model_arguments_c11,
+    ModInteger_cpu_arguments_model_arguments_c20,
+    ModInteger_cpu_arguments_model_arguments_intercept,
+    ModInteger_cpu_arguments_model_arguments_minimum,
+    ModInteger_cpu_arguments_model_arguments_slope,
+    ModInteger_memory_arguments_intercept,
+    ModInteger_memory_arguments_minimum,
+    ModInteger_memory_arguments_slope,
+    MultiplyInteger_cpu_arguments_intercept,
+    MultiplyInteger_cpu_arguments_slope,
+    MultiplyInteger_memory_arguments_intercept,
+    MultiplyInteger_memory_arguments_slope,
+    NullList_cpu_arguments,
+    NullList_memory_arguments,
+    OrByteString_cpu_arguments_intercept,
+    OrByteString_cpu_arguments_slope1,
+    OrByteString_cpu_arguments_slope2,
+    OrByteString_memory_arguments_intercept,
+    OrByteString_memory_arguments_slope,
+    QuotientInteger_cpu_arguments_constant,
+    QuotientInteger_cpu_arguments_model_arguments_c00,
+    QuotientInteger_cpu_arguments_model_arguments_c01,
+    QuotientInteger_cpu_arguments_model_arguments_c02,
+    QuotientInteger_cpu_arguments_model_arguments_c10,
+    QuotientInteger_cpu_arguments_model_arguments_c11,
+    QuotientInteger_cpu_arguments_model_arguments_c20,
+    QuotientInteger_cpu_arguments_model_arguments_intercept,
+    QuotientInteger_cpu_arguments_model_arguments_minimum,
+    QuotientInteger_cpu_arguments_model_arguments_slope,
+    QuotientInteger_memory_arguments_intercept,
+    QuotientInteger_memory_arguments_minimum,
+    QuotientInteger_memory_arguments_slope,
+    ReadBit_cpu_arguments,
+    ReadBit_memory_arguments,
+    RemainderInteger_cpu_arguments_constant,
+    RemainderInteger_cpu_arguments_model_arguments_c00,
+    RemainderInteger_cpu_arguments_model_arguments_c01,
+    RemainderInteger_cpu_arguments_model_arguments_c02,
+    RemainderInteger_cpu_arguments_model_arguments_c10,
+    RemainderInteger_cpu_arguments_model_arguments_c11,
+    RemainderInteger_cpu_arguments_model_arguments_c20,
+    RemainderInteger_cpu_arguments_model_arguments_intercept,
+    RemainderInteger_cpu_arguments_model_arguments_minimum,
+    RemainderInteger_cpu_arguments_model_arguments_slope,
+    RemainderInteger_memory_arguments_intercept,
+    RemainderInteger_memory_arguments_minimum,
+    RemainderInteger_memory_arguments_slope,
+    ReplicateByte_cpu_arguments_intercept,
+    ReplicateByte_cpu_arguments_slope,
+    ReplicateByte_memory_arguments_intercept,
+    ReplicateByte_memory_arguments_slope,
+    Ripemd_160_cpu_arguments_intercept,
+    Ripemd_160_cpu_arguments_slope,
+    Ripemd_160_memory_arguments,
+    RotateByteString_cpu_arguments_intercept,
+    RotateByteString_cpu_arguments_slope,
+    RotateByteString_memory_arguments_intercept,
+    RotateByteString_memory_arguments_slope,
+    ScaleValue_cpu_arguments_intercept,
+    ScaleValue_cpu_arguments_slope,
+    ScaleValue_memory_arguments_intercept,
+    ScaleValue_memory_arguments_slope,
+    SerialiseData_cpu_arguments_intercept,
+    SerialiseData_cpu_arguments_slope,
+    SerialiseData_memory_arguments_intercept,
+    SerialiseData_memory_arguments_slope,
+    Sha2_256_cpu_arguments_intercept,
+    Sha2_256_cpu_arguments_slope,
+    Sha2_256_memory_arguments,
+    Sha3_256_cpu_arguments_intercept,
+    Sha3_256_cpu_arguments_slope,
+    Sha3_256_memory_arguments,
+    ShiftByteString_cpu_arguments_intercept,
+    ShiftByteString_cpu_arguments_slope,
+    ShiftByteString_memory_arguments_intercept,
+    ShiftByteString_memory_arguments_slope,
+    SliceByteString_cpu_arguments_intercept,
+    SliceByteString_cpu_arguments_slope,
+    SliceByteString_memory_arguments_intercept,
+    SliceByteString_memory_arguments_slope,
+    SndPair_cpu_arguments,
+    SndPair_memory_arguments,
+    SubtractInteger_cpu_arguments_intercept,
+    SubtractInteger_cpu_arguments_slope,
+    SubtractInteger_memory_arguments_intercept,
+    SubtractInteger_memory_arguments_slope,
+    TailList_cpu_arguments,
+    TailList_memory_arguments,
+    Trace_cpu_arguments,
+    Trace_memory_arguments,
+    UnBData_cpu_arguments,
+    UnBData_memory_arguments,
+    UnConstrData_cpu_arguments,
+    UnConstrData_memory_arguments,
+    UnIData_cpu_arguments,
+    UnIData_memory_arguments,
+    UnListData_cpu_arguments,
+    UnListData_memory_arguments,
+    UnMapData_cpu_arguments,
+    UnMapData_memory_arguments,
+    UnValueData_cpu_arguments_c0,
+    UnValueData_cpu_arguments_c1,
+    UnValueData_cpu_arguments_c2,
+    UnValueData_memory_arguments_intercept,
+    UnValueData_memory_arguments_slope,
+    UnionValue_cpu_arguments_c00,
+    UnionValue_cpu_arguments_c01,
+    UnionValue_cpu_arguments_c10,
+    UnionValue_cpu_arguments_c11,
+    UnionValue_memory_arguments_intercept,
+    UnionValue_memory_arguments_slope,
+    ValueContains_cpu_arguments_constant,
+    ValueContains_cpu_arguments_model_arguments_intercept,
+    ValueContains_cpu_arguments_model_arguments_slope1,
+    ValueContains_cpu_arguments_model_arguments_slope2,
+    ValueContains_memory_arguments,
+    ValueData_cpu_arguments_intercept,
+    ValueData_cpu_arguments_slope,
+    ValueData_memory_arguments_intercept,
+    ValueData_memory_arguments_slope,
+    VerifyEcdsaSecp256k1Signature_cpu_arguments,
+    VerifyEcdsaSecp256k1Signature_memory_arguments,
+    VerifyEd25519Signature_cpu_arguments_intercept,
+    VerifyEd25519Signature_cpu_arguments_slope,
+    VerifyEd25519Signature_memory_arguments,
+    VerifySchnorrSecp256k1Signature_cpu_arguments_intercept,
+    VerifySchnorrSecp256k1Signature_cpu_arguments_slope,
+    VerifySchnorrSecp256k1Signature_memory_arguments,
+    WriteBits_cpu_arguments_intercept,
+    WriteBits_cpu_arguments_slope,
+    WriteBits_memory_arguments_intercept,
+    WriteBits_memory_arguments_slope,
+    XorByteString_cpu_arguments_intercept,
+    XorByteString_cpu_arguments_slope1,
+    XorByteString_cpu_arguments_slope2,
+    XorByteString_memory_arguments_intercept,
+    XorByteString_memory_arguments_slope,
+}
+
+impl ParamName {
+    /// Order (and which) in which parameters are defined in V1.
+    pub const V1: [ParamName; 332] = [
+        Self::AddInteger_cpu_arguments_intercept,
+        Self::AddInteger_cpu_arguments_slope,
+        Self::AddInteger_memory_arguments_intercept,
+        Self::AddInteger_memory_arguments_slope,
+        Self::AppendByteString_cpu_arguments_intercept,
+        Self::AppendByteString_cpu_arguments_slope,
+        Self::AppendByteString_memory_arguments_intercept,
+        Self::AppendByteString_memory_arguments_slope,
+        Self::AppendString_cpu_arguments_intercept,
+        Self::AppendString_cpu_arguments_slope,
+        Self::AppendString_memory_arguments_intercept,
+        Self::AppendString_memory_arguments_slope,
+        Self::BData_cpu_arguments,
+        Self::BData_memory_arguments,
+        Self::Blake2b_256_cpu_arguments_intercept,
+        Self::Blake2b_256_cpu_arguments_slope,
+        Self::Blake2b_256_memory_arguments,
+        Self::CekApplyCost_exBudgetCPU,
+        Self::CekApplyCost_exBudgetMemory,
+        Self::CekBuiltinCost_exBudgetCPU,
+        Self::CekBuiltinCost_exBudgetMemory,
+        Self::CekConstCost_exBudgetCPU,
+        Self::CekConstCost_exBudgetMemory,
+        Self::CekDelayCost_exBudgetCPU,
+        Self::CekDelayCost_exBudgetMemory,
+        Self::CekForceCost_exBudgetCPU,
+        Self::CekForceCost_exBudgetMemory,
+        Self::CekLamCost_exBudgetCPU,
+        Self::CekLamCost_exBudgetMemory,
+        Self::CekStartupCost_exBudgetCPU,
+        Self::CekStartupCost_exBudgetMemory,
+        Self::CekVarCost_exBudgetCPU,
+        Self::CekVarCost_exBudgetMemory,
+        Self::ChooseData_cpu_arguments,
+        Self::ChooseData_memory_arguments,
+        Self::ChooseList_cpu_arguments,
+        Self::ChooseList_memory_arguments,
+        Self::ChooseUnit_cpu_arguments,
+        Self::ChooseUnit_memory_arguments,
+        Self::ConsByteString_cpu_arguments_intercept,
+        Self::ConsByteString_cpu_arguments_slope,
+        Self::ConsByteString_memory_arguments_intercept,
+        Self::ConsByteString_memory_arguments_slope,
+        Self::ConstrData_cpu_arguments,
+        Self::ConstrData_memory_arguments,
+        Self::DecodeUtf8_cpu_arguments_intercept,
+        Self::DecodeUtf8_cpu_arguments_slope,
+        Self::DecodeUtf8_memory_arguments_intercept,
+        Self::DecodeUtf8_memory_arguments_slope,
+        Self::DivideInteger_cpu_arguments_constant,
+        Self::DivideInteger_cpu_arguments_model_arguments_intercept,
+        Self::DivideInteger_cpu_arguments_model_arguments_slope,
+        Self::DivideInteger_memory_arguments_intercept,
+        Self::DivideInteger_memory_arguments_minimum,
+        Self::DivideInteger_memory_arguments_slope,
+        Self::EncodeUtf8_cpu_arguments_intercept,
+        Self::EncodeUtf8_cpu_arguments_slope,
+        Self::EncodeUtf8_memory_arguments_intercept,
+        Self::EncodeUtf8_memory_arguments_slope,
+        Self::EqualsByteString_cpu_arguments_constant,
+        Self::EqualsByteString_cpu_arguments_intercept,
+        Self::EqualsByteString_cpu_arguments_slope,
+        Self::EqualsByteString_memory_arguments,
+        Self::EqualsData_cpu_arguments_intercept,
+        Self::EqualsData_cpu_arguments_slope,
+        Self::EqualsData_memory_arguments,
+        Self::EqualsInteger_cpu_arguments_intercept,
+        Self::EqualsInteger_cpu_arguments_slope,
+        Self::EqualsInteger_memory_arguments,
+        Self::EqualsString_cpu_arguments_constant,
+        Self::EqualsString_cpu_arguments_intercept,
+        Self::EqualsString_cpu_arguments_slope,
+        Self::EqualsString_memory_arguments,
+        Self::FstPair_cpu_arguments,
+        Self::FstPair_memory_arguments,
+        Self::HeadList_cpu_arguments,
+        Self::HeadList_memory_arguments,
+        Self::IData_cpu_arguments,
+        Self::IData_memory_arguments,
+        Self::IfThenElse_cpu_arguments,
+        Self::IfThenElse_memory_arguments,
+        Self::IndexByteString_cpu_arguments,
+        Self::IndexByteString_memory_arguments,
+        Self::LengthOfByteString_cpu_arguments,
+        Self::LengthOfByteString_memory_arguments,
+        Self::LessThanByteString_cpu_arguments_intercept,
+        Self::LessThanByteString_cpu_arguments_slope,
+        Self::LessThanByteString_memory_arguments,
+        Self::LessThanEqualsByteString_cpu_arguments_intercept,
+        Self::LessThanEqualsByteString_cpu_arguments_slope,
+        Self::LessThanEqualsByteString_memory_arguments,
+        Self::LessThanEqualsInteger_cpu_arguments_intercept,
+        Self::LessThanEqualsInteger_cpu_arguments_slope,
+        Self::LessThanEqualsInteger_memory_arguments,
+        Self::LessThanInteger_cpu_arguments_intercept,
+        Self::LessThanInteger_cpu_arguments_slope,
+        Self::LessThanInteger_memory_arguments,
+        Self::ListData_cpu_arguments,
+        Self::ListData_memory_arguments,
+        Self::MapData_cpu_arguments,
+        Self::MapData_memory_arguments,
+        Self::MkCons_cpu_arguments,
+        Self::MkCons_memory_arguments,
+        Self::MkNilData_cpu_arguments,
+        Self::MkNilData_memory_arguments,
+        Self::MkNilPairData_cpu_arguments,
+        Self::MkNilPairData_memory_arguments,
+        Self::MkPairData_cpu_arguments,
+        Self::MkPairData_memory_arguments,
+        Self::ModInteger_cpu_arguments_constant,
+        Self::ModInteger_cpu_arguments_model_arguments_intercept,
+        Self::ModInteger_cpu_arguments_model_arguments_slope,
+        Self::ModInteger_memory_arguments_intercept,
+        Self::ModInteger_memory_arguments_minimum,
+        Self::ModInteger_memory_arguments_slope,
+        Self::MultiplyInteger_cpu_arguments_intercept,
+        Self::MultiplyInteger_cpu_arguments_slope,
+        Self::MultiplyInteger_memory_arguments_intercept,
+        Self::MultiplyInteger_memory_arguments_slope,
+        Self::NullList_cpu_arguments,
+        Self::NullList_memory_arguments,
+        Self::QuotientInteger_cpu_arguments_constant,
+        Self::QuotientInteger_cpu_arguments_model_arguments_intercept,
+        Self::QuotientInteger_cpu_arguments_model_arguments_slope,
+        Self::QuotientInteger_memory_arguments_intercept,
+        Self::QuotientInteger_memory_arguments_minimum,
+        Self::QuotientInteger_memory_arguments_slope,
+        Self::RemainderInteger_cpu_arguments_constant,
+        Self::RemainderInteger_cpu_arguments_model_arguments_intercept,
+        Self::RemainderInteger_cpu_arguments_model_arguments_slope,
+        Self::RemainderInteger_memory_arguments_intercept,
+        Self::RemainderInteger_memory_arguments_minimum,
+        Self::RemainderInteger_memory_arguments_slope,
+        Self::Sha2_256_cpu_arguments_intercept,
+        Self::Sha2_256_cpu_arguments_slope,
+        Self::Sha2_256_memory_arguments,
+        Self::Sha3_256_cpu_arguments_intercept,
+        Self::Sha3_256_cpu_arguments_slope,
+        Self::Sha3_256_memory_arguments,
+        Self::SliceByteString_cpu_arguments_intercept,
+        Self::SliceByteString_cpu_arguments_slope,
+        Self::SliceByteString_memory_arguments_intercept,
+        Self::SliceByteString_memory_arguments_slope,
+        Self::SndPair_cpu_arguments,
+        Self::SndPair_memory_arguments,
+        Self::SubtractInteger_cpu_arguments_intercept,
+        Self::SubtractInteger_cpu_arguments_slope,
+        Self::SubtractInteger_memory_arguments_intercept,
+        Self::SubtractInteger_memory_arguments_slope,
+        Self::TailList_cpu_arguments,
+        Self::TailList_memory_arguments,
+        Self::Trace_cpu_arguments,
+        Self::Trace_memory_arguments,
+        Self::UnBData_cpu_arguments,
+        Self::UnBData_memory_arguments,
+        Self::UnConstrData_cpu_arguments,
+        Self::UnConstrData_memory_arguments,
+        Self::UnIData_cpu_arguments,
+        Self::UnIData_memory_arguments,
+        Self::UnListData_cpu_arguments,
+        Self::UnListData_memory_arguments,
+        Self::UnMapData_cpu_arguments,
+        Self::UnMapData_memory_arguments,
+        Self::VerifyEd25519Signature_cpu_arguments_intercept,
+        Self::VerifyEd25519Signature_cpu_arguments_slope,
+        Self::VerifyEd25519Signature_memory_arguments,
+        Self::SerialiseData_cpu_arguments_intercept,
+        Self::SerialiseData_cpu_arguments_slope,
+        Self::SerialiseData_memory_arguments_intercept,
+        Self::SerialiseData_memory_arguments_slope,
+        Self::VerifyEcdsaSecp256k1Signature_cpu_arguments,
+        Self::VerifyEcdsaSecp256k1Signature_memory_arguments,
+        Self::VerifySchnorrSecp256k1Signature_cpu_arguments_intercept,
+        Self::VerifySchnorrSecp256k1Signature_cpu_arguments_slope,
+        Self::VerifySchnorrSecp256k1Signature_memory_arguments,
+        Self::CekConstrCost_exBudgetCPU,
+        Self::CekConstrCost_exBudgetMemory,
+        Self::CekCaseCost_exBudgetCPU,
+        Self::CekCaseCost_exBudgetMemory,
+        Self::Bls12_381_G1_add_cpu_arguments,
+        Self::Bls12_381_G1_add_memory_arguments,
+        Self::Bls12_381_G1_compress_cpu_arguments,
+        Self::Bls12_381_G1_compress_memory_arguments,
+        Self::Bls12_381_G1_equal_cpu_arguments,
+        Self::Bls12_381_G1_equal_memory_arguments,
+        Self::Bls12_381_G1_hashToGroup_cpu_arguments_intercept,
+        Self::Bls12_381_G1_hashToGroup_cpu_arguments_slope,
+        Self::Bls12_381_G1_hashToGroup_memory_arguments,
+        Self::Bls12_381_G1_neg_cpu_arguments,
+        Self::Bls12_381_G1_neg_memory_arguments,
+        Self::Bls12_381_G1_scalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G1_scalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G1_scalarMul_memory_arguments,
+        Self::Bls12_381_G1_uncompress_cpu_arguments,
+        Self::Bls12_381_G1_uncompress_memory_arguments,
+        Self::Bls12_381_G2_add_cpu_arguments,
+        Self::Bls12_381_G2_add_memory_arguments,
+        Self::Bls12_381_G2_compress_cpu_arguments,
+        Self::Bls12_381_G2_compress_memory_arguments,
+        Self::Bls12_381_G2_equal_cpu_arguments,
+        Self::Bls12_381_G2_equal_memory_arguments,
+        Self::Bls12_381_G2_hashToGroup_cpu_arguments_intercept,
+        Self::Bls12_381_G2_hashToGroup_cpu_arguments_slope,
+        Self::Bls12_381_G2_hashToGroup_memory_arguments,
+        Self::Bls12_381_G2_neg_cpu_arguments,
+        Self::Bls12_381_G2_neg_memory_arguments,
+        Self::Bls12_381_G2_scalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G2_scalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G2_scalarMul_memory_arguments,
+        Self::Bls12_381_G2_uncompress_cpu_arguments,
+        Self::Bls12_381_G2_uncompress_memory_arguments,
+        Self::Bls12_381_finalVerify_cpu_arguments,
+        Self::Bls12_381_finalVerify_memory_arguments,
+        Self::Bls12_381_millerLoop_cpu_arguments,
+        Self::Bls12_381_millerLoop_memory_arguments,
+        Self::Bls12_381_mulMlResult_cpu_arguments,
+        Self::Bls12_381_mulMlResult_memory_arguments,
+        Self::Keccak_256_cpu_arguments_intercept,
+        Self::Keccak_256_cpu_arguments_slope,
+        Self::Keccak_256_memory_arguments,
+        Self::Blake2b_224_cpu_arguments_intercept,
+        Self::Blake2b_224_cpu_arguments_slope,
+        Self::Blake2b_224_memory_arguments,
+        Self::IntegerToByteString_cpu_arguments_c0,
+        Self::IntegerToByteString_cpu_arguments_c1,
+        Self::IntegerToByteString_cpu_arguments_c2,
+        Self::IntegerToByteString_memory_arguments_intercept,
+        Self::IntegerToByteString_memory_arguments_slope,
+        Self::ByteStringToInteger_cpu_arguments_c0,
+        Self::ByteStringToInteger_cpu_arguments_c1,
+        Self::ByteStringToInteger_cpu_arguments_c2,
+        Self::ByteStringToInteger_memory_arguments_intercept,
+        Self::ByteStringToInteger_memory_arguments_slope,
+        Self::AndByteString_cpu_arguments_intercept,
+        Self::AndByteString_cpu_arguments_slope1,
+        Self::AndByteString_cpu_arguments_slope2,
+        Self::AndByteString_memory_arguments_intercept,
+        Self::AndByteString_memory_arguments_slope,
+        Self::OrByteString_cpu_arguments_intercept,
+        Self::OrByteString_cpu_arguments_slope1,
+        Self::OrByteString_cpu_arguments_slope2,
+        Self::OrByteString_memory_arguments_intercept,
+        Self::OrByteString_memory_arguments_slope,
+        Self::XorByteString_cpu_arguments_intercept,
+        Self::XorByteString_cpu_arguments_slope1,
+        Self::XorByteString_cpu_arguments_slope2,
+        Self::XorByteString_memory_arguments_intercept,
+        Self::XorByteString_memory_arguments_slope,
+        Self::ComplementByteString_cpu_arguments_intercept,
+        Self::ComplementByteString_cpu_arguments_slope,
+        Self::ComplementByteString_memory_arguments_intercept,
+        Self::ComplementByteString_memory_arguments_slope,
+        Self::ReadBit_cpu_arguments,
+        Self::ReadBit_memory_arguments,
+        Self::WriteBits_cpu_arguments_intercept,
+        Self::WriteBits_cpu_arguments_slope,
+        Self::WriteBits_memory_arguments_intercept,
+        Self::WriteBits_memory_arguments_slope,
+        Self::ReplicateByte_cpu_arguments_intercept,
+        Self::ReplicateByte_cpu_arguments_slope,
+        Self::ReplicateByte_memory_arguments_intercept,
+        Self::ReplicateByte_memory_arguments_slope,
+        Self::ShiftByteString_cpu_arguments_intercept,
+        Self::ShiftByteString_cpu_arguments_slope,
+        Self::ShiftByteString_memory_arguments_intercept,
+        Self::ShiftByteString_memory_arguments_slope,
+        Self::RotateByteString_cpu_arguments_intercept,
+        Self::RotateByteString_cpu_arguments_slope,
+        Self::RotateByteString_memory_arguments_intercept,
+        Self::RotateByteString_memory_arguments_slope,
+        Self::CountSetBits_cpu_arguments_intercept,
+        Self::CountSetBits_cpu_arguments_slope,
+        Self::CountSetBits_memory_arguments,
+        Self::FindFirstSetBit_cpu_arguments_intercept,
+        Self::FindFirstSetBit_cpu_arguments_slope,
+        Self::FindFirstSetBit_memory_arguments,
+        Self::Ripemd_160_cpu_arguments_intercept,
+        Self::Ripemd_160_cpu_arguments_slope,
+        Self::Ripemd_160_memory_arguments,
+        Self::ExpModInteger_cpu_arguments_coefficient00,
+        Self::ExpModInteger_cpu_arguments_coefficient11,
+        Self::ExpModInteger_cpu_arguments_coefficient12,
+        Self::ExpModInteger_memory_arguments_intercept,
+        Self::ExpModInteger_memory_arguments_slope,
+        Self::DropList_cpu_arguments_intercept,
+        Self::DropList_cpu_arguments_slope,
+        Self::DropList_memory_arguments,
+        Self::LengthOfArray_cpu_arguments,
+        Self::LengthOfArray_memory_arguments,
+        Self::ListToArray_cpu_arguments_intercept,
+        Self::ListToArray_cpu_arguments_slope,
+        Self::ListToArray_memory_arguments_intercept,
+        Self::ListToArray_memory_arguments_slope,
+        Self::IndexArray_cpu_arguments,
+        Self::IndexArray_memory_arguments,
+        Self::Bls12_381_G1_multiScalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G1_multiScalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G1_multiScalarMul_memory_arguments,
+        Self::Bls12_381_G2_multiScalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G2_multiScalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G2_multiScalarMul_memory_arguments,
+        Self::InsertCoin_cpu_arguments_intercept,
+        Self::InsertCoin_cpu_arguments_slope,
+        Self::InsertCoin_memory_arguments_intercept,
+        Self::InsertCoin_memory_arguments_slope,
+        Self::LookupCoin_cpu_arguments_intercept,
+        Self::LookupCoin_cpu_arguments_slope,
+        Self::LookupCoin_memory_arguments,
+        Self::UnionValue_cpu_arguments_c00,
+        Self::UnionValue_cpu_arguments_c10,
+        Self::UnionValue_cpu_arguments_c01,
+        Self::UnionValue_cpu_arguments_c11,
+        Self::UnionValue_memory_arguments_intercept,
+        Self::UnionValue_memory_arguments_slope,
+        Self::ValueContains_cpu_arguments_constant,
+        Self::ValueContains_cpu_arguments_model_arguments_intercept,
+        Self::ValueContains_cpu_arguments_model_arguments_slope1,
+        Self::ValueContains_cpu_arguments_model_arguments_slope2,
+        Self::ValueContains_memory_arguments,
+        Self::ValueData_cpu_arguments_intercept,
+        Self::ValueData_cpu_arguments_slope,
+        Self::ValueData_memory_arguments_intercept,
+        Self::ValueData_memory_arguments_slope,
+        Self::UnValueData_cpu_arguments_c0,
+        Self::UnValueData_cpu_arguments_c1,
+        Self::UnValueData_cpu_arguments_c2,
+        Self::UnValueData_memory_arguments_intercept,
+        Self::UnValueData_memory_arguments_slope,
+        Self::ScaleValue_cpu_arguments_intercept,
+        Self::ScaleValue_cpu_arguments_slope,
+        Self::ScaleValue_memory_arguments_intercept,
+        Self::ScaleValue_memory_arguments_slope,
+    ];
+
+    /// Order (and which) in which parameters are defined in V1.
+    pub const V2: [Self; 332] = [
+        Self::AddInteger_cpu_arguments_intercept,
+        Self::AddInteger_cpu_arguments_slope,
+        Self::AddInteger_memory_arguments_intercept,
+        Self::AddInteger_memory_arguments_slope,
+        Self::AppendByteString_cpu_arguments_intercept,
+        Self::AppendByteString_cpu_arguments_slope,
+        Self::AppendByteString_memory_arguments_intercept,
+        Self::AppendByteString_memory_arguments_slope,
+        Self::AppendString_cpu_arguments_intercept,
+        Self::AppendString_cpu_arguments_slope,
+        Self::AppendString_memory_arguments_intercept,
+        Self::AppendString_memory_arguments_slope,
+        Self::BData_cpu_arguments,
+        Self::BData_memory_arguments,
+        Self::Blake2b_256_cpu_arguments_intercept,
+        Self::Blake2b_256_cpu_arguments_slope,
+        Self::Blake2b_256_memory_arguments,
+        Self::CekApplyCost_exBudgetCPU,
+        Self::CekApplyCost_exBudgetMemory,
+        Self::CekBuiltinCost_exBudgetCPU,
+        Self::CekBuiltinCost_exBudgetMemory,
+        Self::CekConstCost_exBudgetCPU,
+        Self::CekConstCost_exBudgetMemory,
+        Self::CekDelayCost_exBudgetCPU,
+        Self::CekDelayCost_exBudgetMemory,
+        Self::CekForceCost_exBudgetCPU,
+        Self::CekForceCost_exBudgetMemory,
+        Self::CekLamCost_exBudgetCPU,
+        Self::CekLamCost_exBudgetMemory,
+        Self::CekStartupCost_exBudgetCPU,
+        Self::CekStartupCost_exBudgetMemory,
+        Self::CekVarCost_exBudgetCPU,
+        Self::CekVarCost_exBudgetMemory,
+        Self::ChooseData_cpu_arguments,
+        Self::ChooseData_memory_arguments,
+        Self::ChooseList_cpu_arguments,
+        Self::ChooseList_memory_arguments,
+        Self::ChooseUnit_cpu_arguments,
+        Self::ChooseUnit_memory_arguments,
+        Self::ConsByteString_cpu_arguments_intercept,
+        Self::ConsByteString_cpu_arguments_slope,
+        Self::ConsByteString_memory_arguments_intercept,
+        Self::ConsByteString_memory_arguments_slope,
+        Self::ConstrData_cpu_arguments,
+        Self::ConstrData_memory_arguments,
+        Self::DecodeUtf8_cpu_arguments_intercept,
+        Self::DecodeUtf8_cpu_arguments_slope,
+        Self::DecodeUtf8_memory_arguments_intercept,
+        Self::DecodeUtf8_memory_arguments_slope,
+        Self::DivideInteger_cpu_arguments_constant,
+        Self::DivideInteger_cpu_arguments_model_arguments_intercept,
+        Self::DivideInteger_cpu_arguments_model_arguments_slope,
+        Self::DivideInteger_memory_arguments_intercept,
+        Self::DivideInteger_memory_arguments_minimum,
+        Self::DivideInteger_memory_arguments_slope,
+        Self::EncodeUtf8_cpu_arguments_intercept,
+        Self::EncodeUtf8_cpu_arguments_slope,
+        Self::EncodeUtf8_memory_arguments_intercept,
+        Self::EncodeUtf8_memory_arguments_slope,
+        Self::EqualsByteString_cpu_arguments_constant,
+        Self::EqualsByteString_cpu_arguments_intercept,
+        Self::EqualsByteString_cpu_arguments_slope,
+        Self::EqualsByteString_memory_arguments,
+        Self::EqualsData_cpu_arguments_intercept,
+        Self::EqualsData_cpu_arguments_slope,
+        Self::EqualsData_memory_arguments,
+        Self::EqualsInteger_cpu_arguments_intercept,
+        Self::EqualsInteger_cpu_arguments_slope,
+        Self::EqualsInteger_memory_arguments,
+        Self::EqualsString_cpu_arguments_constant,
+        Self::EqualsString_cpu_arguments_intercept,
+        Self::EqualsString_cpu_arguments_slope,
+        Self::EqualsString_memory_arguments,
+        Self::FstPair_cpu_arguments,
+        Self::FstPair_memory_arguments,
+        Self::HeadList_cpu_arguments,
+        Self::HeadList_memory_arguments,
+        Self::IData_cpu_arguments,
+        Self::IData_memory_arguments,
+        Self::IfThenElse_cpu_arguments,
+        Self::IfThenElse_memory_arguments,
+        Self::IndexByteString_cpu_arguments,
+        Self::IndexByteString_memory_arguments,
+        Self::LengthOfByteString_cpu_arguments,
+        Self::LengthOfByteString_memory_arguments,
+        Self::LessThanByteString_cpu_arguments_intercept,
+        Self::LessThanByteString_cpu_arguments_slope,
+        Self::LessThanByteString_memory_arguments,
+        Self::LessThanEqualsByteString_cpu_arguments_intercept,
+        Self::LessThanEqualsByteString_cpu_arguments_slope,
+        Self::LessThanEqualsByteString_memory_arguments,
+        Self::LessThanEqualsInteger_cpu_arguments_intercept,
+        Self::LessThanEqualsInteger_cpu_arguments_slope,
+        Self::LessThanEqualsInteger_memory_arguments,
+        Self::LessThanInteger_cpu_arguments_intercept,
+        Self::LessThanInteger_cpu_arguments_slope,
+        Self::LessThanInteger_memory_arguments,
+        Self::ListData_cpu_arguments,
+        Self::ListData_memory_arguments,
+        Self::MapData_cpu_arguments,
+        Self::MapData_memory_arguments,
+        Self::MkCons_cpu_arguments,
+        Self::MkCons_memory_arguments,
+        Self::MkNilData_cpu_arguments,
+        Self::MkNilData_memory_arguments,
+        Self::MkNilPairData_cpu_arguments,
+        Self::MkNilPairData_memory_arguments,
+        Self::MkPairData_cpu_arguments,
+        Self::MkPairData_memory_arguments,
+        Self::ModInteger_cpu_arguments_constant,
+        Self::ModInteger_cpu_arguments_model_arguments_intercept,
+        Self::ModInteger_cpu_arguments_model_arguments_slope,
+        Self::ModInteger_memory_arguments_intercept,
+        Self::ModInteger_memory_arguments_minimum,
+        Self::ModInteger_memory_arguments_slope,
+        Self::MultiplyInteger_cpu_arguments_intercept,
+        Self::MultiplyInteger_cpu_arguments_slope,
+        Self::MultiplyInteger_memory_arguments_intercept,
+        Self::MultiplyInteger_memory_arguments_slope,
+        Self::NullList_cpu_arguments,
+        Self::NullList_memory_arguments,
+        Self::QuotientInteger_cpu_arguments_constant,
+        Self::QuotientInteger_cpu_arguments_model_arguments_intercept,
+        Self::QuotientInteger_cpu_arguments_model_arguments_slope,
+        Self::QuotientInteger_memory_arguments_intercept,
+        Self::QuotientInteger_memory_arguments_minimum,
+        Self::QuotientInteger_memory_arguments_slope,
+        Self::RemainderInteger_cpu_arguments_constant,
+        Self::RemainderInteger_cpu_arguments_model_arguments_intercept,
+        Self::RemainderInteger_cpu_arguments_model_arguments_slope,
+        Self::RemainderInteger_memory_arguments_intercept,
+        Self::RemainderInteger_memory_arguments_minimum,
+        Self::RemainderInteger_memory_arguments_slope,
+        Self::SerialiseData_cpu_arguments_intercept,
+        Self::SerialiseData_cpu_arguments_slope,
+        Self::SerialiseData_memory_arguments_intercept,
+        Self::SerialiseData_memory_arguments_slope,
+        Self::Sha2_256_cpu_arguments_intercept,
+        Self::Sha2_256_cpu_arguments_slope,
+        Self::Sha2_256_memory_arguments,
+        Self::Sha3_256_cpu_arguments_intercept,
+        Self::Sha3_256_cpu_arguments_slope,
+        Self::Sha3_256_memory_arguments,
+        Self::SliceByteString_cpu_arguments_intercept,
+        Self::SliceByteString_cpu_arguments_slope,
+        Self::SliceByteString_memory_arguments_intercept,
+        Self::SliceByteString_memory_arguments_slope,
+        Self::SndPair_cpu_arguments,
+        Self::SndPair_memory_arguments,
+        Self::SubtractInteger_cpu_arguments_intercept,
+        Self::SubtractInteger_cpu_arguments_slope,
+        Self::SubtractInteger_memory_arguments_intercept,
+        Self::SubtractInteger_memory_arguments_slope,
+        Self::TailList_cpu_arguments,
+        Self::TailList_memory_arguments,
+        Self::Trace_cpu_arguments,
+        Self::Trace_memory_arguments,
+        Self::UnBData_cpu_arguments,
+        Self::UnBData_memory_arguments,
+        Self::UnConstrData_cpu_arguments,
+        Self::UnConstrData_memory_arguments,
+        Self::UnIData_cpu_arguments,
+        Self::UnIData_memory_arguments,
+        Self::UnListData_cpu_arguments,
+        Self::UnListData_memory_arguments,
+        Self::UnMapData_cpu_arguments,
+        Self::UnMapData_memory_arguments,
+        Self::VerifyEcdsaSecp256k1Signature_cpu_arguments,
+        Self::VerifyEcdsaSecp256k1Signature_memory_arguments,
+        Self::VerifyEd25519Signature_cpu_arguments_intercept,
+        Self::VerifyEd25519Signature_cpu_arguments_slope,
+        Self::VerifyEd25519Signature_memory_arguments,
+        Self::VerifySchnorrSecp256k1Signature_cpu_arguments_intercept,
+        Self::VerifySchnorrSecp256k1Signature_cpu_arguments_slope,
+        Self::VerifySchnorrSecp256k1Signature_memory_arguments,
+        Self::IntegerToByteString_cpu_arguments_c0,
+        Self::IntegerToByteString_cpu_arguments_c1,
+        Self::IntegerToByteString_cpu_arguments_c2,
+        Self::IntegerToByteString_memory_arguments_intercept,
+        Self::IntegerToByteString_memory_arguments_slope,
+        Self::ByteStringToInteger_cpu_arguments_c0,
+        Self::ByteStringToInteger_cpu_arguments_c1,
+        Self::ByteStringToInteger_cpu_arguments_c2,
+        Self::ByteStringToInteger_memory_arguments_intercept,
+        Self::ByteStringToInteger_memory_arguments_slope,
+        Self::CekConstrCost_exBudgetCPU,
+        Self::CekConstrCost_exBudgetMemory,
+        Self::CekCaseCost_exBudgetCPU,
+        Self::CekCaseCost_exBudgetMemory,
+        Self::Bls12_381_G1_add_cpu_arguments,
+        Self::Bls12_381_G1_add_memory_arguments,
+        Self::Bls12_381_G1_compress_cpu_arguments,
+        Self::Bls12_381_G1_compress_memory_arguments,
+        Self::Bls12_381_G1_equal_cpu_arguments,
+        Self::Bls12_381_G1_equal_memory_arguments,
+        Self::Bls12_381_G1_hashToGroup_cpu_arguments_intercept,
+        Self::Bls12_381_G1_hashToGroup_cpu_arguments_slope,
+        Self::Bls12_381_G1_hashToGroup_memory_arguments,
+        Self::Bls12_381_G1_neg_cpu_arguments,
+        Self::Bls12_381_G1_neg_memory_arguments,
+        Self::Bls12_381_G1_scalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G1_scalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G1_scalarMul_memory_arguments,
+        Self::Bls12_381_G1_uncompress_cpu_arguments,
+        Self::Bls12_381_G1_uncompress_memory_arguments,
+        Self::Bls12_381_G2_add_cpu_arguments,
+        Self::Bls12_381_G2_add_memory_arguments,
+        Self::Bls12_381_G2_compress_cpu_arguments,
+        Self::Bls12_381_G2_compress_memory_arguments,
+        Self::Bls12_381_G2_equal_cpu_arguments,
+        Self::Bls12_381_G2_equal_memory_arguments,
+        Self::Bls12_381_G2_hashToGroup_cpu_arguments_intercept,
+        Self::Bls12_381_G2_hashToGroup_cpu_arguments_slope,
+        Self::Bls12_381_G2_hashToGroup_memory_arguments,
+        Self::Bls12_381_G2_neg_cpu_arguments,
+        Self::Bls12_381_G2_neg_memory_arguments,
+        Self::Bls12_381_G2_scalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G2_scalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G2_scalarMul_memory_arguments,
+        Self::Bls12_381_G2_uncompress_cpu_arguments,
+        Self::Bls12_381_G2_uncompress_memory_arguments,
+        Self::Bls12_381_finalVerify_cpu_arguments,
+        Self::Bls12_381_finalVerify_memory_arguments,
+        Self::Bls12_381_millerLoop_cpu_arguments,
+        Self::Bls12_381_millerLoop_memory_arguments,
+        Self::Bls12_381_mulMlResult_cpu_arguments,
+        Self::Bls12_381_mulMlResult_memory_arguments,
+        Self::Keccak_256_cpu_arguments_intercept,
+        Self::Keccak_256_cpu_arguments_slope,
+        Self::Keccak_256_memory_arguments,
+        Self::Blake2b_224_cpu_arguments_intercept,
+        Self::Blake2b_224_cpu_arguments_slope,
+        Self::Blake2b_224_memory_arguments,
+        Self::AndByteString_cpu_arguments_intercept,
+        Self::AndByteString_cpu_arguments_slope1,
+        Self::AndByteString_cpu_arguments_slope2,
+        Self::AndByteString_memory_arguments_intercept,
+        Self::AndByteString_memory_arguments_slope,
+        Self::OrByteString_cpu_arguments_intercept,
+        Self::OrByteString_cpu_arguments_slope1,
+        Self::OrByteString_cpu_arguments_slope2,
+        Self::OrByteString_memory_arguments_intercept,
+        Self::OrByteString_memory_arguments_slope,
+        Self::XorByteString_cpu_arguments_intercept,
+        Self::XorByteString_cpu_arguments_slope1,
+        Self::XorByteString_cpu_arguments_slope2,
+        Self::XorByteString_memory_arguments_intercept,
+        Self::XorByteString_memory_arguments_slope,
+        Self::ComplementByteString_cpu_arguments_intercept,
+        Self::ComplementByteString_cpu_arguments_slope,
+        Self::ComplementByteString_memory_arguments_intercept,
+        Self::ComplementByteString_memory_arguments_slope,
+        Self::ReadBit_cpu_arguments,
+        Self::ReadBit_memory_arguments,
+        Self::WriteBits_cpu_arguments_intercept,
+        Self::WriteBits_cpu_arguments_slope,
+        Self::WriteBits_memory_arguments_intercept,
+        Self::WriteBits_memory_arguments_slope,
+        Self::ReplicateByte_cpu_arguments_intercept,
+        Self::ReplicateByte_cpu_arguments_slope,
+        Self::ReplicateByte_memory_arguments_intercept,
+        Self::ReplicateByte_memory_arguments_slope,
+        Self::ShiftByteString_cpu_arguments_intercept,
+        Self::ShiftByteString_cpu_arguments_slope,
+        Self::ShiftByteString_memory_arguments_intercept,
+        Self::ShiftByteString_memory_arguments_slope,
+        Self::RotateByteString_cpu_arguments_intercept,
+        Self::RotateByteString_cpu_arguments_slope,
+        Self::RotateByteString_memory_arguments_intercept,
+        Self::RotateByteString_memory_arguments_slope,
+        Self::CountSetBits_cpu_arguments_intercept,
+        Self::CountSetBits_cpu_arguments_slope,
+        Self::CountSetBits_memory_arguments,
+        Self::FindFirstSetBit_cpu_arguments_intercept,
+        Self::FindFirstSetBit_cpu_arguments_slope,
+        Self::FindFirstSetBit_memory_arguments,
+        Self::Ripemd_160_cpu_arguments_intercept,
+        Self::Ripemd_160_cpu_arguments_slope,
+        Self::Ripemd_160_memory_arguments,
+        Self::ExpModInteger_cpu_arguments_coefficient00,
+        Self::ExpModInteger_cpu_arguments_coefficient11,
+        Self::ExpModInteger_cpu_arguments_coefficient12,
+        Self::ExpModInteger_memory_arguments_intercept,
+        Self::ExpModInteger_memory_arguments_slope,
+        Self::DropList_cpu_arguments_intercept,
+        Self::DropList_cpu_arguments_slope,
+        Self::DropList_memory_arguments,
+        Self::LengthOfArray_cpu_arguments,
+        Self::LengthOfArray_memory_arguments,
+        Self::ListToArray_cpu_arguments_intercept,
+        Self::ListToArray_cpu_arguments_slope,
+        Self::ListToArray_memory_arguments_intercept,
+        Self::ListToArray_memory_arguments_slope,
+        Self::IndexArray_cpu_arguments,
+        Self::IndexArray_memory_arguments,
+        Self::Bls12_381_G1_multiScalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G1_multiScalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G1_multiScalarMul_memory_arguments,
+        Self::Bls12_381_G2_multiScalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G2_multiScalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G2_multiScalarMul_memory_arguments,
+        Self::InsertCoin_cpu_arguments_intercept,
+        Self::InsertCoin_cpu_arguments_slope,
+        Self::InsertCoin_memory_arguments_intercept,
+        Self::InsertCoin_memory_arguments_slope,
+        Self::LookupCoin_cpu_arguments_intercept,
+        Self::LookupCoin_cpu_arguments_slope,
+        Self::LookupCoin_memory_arguments,
+        Self::UnionValue_cpu_arguments_c00,
+        Self::UnionValue_cpu_arguments_c10,
+        Self::UnionValue_cpu_arguments_c01,
+        Self::UnionValue_cpu_arguments_c11,
+        Self::UnionValue_memory_arguments_intercept,
+        Self::UnionValue_memory_arguments_slope,
+        Self::ValueContains_cpu_arguments_constant,
+        Self::ValueContains_cpu_arguments_model_arguments_intercept,
+        Self::ValueContains_cpu_arguments_model_arguments_slope1,
+        Self::ValueContains_cpu_arguments_model_arguments_slope2,
+        Self::ValueContains_memory_arguments,
+        Self::ValueData_cpu_arguments_intercept,
+        Self::ValueData_cpu_arguments_slope,
+        Self::ValueData_memory_arguments_intercept,
+        Self::ValueData_memory_arguments_slope,
+        Self::UnValueData_cpu_arguments_c0,
+        Self::UnValueData_cpu_arguments_c1,
+        Self::UnValueData_cpu_arguments_c2,
+        Self::UnValueData_memory_arguments_intercept,
+        Self::UnValueData_memory_arguments_slope,
+        Self::ScaleValue_cpu_arguments_intercept,
+        Self::ScaleValue_cpu_arguments_slope,
+        Self::ScaleValue_memory_arguments_intercept,
+        Self::ScaleValue_memory_arguments_slope,
+    ];
+
+    /// Order (and which) in which parameters are defined in V3.
+    pub const V3: [Self; 350] = [
+        Self::AddInteger_cpu_arguments_intercept,
+        Self::AddInteger_cpu_arguments_slope,
+        Self::AddInteger_memory_arguments_intercept,
+        Self::AddInteger_memory_arguments_slope,
+        Self::AppendByteString_cpu_arguments_intercept,
+        Self::AppendByteString_cpu_arguments_slope,
+        Self::AppendByteString_memory_arguments_intercept,
+        Self::AppendByteString_memory_arguments_slope,
+        Self::AppendString_cpu_arguments_intercept,
+        Self::AppendString_cpu_arguments_slope,
+        Self::AppendString_memory_arguments_intercept,
+        Self::AppendString_memory_arguments_slope,
+        Self::BData_cpu_arguments,
+        Self::BData_memory_arguments,
+        Self::Blake2b_256_cpu_arguments_intercept,
+        Self::Blake2b_256_cpu_arguments_slope,
+        Self::Blake2b_256_memory_arguments,
+        Self::CekApplyCost_exBudgetCPU,
+        Self::CekApplyCost_exBudgetMemory,
+        Self::CekBuiltinCost_exBudgetCPU,
+        Self::CekBuiltinCost_exBudgetMemory,
+        Self::CekConstCost_exBudgetCPU,
+        Self::CekConstCost_exBudgetMemory,
+        Self::CekDelayCost_exBudgetCPU,
+        Self::CekDelayCost_exBudgetMemory,
+        Self::CekForceCost_exBudgetCPU,
+        Self::CekForceCost_exBudgetMemory,
+        Self::CekLamCost_exBudgetCPU,
+        Self::CekLamCost_exBudgetMemory,
+        Self::CekStartupCost_exBudgetCPU,
+        Self::CekStartupCost_exBudgetMemory,
+        Self::CekVarCost_exBudgetCPU,
+        Self::CekVarCost_exBudgetMemory,
+        Self::ChooseData_cpu_arguments,
+        Self::ChooseData_memory_arguments,
+        Self::ChooseList_cpu_arguments,
+        Self::ChooseList_memory_arguments,
+        Self::ChooseUnit_cpu_arguments,
+        Self::ChooseUnit_memory_arguments,
+        Self::ConsByteString_cpu_arguments_intercept,
+        Self::ConsByteString_cpu_arguments_slope,
+        Self::ConsByteString_memory_arguments_intercept,
+        Self::ConsByteString_memory_arguments_slope,
+        Self::ConstrData_cpu_arguments,
+        Self::ConstrData_memory_arguments,
+        Self::DecodeUtf8_cpu_arguments_intercept,
+        Self::DecodeUtf8_cpu_arguments_slope,
+        Self::DecodeUtf8_memory_arguments_intercept,
+        Self::DecodeUtf8_memory_arguments_slope,
+        Self::DivideInteger_cpu_arguments_constant,
+        Self::DivideInteger_cpu_arguments_model_arguments_c00,
+        Self::DivideInteger_cpu_arguments_model_arguments_c01,
+        Self::DivideInteger_cpu_arguments_model_arguments_c02,
+        Self::DivideInteger_cpu_arguments_model_arguments_c10,
+        Self::DivideInteger_cpu_arguments_model_arguments_c11,
+        Self::DivideInteger_cpu_arguments_model_arguments_c20,
+        Self::DivideInteger_cpu_arguments_model_arguments_minimum,
+        Self::DivideInteger_memory_arguments_intercept,
+        Self::DivideInteger_memory_arguments_minimum,
+        Self::DivideInteger_memory_arguments_slope,
+        Self::EncodeUtf8_cpu_arguments_intercept,
+        Self::EncodeUtf8_cpu_arguments_slope,
+        Self::EncodeUtf8_memory_arguments_intercept,
+        Self::EncodeUtf8_memory_arguments_slope,
+        Self::EqualsByteString_cpu_arguments_constant,
+        Self::EqualsByteString_cpu_arguments_intercept,
+        Self::EqualsByteString_cpu_arguments_slope,
+        Self::EqualsByteString_memory_arguments,
+        Self::EqualsData_cpu_arguments_intercept,
+        Self::EqualsData_cpu_arguments_slope,
+        Self::EqualsData_memory_arguments,
+        Self::EqualsInteger_cpu_arguments_intercept,
+        Self::EqualsInteger_cpu_arguments_slope,
+        Self::EqualsInteger_memory_arguments,
+        Self::EqualsString_cpu_arguments_constant,
+        Self::EqualsString_cpu_arguments_intercept,
+        Self::EqualsString_cpu_arguments_slope,
+        Self::EqualsString_memory_arguments,
+        Self::FstPair_cpu_arguments,
+        Self::FstPair_memory_arguments,
+        Self::HeadList_cpu_arguments,
+        Self::HeadList_memory_arguments,
+        Self::IData_cpu_arguments,
+        Self::IData_memory_arguments,
+        Self::IfThenElse_cpu_arguments,
+        Self::IfThenElse_memory_arguments,
+        Self::IndexByteString_cpu_arguments,
+        Self::IndexByteString_memory_arguments,
+        Self::LengthOfByteString_cpu_arguments,
+        Self::LengthOfByteString_memory_arguments,
+        Self::LessThanByteString_cpu_arguments_intercept,
+        Self::LessThanByteString_cpu_arguments_slope,
+        Self::LessThanByteString_memory_arguments,
+        Self::LessThanEqualsByteString_cpu_arguments_intercept,
+        Self::LessThanEqualsByteString_cpu_arguments_slope,
+        Self::LessThanEqualsByteString_memory_arguments,
+        Self::LessThanEqualsInteger_cpu_arguments_intercept,
+        Self::LessThanEqualsInteger_cpu_arguments_slope,
+        Self::LessThanEqualsInteger_memory_arguments,
+        Self::LessThanInteger_cpu_arguments_intercept,
+        Self::LessThanInteger_cpu_arguments_slope,
+        Self::LessThanInteger_memory_arguments,
+        Self::ListData_cpu_arguments,
+        Self::ListData_memory_arguments,
+        Self::MapData_cpu_arguments,
+        Self::MapData_memory_arguments,
+        Self::MkCons_cpu_arguments,
+        Self::MkCons_memory_arguments,
+        Self::MkNilData_cpu_arguments,
+        Self::MkNilData_memory_arguments,
+        Self::MkNilPairData_cpu_arguments,
+        Self::MkNilPairData_memory_arguments,
+        Self::MkPairData_cpu_arguments,
+        Self::MkPairData_memory_arguments,
+        Self::ModInteger_cpu_arguments_constant,
+        Self::ModInteger_cpu_arguments_model_arguments_c00,
+        Self::ModInteger_cpu_arguments_model_arguments_c01,
+        Self::ModInteger_cpu_arguments_model_arguments_c02,
+        Self::ModInteger_cpu_arguments_model_arguments_c10,
+        Self::ModInteger_cpu_arguments_model_arguments_c11,
+        Self::ModInteger_cpu_arguments_model_arguments_c20,
+        Self::ModInteger_cpu_arguments_model_arguments_minimum,
+        Self::ModInteger_memory_arguments_intercept,
+        Self::ModInteger_memory_arguments_slope,
+        Self::MultiplyInteger_cpu_arguments_intercept,
+        Self::MultiplyInteger_cpu_arguments_slope,
+        Self::MultiplyInteger_memory_arguments_intercept,
+        Self::MultiplyInteger_memory_arguments_slope,
+        Self::NullList_cpu_arguments,
+        Self::NullList_memory_arguments,
+        Self::QuotientInteger_cpu_arguments_constant,
+        Self::QuotientInteger_cpu_arguments_model_arguments_c00,
+        Self::QuotientInteger_cpu_arguments_model_arguments_c01,
+        Self::QuotientInteger_cpu_arguments_model_arguments_c02,
+        Self::QuotientInteger_cpu_arguments_model_arguments_c10,
+        Self::QuotientInteger_cpu_arguments_model_arguments_c11,
+        Self::QuotientInteger_cpu_arguments_model_arguments_c20,
+        Self::QuotientInteger_cpu_arguments_model_arguments_minimum,
+        Self::QuotientInteger_memory_arguments_intercept,
+        Self::QuotientInteger_memory_arguments_minimum,
+        Self::QuotientInteger_memory_arguments_slope,
+        Self::RemainderInteger_cpu_arguments_constant,
+        Self::RemainderInteger_cpu_arguments_model_arguments_c00,
+        Self::RemainderInteger_cpu_arguments_model_arguments_c01,
+        Self::RemainderInteger_cpu_arguments_model_arguments_c02,
+        Self::RemainderInteger_cpu_arguments_model_arguments_c10,
+        Self::RemainderInteger_cpu_arguments_model_arguments_c11,
+        Self::RemainderInteger_cpu_arguments_model_arguments_c20,
+        Self::RemainderInteger_cpu_arguments_model_arguments_minimum,
+        Self::RemainderInteger_memory_arguments_intercept,
+        Self::RemainderInteger_memory_arguments_slope,
+        Self::SerialiseData_cpu_arguments_intercept,
+        Self::SerialiseData_cpu_arguments_slope,
+        Self::SerialiseData_memory_arguments_intercept,
+        Self::SerialiseData_memory_arguments_slope,
+        Self::Sha2_256_cpu_arguments_intercept,
+        Self::Sha2_256_cpu_arguments_slope,
+        Self::Sha2_256_memory_arguments,
+        Self::Sha3_256_cpu_arguments_intercept,
+        Self::Sha3_256_cpu_arguments_slope,
+        Self::Sha3_256_memory_arguments,
+        Self::SliceByteString_cpu_arguments_intercept,
+        Self::SliceByteString_cpu_arguments_slope,
+        Self::SliceByteString_memory_arguments_intercept,
+        Self::SliceByteString_memory_arguments_slope,
+        Self::SndPair_cpu_arguments,
+        Self::SndPair_memory_arguments,
+        Self::SubtractInteger_cpu_arguments_intercept,
+        Self::SubtractInteger_cpu_arguments_slope,
+        Self::SubtractInteger_memory_arguments_intercept,
+        Self::SubtractInteger_memory_arguments_slope,
+        Self::TailList_cpu_arguments,
+        Self::TailList_memory_arguments,
+        Self::Trace_cpu_arguments,
+        Self::Trace_memory_arguments,
+        Self::UnBData_cpu_arguments,
+        Self::UnBData_memory_arguments,
+        Self::UnConstrData_cpu_arguments,
+        Self::UnConstrData_memory_arguments,
+        Self::UnIData_cpu_arguments,
+        Self::UnIData_memory_arguments,
+        Self::UnListData_cpu_arguments,
+        Self::UnListData_memory_arguments,
+        Self::UnMapData_cpu_arguments,
+        Self::UnMapData_memory_arguments,
+        Self::VerifyEcdsaSecp256k1Signature_cpu_arguments,
+        Self::VerifyEcdsaSecp256k1Signature_memory_arguments,
+        Self::VerifyEd25519Signature_cpu_arguments_intercept,
+        Self::VerifyEd25519Signature_cpu_arguments_slope,
+        Self::VerifyEd25519Signature_memory_arguments,
+        Self::VerifySchnorrSecp256k1Signature_cpu_arguments_intercept,
+        Self::VerifySchnorrSecp256k1Signature_cpu_arguments_slope,
+        Self::VerifySchnorrSecp256k1Signature_memory_arguments,
+        Self::CekConstrCost_exBudgetCPU,
+        Self::CekConstrCost_exBudgetMemory,
+        Self::CekCaseCost_exBudgetCPU,
+        Self::CekCaseCost_exBudgetMemory,
+        Self::Bls12_381_G1_add_cpu_arguments,
+        Self::Bls12_381_G1_add_memory_arguments,
+        Self::Bls12_381_G1_compress_cpu_arguments,
+        Self::Bls12_381_G1_compress_memory_arguments,
+        Self::Bls12_381_G1_equal_cpu_arguments,
+        Self::Bls12_381_G1_equal_memory_arguments,
+        Self::Bls12_381_G1_hashToGroup_cpu_arguments_intercept,
+        Self::Bls12_381_G1_hashToGroup_cpu_arguments_slope,
+        Self::Bls12_381_G1_hashToGroup_memory_arguments,
+        Self::Bls12_381_G1_neg_cpu_arguments,
+        Self::Bls12_381_G1_neg_memory_arguments,
+        Self::Bls12_381_G1_scalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G1_scalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G1_scalarMul_memory_arguments,
+        Self::Bls12_381_G1_uncompress_cpu_arguments,
+        Self::Bls12_381_G1_uncompress_memory_arguments,
+        Self::Bls12_381_G2_add_cpu_arguments,
+        Self::Bls12_381_G2_add_memory_arguments,
+        Self::Bls12_381_G2_compress_cpu_arguments,
+        Self::Bls12_381_G2_compress_memory_arguments,
+        Self::Bls12_381_G2_equal_cpu_arguments,
+        Self::Bls12_381_G2_equal_memory_arguments,
+        Self::Bls12_381_G2_hashToGroup_cpu_arguments_intercept,
+        Self::Bls12_381_G2_hashToGroup_cpu_arguments_slope,
+        Self::Bls12_381_G2_hashToGroup_memory_arguments,
+        Self::Bls12_381_G2_neg_cpu_arguments,
+        Self::Bls12_381_G2_neg_memory_arguments,
+        Self::Bls12_381_G2_scalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G2_scalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G2_scalarMul_memory_arguments,
+        Self::Bls12_381_G2_uncompress_cpu_arguments,
+        Self::Bls12_381_G2_uncompress_memory_arguments,
+        Self::Bls12_381_finalVerify_cpu_arguments,
+        Self::Bls12_381_finalVerify_memory_arguments,
+        Self::Bls12_381_millerLoop_cpu_arguments,
+        Self::Bls12_381_millerLoop_memory_arguments,
+        Self::Bls12_381_mulMlResult_cpu_arguments,
+        Self::Bls12_381_mulMlResult_memory_arguments,
+        Self::Keccak_256_cpu_arguments_intercept,
+        Self::Keccak_256_cpu_arguments_slope,
+        Self::Keccak_256_memory_arguments,
+        Self::Blake2b_224_cpu_arguments_intercept,
+        Self::Blake2b_224_cpu_arguments_slope,
+        Self::Blake2b_224_memory_arguments,
+        Self::IntegerToByteString_cpu_arguments_c0,
+        Self::IntegerToByteString_cpu_arguments_c1,
+        Self::IntegerToByteString_cpu_arguments_c2,
+        Self::IntegerToByteString_memory_arguments_intercept,
+        Self::IntegerToByteString_memory_arguments_slope,
+        Self::ByteStringToInteger_cpu_arguments_c0,
+        Self::ByteStringToInteger_cpu_arguments_c1,
+        Self::ByteStringToInteger_cpu_arguments_c2,
+        Self::ByteStringToInteger_memory_arguments_intercept,
+        Self::ByteStringToInteger_memory_arguments_slope,
+        Self::AndByteString_cpu_arguments_intercept,
+        Self::AndByteString_cpu_arguments_slope1,
+        Self::AndByteString_cpu_arguments_slope2,
+        Self::AndByteString_memory_arguments_intercept,
+        Self::AndByteString_memory_arguments_slope,
+        Self::OrByteString_cpu_arguments_intercept,
+        Self::OrByteString_cpu_arguments_slope1,
+        Self::OrByteString_cpu_arguments_slope2,
+        Self::OrByteString_memory_arguments_intercept,
+        Self::OrByteString_memory_arguments_slope,
+        Self::XorByteString_cpu_arguments_intercept,
+        Self::XorByteString_cpu_arguments_slope1,
+        Self::XorByteString_cpu_arguments_slope2,
+        Self::XorByteString_memory_arguments_intercept,
+        Self::XorByteString_memory_arguments_slope,
+        Self::ComplementByteString_cpu_arguments_intercept,
+        Self::ComplementByteString_cpu_arguments_slope,
+        Self::ComplementByteString_memory_arguments_intercept,
+        Self::ComplementByteString_memory_arguments_slope,
+        Self::ReadBit_cpu_arguments,
+        Self::ReadBit_memory_arguments,
+        Self::WriteBits_cpu_arguments_intercept,
+        Self::WriteBits_cpu_arguments_slope,
+        Self::WriteBits_memory_arguments_intercept,
+        Self::WriteBits_memory_arguments_slope,
+        Self::ReplicateByte_cpu_arguments_intercept,
+        Self::ReplicateByte_cpu_arguments_slope,
+        Self::ReplicateByte_memory_arguments_intercept,
+        Self::ReplicateByte_memory_arguments_slope,
+        Self::ShiftByteString_cpu_arguments_intercept,
+        Self::ShiftByteString_cpu_arguments_slope,
+        Self::ShiftByteString_memory_arguments_intercept,
+        Self::ShiftByteString_memory_arguments_slope,
+        Self::RotateByteString_cpu_arguments_intercept,
+        Self::RotateByteString_cpu_arguments_slope,
+        Self::RotateByteString_memory_arguments_intercept,
+        Self::RotateByteString_memory_arguments_slope,
+        Self::CountSetBits_cpu_arguments_intercept,
+        Self::CountSetBits_cpu_arguments_slope,
+        Self::CountSetBits_memory_arguments,
+        Self::FindFirstSetBit_cpu_arguments_intercept,
+        Self::FindFirstSetBit_cpu_arguments_slope,
+        Self::FindFirstSetBit_memory_arguments,
+        Self::Ripemd_160_cpu_arguments_intercept,
+        Self::Ripemd_160_cpu_arguments_slope,
+        Self::Ripemd_160_memory_arguments,
+        Self::ExpModInteger_cpu_arguments_coefficient00,
+        Self::ExpModInteger_cpu_arguments_coefficient11,
+        Self::ExpModInteger_cpu_arguments_coefficient12,
+        Self::ExpModInteger_memory_arguments_intercept,
+        Self::ExpModInteger_memory_arguments_slope,
+        Self::DropList_cpu_arguments_intercept,
+        Self::DropList_cpu_arguments_slope,
+        Self::DropList_memory_arguments,
+        Self::LengthOfArray_cpu_arguments,
+        Self::LengthOfArray_memory_arguments,
+        Self::ListToArray_cpu_arguments_intercept,
+        Self::ListToArray_cpu_arguments_slope,
+        Self::ListToArray_memory_arguments_intercept,
+        Self::ListToArray_memory_arguments_slope,
+        Self::IndexArray_cpu_arguments,
+        Self::IndexArray_memory_arguments,
+        Self::Bls12_381_G1_multiScalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G1_multiScalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G1_multiScalarMul_memory_arguments,
+        Self::Bls12_381_G2_multiScalarMul_cpu_arguments_intercept,
+        Self::Bls12_381_G2_multiScalarMul_cpu_arguments_slope,
+        Self::Bls12_381_G2_multiScalarMul_memory_arguments,
+        Self::InsertCoin_cpu_arguments_intercept,
+        Self::InsertCoin_cpu_arguments_slope,
+        Self::InsertCoin_memory_arguments_intercept,
+        Self::InsertCoin_memory_arguments_slope,
+        Self::LookupCoin_cpu_arguments_intercept,
+        Self::LookupCoin_cpu_arguments_slope,
+        Self::LookupCoin_memory_arguments,
+        Self::UnionValue_cpu_arguments_c00,
+        Self::UnionValue_cpu_arguments_c10,
+        Self::UnionValue_cpu_arguments_c01,
+        Self::UnionValue_cpu_arguments_c11,
+        Self::UnionValue_memory_arguments_intercept,
+        Self::UnionValue_memory_arguments_slope,
+        Self::ValueContains_cpu_arguments_constant,
+        Self::ValueContains_cpu_arguments_model_arguments_intercept,
+        Self::ValueContains_cpu_arguments_model_arguments_slope1,
+        Self::ValueContains_cpu_arguments_model_arguments_slope2,
+        Self::ValueContains_memory_arguments,
+        Self::ValueData_cpu_arguments_intercept,
+        Self::ValueData_cpu_arguments_slope,
+        Self::ValueData_memory_arguments_intercept,
+        Self::ValueData_memory_arguments_slope,
+        Self::UnValueData_cpu_arguments_c0,
+        Self::UnValueData_cpu_arguments_c1,
+        Self::UnValueData_cpu_arguments_c2,
+        Self::UnValueData_memory_arguments_intercept,
+        Self::UnValueData_memory_arguments_slope,
+        Self::ScaleValue_cpu_arguments_intercept,
+        Self::ScaleValue_cpu_arguments_slope,
+        Self::ScaleValue_memory_arguments_intercept,
+        Self::ScaleValue_memory_arguments_slope,
+    ];
 }
 
 #[derive(Debug, PartialEq)]
@@ -329,44 +1645,39 @@ pub struct BuiltinCosts {
     pub mk_nil_pair_data: CostingFun<OneArgument>,
     pub serialise_data: CostingFun<OneArgument>,
     // BLST
-    bls12_381_g1_add: CostingFun<TwoArguments>,
-    bls12_381_g1_neg: CostingFun<OneArgument>,
-    bls12_381_g1_scalar_mul: CostingFun<TwoArguments>,
-    bls12_381_g1_equal: CostingFun<TwoArguments>,
-    bls12_381_g1_compress: CostingFun<OneArgument>,
-    bls12_381_g1_uncompress: CostingFun<OneArgument>,
-    bls12_381_g1_hash_to_group: CostingFun<TwoArguments>,
-    bls12_381_g2_add: CostingFun<TwoArguments>,
-    bls12_381_g2_neg: CostingFun<OneArgument>,
-    bls12_381_g2_scalar_mul: CostingFun<TwoArguments>,
-    bls12_381_g2_equal: CostingFun<TwoArguments>,
-    bls12_381_g2_compress: CostingFun<OneArgument>,
-    bls12_381_g2_uncompress: CostingFun<OneArgument>,
-    bls12_381_g2_hash_to_group: CostingFun<TwoArguments>,
-    bls12_381_miller_loop: CostingFun<TwoArguments>,
-    bls12_381_mul_ml_result: CostingFun<TwoArguments>,
-    bls12_381_final_verify: CostingFun<TwoArguments>,
+    pub bls12_381_g1_add: CostingFun<TwoArguments>,
+    pub bls12_381_g1_neg: CostingFun<OneArgument>,
+    pub bls12_381_g1_scalar_mul: CostingFun<TwoArguments>,
+    pub bls12_381_g1_equal: CostingFun<TwoArguments>,
+    pub bls12_381_g1_compress: CostingFun<OneArgument>,
+    pub bls12_381_g1_uncompress: CostingFun<OneArgument>,
+    pub bls12_381_g1_hash_to_group: CostingFun<TwoArguments>,
+    pub bls12_381_g2_add: CostingFun<TwoArguments>,
+    pub bls12_381_g2_neg: CostingFun<OneArgument>,
+    pub bls12_381_g2_scalar_mul: CostingFun<TwoArguments>,
+    pub bls12_381_g2_equal: CostingFun<TwoArguments>,
+    pub bls12_381_g2_compress: CostingFun<OneArgument>,
+    pub bls12_381_g2_uncompress: CostingFun<OneArgument>,
+    pub bls12_381_g2_hash_to_group: CostingFun<TwoArguments>,
+    pub bls12_381_miller_loop: CostingFun<TwoArguments>,
+    pub bls12_381_mul_ml_result: CostingFun<TwoArguments>,
+    pub bls12_381_final_verify: CostingFun<TwoArguments>,
     // bitwise
-    integer_to_byte_string: CostingFun<ThreeArguments>,
-    byte_string_to_integer: CostingFun<TwoArguments>,
-    and_byte_string: CostingFun<ThreeArguments>,
-    or_byte_string: CostingFun<ThreeArguments>,
-    xor_byte_string: CostingFun<ThreeArguments>,
-    complement_byte_string: CostingFun<OneArgument>,
-    read_bit: CostingFun<TwoArguments>,
-    write_bits: CostingFun<ThreeArguments>,
-    replicate_byte: CostingFun<TwoArguments>,
-    shift_byte_string: CostingFun<TwoArguments>,
-    rotate_byte_string: CostingFun<TwoArguments>,
-    count_set_bits: CostingFun<OneArgument>,
-    find_first_set_bit: CostingFun<OneArgument>,
-    ripemd_160: CostingFun<OneArgument>,
-    exp_mod_int: CostingFun<ThreeArguments>,
-    pub pv11_builtin_costs: Pv11BuiltinCosts,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Pv11BuiltinCosts {
+    pub integer_to_byte_string: CostingFun<ThreeArguments>,
+    pub byte_string_to_integer: CostingFun<TwoArguments>,
+    pub and_byte_string: CostingFun<ThreeArguments>,
+    pub or_byte_string: CostingFun<ThreeArguments>,
+    pub xor_byte_string: CostingFun<ThreeArguments>,
+    pub complement_byte_string: CostingFun<OneArgument>,
+    pub read_bit: CostingFun<TwoArguments>,
+    pub write_bits: CostingFun<ThreeArguments>,
+    pub replicate_byte: CostingFun<TwoArguments>,
+    pub shift_byte_string: CostingFun<TwoArguments>,
+    pub rotate_byte_string: CostingFun<TwoArguments>,
+    pub count_set_bits: CostingFun<OneArgument>,
+    pub find_first_set_bit: CostingFun<OneArgument>,
+    pub ripemd_160: CostingFun<OneArgument>,
+    pub exp_mod_int: CostingFun<ThreeArguments>,
     pub drop_list: CostingFun<TwoArguments>,
     pub length_of_array: CostingFun<OneArgument>,
     pub list_to_array: CostingFun<OneArgument>,
@@ -382,1805 +1693,90 @@ pub struct Pv11BuiltinCosts {
     pub scale_value: CostingFun<TwoArguments>,
 }
 
-impl Pv11BuiltinCosts {
-    fn unavailable() -> Self {
-        Self {
-            drop_list: CostingFun {
-                cpu: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            length_of_array: CostingFun {
-                cpu: OneArgument::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: OneArgument::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            list_to_array: CostingFun {
-                cpu: OneArgument::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: OneArgument::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            index_array: CostingFun {
-                cpu: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            bls12_381_g1_multi_scalar_mul: CostingFun {
-                cpu: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            bls12_381_g2_multi_scalar_mul: CostingFun {
-                cpu: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            insert_coin: CostingFun {
-                cpu: FourArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: FourArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            lookup_coin: CostingFun {
-                cpu: ThreeArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: ThreeArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            union_value: CostingFun {
-                cpu: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            value_contains: CostingFun {
-                cpu: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            value_data: CostingFun {
-                cpu: OneArgument::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: OneArgument::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            un_value_data: CostingFun {
-                cpu: OneArgument::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: OneArgument::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-            scale_value: CostingFun {
-                cpu: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-                mem: TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST),
-            },
-        }
-    }
-
-    fn from_van_rossem_costs(costs: &[i64]) -> Self {
-        debug_assert!(costs.len() >= 350);
-
-        Self {
-            drop_list: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: costs[302],
-                    slope: costs[303],
-                }),
-                mem: TwoArguments::ConstantCost(costs[304]),
-            },
-            length_of_array: CostingFun {
-                cpu: OneArgument::ConstantCost(costs[305]),
-                mem: OneArgument::ConstantCost(costs[306]),
-            },
-            list_to_array: CostingFun {
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: costs[307],
-                    slope: costs[308],
-                }),
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: costs[309],
-                    slope: costs[310],
-                }),
-            },
-            index_array: CostingFun {
-                cpu: TwoArguments::ConstantCost(costs[311]),
-                mem: TwoArguments::ConstantCost(costs[312]),
-            },
-            bls12_381_g1_multi_scalar_mul: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: costs[313],
-                    slope: costs[314],
-                }),
-                mem: TwoArguments::ConstantCost(costs[315]),
-            },
-            bls12_381_g2_multi_scalar_mul: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: costs[316],
-                    slope: costs[317],
-                }),
-                mem: TwoArguments::ConstantCost(costs[318]),
-            },
-            insert_coin: CostingFun {
-                cpu: FourArguments::LinearInU(LinearSize {
-                    intercept: costs[319],
-                    slope: costs[320],
-                }),
-                mem: FourArguments::LinearInU(LinearSize {
-                    intercept: costs[321],
-                    slope: costs[322],
-                }),
-            },
-            lookup_coin: CostingFun {
-                cpu: ThreeArguments::LinearInZ(LinearSize {
-                    intercept: costs[323],
-                    slope: costs[324],
-                }),
-                mem: ThreeArguments::ConstantCost(costs[325]),
-            },
-            union_value: CostingFun {
-                cpu: TwoArguments::WithInteractionInXAndY(TwoVariableWithInteractionSize {
-                    coeff_00: costs[326],
-                    coeff_10: costs[327],
-                    coeff_01: costs[328],
-                    coeff_11: costs[329],
-                }),
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: costs[330],
-                    slope: costs[331],
-                }),
-            },
-            value_contains: CostingFun {
-                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                    constant: costs[332],
-                    model: Box::new(TwoArguments::LinearInXAndY(TwoVariableLinearSize {
-                        intercept: costs[333],
-                        slope1: costs[334],
-                        slope2: costs[335],
-                    })),
-                }),
-                mem: TwoArguments::ConstantCost(costs[336]),
-            },
-            value_data: CostingFun {
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: costs[337],
-                    slope: costs[338],
-                }),
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: costs[339],
-                    slope: costs[340],
-                }),
-            },
-            un_value_data: CostingFun {
-                cpu: OneArgument::QuadraticCost(QuadraticFunction {
-                    coeff_0: costs[341],
-                    coeff_1: costs[342],
-                    coeff_2: costs[343],
-                }),
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: costs[344],
-                    slope: costs[345],
-                }),
-            },
-            scale_value: CostingFun {
-                cpu: TwoArguments::LinearInY(LinearSize {
-                    intercept: costs[346],
-                    slope: costs[347],
-                }),
-                mem: TwoArguments::LinearInY(LinearSize {
-                    intercept: costs[348],
-                    slope: costs[349],
-                }),
-            },
-        }
-    }
-}
-
-fn pv11_exp_mod_integer_costs(costs: &[i64]) -> CostingFun<ThreeArguments> {
-    debug_assert!(costs.len() >= 350);
-
-    CostingFun {
-        cpu: ThreeArguments::ExpModCost(ExpModCostingFunction {
-            coefficient_00: costs[297],
-            coefficient_11: costs[298],
-            coefficient_12: costs[299],
-        }),
-        mem: ThreeArguments::LinearInZ(LinearSize {
-            intercept: costs[300],
-            slope: costs[301],
-        }),
-    }
-}
-
 impl BuiltinCosts {
+    pub const DEFAULT_V1: [i64; 332] = [
+        100788, 420, 1, 1, 1000, 173, 0, 1, 1000, 59957, 4, 1, 11183, 32, 201305, 8356, 4, 16000,
+        100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 100, 100, 16000, 100,
+        94375, 32, 132994, 32, 61462, 4, 72010, 178, 0, 1, 22151, 32, 91189, 769, 4, 2, 85848,
+        228465, 122, 0, 1, 1, 1000, 42921, 4, 2, 30623, 28755, 75, 1, 898148, 27279, 1, 51775, 558,
+        1, 39184, 1000, 60594, 1, 141895, 32, 83150, 32, 15299, 32, 76049, 1, 13169, 4, 22100, 10,
+        28999, 74, 1, 28999, 74, 1, 43285, 552, 1, 44749, 541, 1, 33852, 32, 68246, 32, 72362, 32,
+        7243, 32, 7391, 32, 11546, 32, 85848, 228465, 122, 0, 1, 1, 90434, 519, 0, 1, 74433, 32,
+        85848, 228465, 122, 0, 1, 1, 85848, 228465, 122, 0, 1, 1, 270652, 22588, 4, 1457325, 64566,
+        4, 20467, 1, 4, 0, 141992, 32, 100788, 420, 1, 1, 81663, 32, 59498, 32, 20142, 32, 24588,
+        32, 20744, 32, 25933, 32, 24623, 32, 53384111, 14333, 10, 955506, 213312, 0, 2, 43053543,
+        10, 43574283, 26308, 10, 16000, 100, 16000, 100, 962335, 18, 2780678, 6, 442008, 1,
+        52538055, 3756, 18, 267929, 18, 76433006, 8868, 18, 52948122, 18, 1995836, 36, 3227919, 12,
+        901022, 1, 166917843, 4307, 36, 284546, 36, 158221314, 26549, 36, 74698472, 36, 333849714,
+        1, 254006273, 72, 2174038, 72, 2261318, 64571, 4, 207616, 8310, 4, 1293828, 28716, 63, 0,
+        1, 1006041, 43623, 251, 0, 1, 100181, 726, 719, 0, 1, 100181, 726, 719, 0, 1, 100181, 726,
+        719, 0, 1, 107878, 680, 0, 1, 95336, 1, 281145, 18848, 0, 1, 180194, 159, 1, 1, 158519,
+        8942, 0, 1, 159378, 8813, 0, 1, 107490, 3298, 1, 106057, 655, 1, 1964219, 24520, 3, 607153,
+        231697, 53144, 0, 1, 116711, 1957, 4, 231883, 10, 1000, 24838, 7, 1, 232010, 32, 321837444,
+        25087669, 18, 617887431, 67302824, 36, 356924, 18413, 45, 21, 219951, 9444, 1, 1000,
+        172116, 183150, 6, 24, 21, 213283, 618401, 1998, 28258, 1, 1000, 38159, 2, 22, 1000, 95933,
+        1, 1, 11, 1000, 277577, 12, 21,
+    ];
+
     pub fn v1() -> Self {
-        Self {
-            add_integer: CostingFun {
-                mem: TwoArguments::MaxSize(MaxSize {
-                    intercept: 1,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::MaxSize(MaxSize {
-                    intercept: 100788,
-                    slope: 420,
-                }),
-            },
-            subtract_integer: CostingFun {
-                mem: TwoArguments::MaxSize(MaxSize {
-                    intercept: 1,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::MaxSize(MaxSize {
-                    intercept: 100788,
-                    slope: 420,
-                }),
-            },
-            multiply_integer: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::MultipliedSizes(MultipliedSizes {
-                    intercept: 90434,
-                    slope: 519,
-                }),
-            },
-            divide_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                    constant: 85848,
-                    model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                        intercept: 228465,
-                        slope: 122,
-                    })),
-                }),
-            },
-            quotient_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                    constant: 85848,
-                    model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                        intercept: 228465,
-                        slope: 122,
-                    })),
-                }),
-            },
-            remainder_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                    constant: 85848,
-                    model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                        intercept: 228465,
-                        slope: 122,
-                    })),
-                }),
-            },
-            mod_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                    constant: 85848,
-                    model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                        intercept: 228465,
-                        slope: 122,
-                    })),
-                }),
-            },
-            equals_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 51775,
-                    slope: 558,
-                }),
-            },
-            less_than_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 44749,
-                    slope: 541,
-                }),
-            },
-            less_than_equals_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 43285,
-                    slope: 552,
-                }),
-            },
-            append_byte_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 1000,
-                    slope: 173,
-                }),
-            },
-            cons_byte_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::LinearInY(LinearSize {
-                    intercept: 72010,
-                    slope: 178,
-                }),
-            },
-            slice_byte_string: CostingFun {
-                mem: ThreeArguments::LinearInZ(LinearSize {
-                    intercept: 4,
-                    slope: 0,
-                }),
-                cpu: ThreeArguments::LinearInZ(LinearSize {
-                    intercept: 20467,
-                    slope: 1,
-                }),
-            },
-            length_of_byte_string: CostingFun {
-                mem: OneArgument::ConstantCost(10),
-                cpu: OneArgument::ConstantCost(22100),
-            },
-            index_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(4),
-                cpu: TwoArguments::ConstantCost(13169),
-            },
-            equals_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
-                    constant: 24548,
-                    intercept: 29498,
-                    slope: 38,
-                }),
-            },
-            less_than_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 28999,
-                    slope: 74,
-                }),
-            },
-            less_than_equals_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 28999,
-                    slope: 74,
-                }),
-            },
-            sha2_256: CostingFun {
-                mem: OneArgument::ConstantCost(4),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 270652,
-                    slope: 22588,
-                }),
-            },
-            sha3_256: CostingFun {
-                mem: OneArgument::ConstantCost(4),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 1457325,
-                    slope: 64566,
-                }),
-            },
-            blake2b_224: CostingFun {
-                mem: OneArgument::ConstantCost(30000000000),
-                cpu: OneArgument::ConstantCost(30000000000),
-            },
-            blake2b_256: CostingFun {
-                mem: OneArgument::ConstantCost(4),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 201305,
-                    slope: 8356,
-                }),
-            },
-            keccak_256: CostingFun {
-                mem: OneArgument::ConstantCost(30000000000),
-                cpu: OneArgument::ConstantCost(30000000000),
-            },
-            verify_ed25519_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(10),
-                cpu: ThreeArguments::LinearInY(LinearSize {
-                    intercept: 53384111,
-                    slope: 14333,
-                }),
-            },
-            verify_ecdsa_secp256k1_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(30000000000),
-                cpu: ThreeArguments::ConstantCost(30000000000),
-            },
-            verify_schnorr_secp256k1_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(30000000000),
-                cpu: ThreeArguments::LinearInY(LinearSize {
-                    intercept: 30000000000,
-                    slope: 30000000000,
-                }),
-            },
-            append_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 4,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 1000,
-                    slope: 59957,
-                }),
-            },
-            equals_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
-                    constant: 39184,
-                    intercept: 1000,
-                    slope: 60594,
-                }),
-            },
-            encode_utf8: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 4,
-                    slope: 2,
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 1000,
-                    slope: 42921,
-                }),
-            },
-            decode_utf8: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 4,
-                    slope: 2,
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 91189,
-                    slope: 769,
-                }),
-            },
-            if_then_else: CostingFun {
-                mem: ThreeArguments::ConstantCost(1),
-                cpu: ThreeArguments::ConstantCost(76049),
-            },
-            choose_unit: CostingFun {
-                mem: TwoArguments::ConstantCost(4),
-                cpu: TwoArguments::ConstantCost(61462),
-            },
-            trace: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(59498),
-            },
-            fst_pair: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(141895),
-            },
-            snd_pair: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(141992),
-            },
-            choose_list: CostingFun {
-                mem: ThreeArguments::ConstantCost(32),
-                cpu: ThreeArguments::ConstantCost(132994),
-            },
-            mk_cons: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(72362),
-            },
-            head_list: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(83150),
-            },
-            tail_list: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(81663),
-            },
-            null_list: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(74433),
-            },
-            choose_data: CostingFun {
-                mem: SixArguments::ConstantCost(32),
-                cpu: SixArguments::ConstantCost(94375),
-            },
-            constr_data: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(22151),
-            },
-            map_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(68246),
-            },
-            list_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(33852),
-            },
-            i_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(15299),
-            },
-            b_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(11183),
-            },
-            un_constr_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(24588),
-            },
-            un_map_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(24623),
-            },
-            un_list_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(25933),
-            },
-            un_i_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(20744),
-            },
-            un_b_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(20142),
-            },
-            equals_data: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 898148,
-                    slope: 27279,
-                }),
-            },
-            mk_pair_data: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(11546),
-            },
-            mk_nil_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(7243),
-            },
-            mk_nil_pair_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(7391),
-            },
-            serialise_data: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 30000000000,
-                    slope: 30000000000,
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 30000000000,
-                    slope: 30000000000,
-                }),
-            },
-            bls12_381_g1_add: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g1_neg: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g1_scalar_mul: CostingFun {
-                mem: TwoArguments::ConstantCost(30000000000),
-                cpu: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g1_equal: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g1_compress: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g1_uncompress: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g1_hash_to_group: CostingFun {
-                mem: TwoArguments::ConstantCost(30000000000),
-                cpu: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g2_add: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g2_neg: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g2_scalar_mul: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g2_equal: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g2_compress: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g2_uncompress: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g2_hash_to_group: CostingFun {
-                mem: TwoArguments::ConstantCost(30000000000),
-                cpu: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_miller_loop: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_mul_ml_result: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_final_verify: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            integer_to_byte_string: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            byte_string_to_integer: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            and_byte_string: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            or_byte_string: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            xor_byte_string: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            complement_byte_string: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            read_bit: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            write_bits: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            replicate_byte: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            shift_byte_string: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            rotate_byte_string: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            count_set_bits: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            find_first_set_bit: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            ripemd_160: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            exp_mod_int: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            pv11_builtin_costs: Pv11BuiltinCosts::unavailable(),
-        }
+        initialize_cost_model(&Language::PlutusV1, &Self::DEFAULT_V1[..]).builtin_costs
     }
+
+    const DEFAULT_V2: [i64; 332] = [
+        100788, 420, 1, 1, 1000, 173, 0, 1, 1000, 59957, 4, 1, 11183, 32, 201305, 8356, 4, 16000,
+        100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 100, 100, 16000, 100,
+        94375, 32, 132994, 32, 61462, 4, 72010, 178, 0, 1, 22151, 32, 91189, 769, 4, 2, 85848,
+        228465, 122, 0, 1, 1, 1000, 42921, 4, 2, 30623, 28755, 75, 1, 898148, 27279, 1, 51775, 558,
+        1, 39184, 1000, 60594, 1, 141895, 32, 83150, 32, 15299, 32, 76049, 1, 13169, 4, 22100, 10,
+        28999, 74, 1, 28999, 74, 1, 43285, 552, 1, 44749, 541, 1, 33852, 32, 68246, 32, 72362, 32,
+        7243, 32, 7391, 32, 11546, 32, 85848, 228465, 122, 0, 1, 1, 90434, 519, 0, 1, 74433, 32,
+        85848, 228465, 122, 0, 1, 1, 85848, 228465, 122, 0, 1, 1, 955506, 213312, 0, 2, 270652,
+        22588, 4, 1457325, 64566, 4, 20467, 1, 4, 0, 141992, 32, 100788, 420, 1, 1, 81663, 32,
+        59498, 32, 20142, 32, 24588, 32, 20744, 32, 25933, 32, 24623, 32, 43053543, 10, 53384111,
+        14333, 10, 43574283, 26308, 10, 1293828, 28716, 63, 0, 1, 1006041, 43623, 251, 0, 1, 16000,
+        100, 16000, 100, 962335, 18, 2780678, 6, 442008, 1, 52538055, 3756, 18, 267929, 18,
+        76433006, 8868, 18, 52948122, 18, 1995836, 36, 3227919, 12, 901022, 1, 166917843, 4307, 36,
+        284546, 36, 158221314, 26549, 36, 74698472, 36, 333849714, 1, 254006273, 72, 2174038, 72,
+        2261318, 64571, 4, 207616, 8310, 4, 100181, 726, 719, 0, 1, 100181, 726, 719, 0, 1, 100181,
+        726, 719, 0, 1, 107878, 680, 0, 1, 95336, 1, 281145, 18848, 0, 1, 180194, 159, 1, 1,
+        158519, 8942, 0, 1, 159378, 8813, 0, 1, 107490, 3298, 1, 106057, 655, 1, 1964219, 24520, 3,
+        607153, 231697, 53144, 0, 1, 116711, 1957, 4, 231883, 10, 1000, 24838, 7, 1, 232010, 32,
+        321837444, 25087669, 18, 617887431, 67302824, 36, 356924, 18413, 45, 21, 219951, 9444, 1,
+        1000, 172116, 183150, 6, 24, 21, 213283, 618401, 1998, 28258, 1, 1000, 38159, 2, 22, 1000,
+        95933, 1, 1, 11, 1000, 277577, 12, 21,
+    ];
 
     pub fn v2() -> Self {
-        Self {
-            add_integer: CostingFun {
-                mem: TwoArguments::MaxSize(MaxSize {
-                    intercept: 1,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::MaxSize(MaxSize {
-                    intercept: 100788,
-                    slope: 420,
-                }),
-            },
-            subtract_integer: CostingFun {
-                mem: TwoArguments::MaxSize(MaxSize {
-                    intercept: 1,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::MaxSize(MaxSize {
-                    intercept: 100788,
-                    slope: 420,
-                }),
-            },
-            multiply_integer: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::MultipliedSizes(MultipliedSizes {
-                    intercept: 90434,
-                    slope: 519,
-                }),
-            },
-            divide_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                    constant: 85848,
-                    model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                        intercept: 228465,
-                        slope: 122,
-                    })),
-                }),
-            },
-            quotient_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                    constant: 85848,
-                    model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                        intercept: 228465,
-                        slope: 122,
-                    })),
-                }),
-            },
-            remainder_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                    constant: 85848,
-                    model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                        intercept: 228465,
-                        slope: 122,
-                    })),
-                }),
-            },
-            mod_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                    constant: 85848,
-                    model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                        intercept: 228465,
-                        slope: 122,
-                    })),
-                }),
-            },
-            equals_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 51775,
-                    slope: 558,
-                }),
-            },
-            less_than_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 44749,
-                    slope: 541,
-                }),
-            },
-            less_than_equals_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 43285,
-                    slope: 552,
-                }),
-            },
-            append_byte_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 1000,
-                    slope: 173,
-                }),
-            },
-            cons_byte_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::LinearInY(LinearSize {
-                    intercept: 72010,
-                    slope: 178,
-                }),
-            },
-            slice_byte_string: CostingFun {
-                mem: ThreeArguments::LinearInZ(LinearSize {
-                    intercept: 4,
-                    slope: 0,
-                }),
-                cpu: ThreeArguments::LinearInZ(LinearSize {
-                    intercept: 20467,
-                    slope: 1,
-                }),
-            },
-            length_of_byte_string: CostingFun {
-                mem: OneArgument::ConstantCost(10),
-                cpu: OneArgument::ConstantCost(22100),
-            },
-            index_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(4),
-                cpu: TwoArguments::ConstantCost(13169),
-            },
-            equals_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
-                    constant: 24548,
-                    intercept: 29498,
-                    slope: 38,
-                }),
-            },
-            less_than_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 28999,
-                    slope: 74,
-                }),
-            },
-            less_than_equals_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 28999,
-                    slope: 74,
-                }),
-            },
-            sha2_256: CostingFun {
-                mem: OneArgument::ConstantCost(4),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 270652,
-                    slope: 22588,
-                }),
-            },
-            sha3_256: CostingFun {
-                mem: OneArgument::ConstantCost(4),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 1457325,
-                    slope: 64566,
-                }),
-            },
-            blake2b_256: CostingFun {
-                mem: OneArgument::ConstantCost(4),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 201305,
-                    slope: 8356,
-                }),
-            },
-            verify_ed25519_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(10),
-                cpu: ThreeArguments::LinearInY(LinearSize {
-                    intercept: 53384111,
-                    slope: 14333,
-                }),
-            },
-            verify_ecdsa_secp256k1_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(10),
-                cpu: ThreeArguments::ConstantCost(43053543),
-            },
-            verify_schnorr_secp256k1_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(10),
-                cpu: ThreeArguments::LinearInY(LinearSize {
-                    intercept: 43574283,
-                    slope: 26308,
-                }),
-            },
-            append_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 4,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 1000,
-                    slope: 59957,
-                }),
-            },
-            equals_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
-                    constant: 39184,
-                    intercept: 1000,
-                    slope: 60594,
-                }),
-            },
-            encode_utf8: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 4,
-                    slope: 2,
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 1000,
-                    slope: 42921,
-                }),
-            },
-            decode_utf8: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 4,
-                    slope: 2,
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 91189,
-                    slope: 769,
-                }),
-            },
-            if_then_else: CostingFun {
-                mem: ThreeArguments::ConstantCost(1),
-                cpu: ThreeArguments::ConstantCost(76049),
-            },
-            choose_unit: CostingFun {
-                mem: TwoArguments::ConstantCost(4),
-                cpu: TwoArguments::ConstantCost(61462),
-            },
-            trace: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(59498),
-            },
-            fst_pair: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(141895),
-            },
-            snd_pair: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(141992),
-            },
-            choose_list: CostingFun {
-                mem: ThreeArguments::ConstantCost(32),
-                cpu: ThreeArguments::ConstantCost(132994),
-            },
-            mk_cons: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(72362),
-            },
-            head_list: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(83150),
-            },
-            tail_list: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(81663),
-            },
-            null_list: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(74433),
-            },
-            choose_data: CostingFun {
-                mem: SixArguments::ConstantCost(32),
-                cpu: SixArguments::ConstantCost(94375),
-            },
-            constr_data: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(22151),
-            },
-            map_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(68246),
-            },
-            list_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(33852),
-            },
-            i_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(15299),
-            },
-            b_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(11183),
-            },
-            un_constr_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(24588),
-            },
-            un_map_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(24623),
-            },
-            un_list_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(25933),
-            },
-            un_i_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(20744),
-            },
-            un_b_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(20142),
-            },
-            equals_data: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 898148,
-                    slope: 27279,
-                }),
-            },
-            mk_pair_data: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(11546),
-            },
-            mk_nil_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(7243),
-            },
-            mk_nil_pair_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(7391),
-            },
-            serialise_data: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 0,
-                    slope: 2,
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 955506,
-                    slope: 213312,
-                }),
-            },
-            blake2b_224: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            keccak_256: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g1_add: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g1_neg: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g1_scalar_mul: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g1_equal: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g1_compress: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g1_uncompress: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g1_hash_to_group: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g2_add: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g2_neg: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g2_scalar_mul: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g2_equal: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_g2_compress: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g2_uncompress: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            bls12_381_g2_hash_to_group: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_miller_loop: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_mul_ml_result: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            bls12_381_final_verify: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            integer_to_byte_string: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            byte_string_to_integer: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            and_byte_string: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            or_byte_string: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            xor_byte_string: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            complement_byte_string: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            read_bit: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            write_bits: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            replicate_byte: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            shift_byte_string: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            rotate_byte_string: CostingFun {
-                cpu: TwoArguments::ConstantCost(30000000000),
-                mem: TwoArguments::ConstantCost(30000000000),
-            },
-            count_set_bits: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            find_first_set_bit: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            ripemd_160: CostingFun {
-                cpu: OneArgument::ConstantCost(30000000000),
-                mem: OneArgument::ConstantCost(30000000000),
-            },
-            exp_mod_int: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            pv11_builtin_costs: Pv11BuiltinCosts::unavailable(),
-        }
+        initialize_cost_model(&Language::PlutusV2, &Self::DEFAULT_V2[..]).builtin_costs
     }
 
+    const DEFAULT_V3: [i64; 350] = [
+        100788, 420, 1, 1, 1000, 173, 0, 1, 1000, 59957, 4, 1, 11183, 32, 201305, 8356, 4, 16000,
+        100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 100, 100, 16000, 100,
+        94375, 32, 132994, 32, 61462, 4, 72010, 178, 0, 1, 22151, 32, 91189, 769, 4, 2, 85848,
+        123203, 7305, -900, 1716, 960, 57, 85848, 0, 1, 1, 1000, 42921, 4, 2, 30623, 28755, 75, 1,
+        898148, 27279, 1, 51775, 558, 1, 39184, 1000, 60594, 1, 141895, 32, 83150, 32, 15299, 32,
+        76049, 1, 13169, 4, 22100, 10, 28999, 74, 1, 28999, 74, 1, 43285, 552, 1, 44749, 541, 1,
+        33852, 32, 68246, 32, 72362, 32, 7243, 32, 7391, 32, 11546, 32, 85848, 123203, 7305, -900,
+        1716, 960, 57, 85848, 0, 1, 90434, 519, 0, 1, 74433, 32, 85848, 123203, 7305, -900, 1716,
+        960, 57, 85848, 0, 1, 1, 85848, 123203, 7305, -900, 1716, 960, 57, 85848, 0, 1, 955506,
+        213312, 0, 2, 270652, 22588, 4, 1457325, 64566, 4, 20467, 1, 4, 0, 141992, 32, 100788, 420,
+        1, 1, 81663, 32, 59498, 32, 20142, 32, 24588, 32, 20744, 32, 25933, 32, 24623, 32,
+        43053543, 10, 53384111, 14333, 10, 43574283, 26308, 10, 16000, 100, 16000, 100, 962335, 18,
+        2780678, 6, 442008, 1, 52538055, 3756, 18, 267929, 18, 76433006, 8868, 18, 52948122, 18,
+        1995836, 36, 3227919, 12, 901022, 1, 166917843, 4307, 36, 284546, 36, 158221314, 26549, 36,
+        74698472, 36, 333849714, 1, 254006273, 72, 2174038, 72, 2261318, 64571, 4, 207616, 8310, 4,
+        1293828, 28716, 63, 0, 1, 1006041, 43623, 251, 0, 1, 100181, 726, 719, 0, 1, 100181, 726,
+        719, 0, 1, 100181, 726, 719, 0, 1, 107878, 680, 0, 1, 95336, 1, 281145, 18848, 0, 1,
+        180194, 159, 1, 1, 158519, 8942, 0, 1, 159378, 8813, 0, 1, 107490, 3298, 1, 106057, 655, 1,
+        1964219, 24520, 3, 607153, 231697, 53144, 0, 1, 116711, 1957, 4, 231883, 10, 1000, 24838,
+        7, 1, 232010, 32, 321837444, 25087669, 18, 617887431, 67302824, 36, 356924, 18413, 45, 21,
+        219951, 9444, 1, 1000, 172116, 183150, 6, 24, 21, 213283, 618401, 1998, 28258, 1, 1000,
+        38159, 2, 22, 1000, 95933, 1, 1, 11, 1000, 277577, 12, 21,
+    ];
+
     pub fn v3() -> Self {
-        Self {
-            add_integer: CostingFun {
-                mem: TwoArguments::MaxSize(MaxSize {
-                    intercept: 1,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::MaxSize(MaxSize {
-                    intercept: 100788,
-                    slope: 420,
-                }),
-            },
-            subtract_integer: CostingFun {
-                mem: TwoArguments::MaxSize(MaxSize {
-                    intercept: 1,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::MaxSize(MaxSize {
-                    intercept: 100788,
-                    slope: 420,
-                }),
-            },
-            multiply_integer: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::MultipliedSizes(MultipliedSizes {
-                    intercept: 90434,
-                    slope: 519,
-                }),
-            },
-            divide_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonalIntoQuadraticXAndY(
-                    85848,
-                    TwoArgumentsQuadraticFunction {
-                        minimum: 85848,
-                        coeff_00: 123203,
-                        coeff_01: 7305,
-                        coeff_02: -900,
-                        coeff_10: 1716,
-                        coeff_11: 549,
-                        coeff_20: 57,
-                    },
-                ),
-            },
-            quotient_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: 0,
-                    slope: 1,
-                    minimum: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonalIntoQuadraticXAndY(
-                    85848,
-                    TwoArgumentsQuadraticFunction {
-                        minimum: 85848,
-                        coeff_00: 123203,
-                        coeff_01: 7305,
-                        coeff_02: -900,
-                        coeff_10: 1716,
-                        coeff_11: 549,
-                        coeff_20: 57,
-                    },
-                ),
-            },
-            remainder_integer: CostingFun {
-                mem: TwoArguments::LinearInY(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonalIntoQuadraticXAndY(
-                    85848,
-                    TwoArgumentsQuadraticFunction {
-                        minimum: 85848,
-                        coeff_00: 123203,
-                        coeff_01: 7305,
-                        coeff_02: -900,
-                        coeff_10: 1716,
-                        coeff_11: 549,
-                        coeff_20: 57,
-                    },
-                ),
-            },
-            mod_integer: CostingFun {
-                mem: TwoArguments::LinearInY(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::ConstAboveDiagonalIntoQuadraticXAndY(
-                    85848,
-                    TwoArgumentsQuadraticFunction {
-                        minimum: 85848,
-                        coeff_00: 123203,
-                        coeff_01: 7305,
-                        coeff_02: -900,
-                        coeff_10: 1716,
-                        coeff_11: 549,
-                        coeff_20: 57,
-                    },
-                ),
-            },
-            equals_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 51775,
-                    slope: 558,
-                }),
-            },
-            less_than_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 44749,
-                    slope: 541,
-                }),
-            },
-            less_than_equals_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 43285,
-                    slope: 552,
-                }),
-            },
-            append_byte_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 1000,
-                    slope: 173,
-                }),
-            },
-            cons_byte_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 0,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::LinearInY(LinearSize {
-                    intercept: 72010,
-                    slope: 178,
-                }),
-            },
-            slice_byte_string: CostingFun {
-                mem: ThreeArguments::LinearInZ(LinearSize {
-                    intercept: 4,
-                    slope: 0,
-                }),
-                cpu: ThreeArguments::LinearInZ(LinearSize {
-                    intercept: 20467,
-                    slope: 1,
-                }),
-            },
-            length_of_byte_string: CostingFun {
-                mem: OneArgument::ConstantCost(10),
-                cpu: OneArgument::ConstantCost(22100),
-            },
-            index_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(4),
-                cpu: TwoArguments::ConstantCost(13169),
-            },
-            equals_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
-                    constant: 24548,
-                    intercept: 29498,
-                    slope: 38,
-                }),
-            },
-            less_than_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 28999,
-                    slope: 74,
-                }),
-            },
-            less_than_equals_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 28999,
-                    slope: 74,
-                }),
-            },
-            sha2_256: CostingFun {
-                mem: OneArgument::ConstantCost(4),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 270652,
-                    slope: 22588,
-                }),
-            },
-            sha3_256: CostingFun {
-                mem: OneArgument::ConstantCost(4),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 1457325,
-                    slope: 64566,
-                }),
-            },
-            blake2b_256: CostingFun {
-                mem: OneArgument::ConstantCost(4),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 201305,
-                    slope: 8356,
-                }),
-            },
-            verify_ed25519_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(10),
-                cpu: ThreeArguments::LinearInY(LinearSize {
-                    intercept: 53384111,
-                    slope: 14333,
-                }),
-            },
-            verify_ecdsa_secp256k1_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(10),
-                cpu: ThreeArguments::ConstantCost(43053543),
-            },
-            verify_schnorr_secp256k1_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(10),
-                cpu: ThreeArguments::LinearInY(LinearSize {
-                    intercept: 43574283,
-                    slope: 26308,
-                }),
-            },
-            append_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 4,
-                    slope: 1,
-                }),
-                cpu: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: 1000,
-                    slope: 59957,
-                }),
-            },
-            equals_string: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
-                    constant: 39184,
-                    intercept: 1000,
-                    slope: 60594,
-                }),
-            },
-            encode_utf8: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 4,
-                    slope: 2,
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 1000,
-                    slope: 42921,
-                }),
-            },
-            decode_utf8: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 4,
-                    slope: 2,
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 91189,
-                    slope: 769,
-                }),
-            },
-            if_then_else: CostingFun {
-                mem: ThreeArguments::ConstantCost(1),
-                cpu: ThreeArguments::ConstantCost(76049),
-            },
-            choose_unit: CostingFun {
-                mem: TwoArguments::ConstantCost(4),
-                cpu: TwoArguments::ConstantCost(61462),
-            },
-            trace: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(59498),
-            },
-            fst_pair: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(141895),
-            },
-            snd_pair: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(141992),
-            },
-            choose_list: CostingFun {
-                mem: ThreeArguments::ConstantCost(32),
-                cpu: ThreeArguments::ConstantCost(132994),
-            },
-            mk_cons: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(72362),
-            },
-            head_list: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(83150),
-            },
-            tail_list: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(81663),
-            },
-            null_list: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(74433),
-            },
-            choose_data: CostingFun {
-                mem: SixArguments::ConstantCost(32),
-                cpu: SixArguments::ConstantCost(94375),
-            },
-            constr_data: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(22151),
-            },
-            map_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(68246),
-            },
-            list_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(33852),
-            },
-            i_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(15299),
-            },
-            b_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(11183),
-            },
-            un_constr_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(24588),
-            },
-            un_map_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(24623),
-            },
-            un_list_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(25933),
-            },
-            un_i_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(20744),
-            },
-            un_b_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(20142),
-            },
-            equals_data: CostingFun {
-                mem: TwoArguments::ConstantCost(1),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: 898148,
-                    slope: 27279,
-                }),
-            },
-            mk_pair_data: CostingFun {
-                mem: TwoArguments::ConstantCost(32),
-                cpu: TwoArguments::ConstantCost(11546),
-            },
-            mk_nil_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(7243),
-            },
-            mk_nil_pair_data: CostingFun {
-                mem: OneArgument::ConstantCost(32),
-                cpu: OneArgument::ConstantCost(7391),
-            },
-            serialise_data: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 0,
-                    slope: 2,
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 955506,
-                    slope: 213312,
-                }),
-            },
-            blake2b_224: CostingFun {
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 207616,
-                    slope: 8310,
-                }),
-                mem: OneArgument::ConstantCost(4),
-            },
-            keccak_256: CostingFun {
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 2261318,
-                    slope: 64571,
-                }),
-                mem: OneArgument::ConstantCost(4),
-            },
-            bls12_381_g1_add: CostingFun {
-                cpu: TwoArguments::ConstantCost(962335),
-                mem: TwoArguments::ConstantCost(18),
-            },
-            bls12_381_g1_neg: CostingFun {
-                cpu: OneArgument::ConstantCost(267929),
-                mem: OneArgument::ConstantCost(18),
-            },
-            bls12_381_g1_scalar_mul: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: 76433006,
-                    slope: 8868,
-                }),
-                mem: TwoArguments::ConstantCost(18),
-            },
-            bls12_381_g1_equal: CostingFun {
-                cpu: TwoArguments::ConstantCost(442008),
-                mem: TwoArguments::ConstantCost(1),
-            },
-            bls12_381_g1_compress: CostingFun {
-                cpu: OneArgument::ConstantCost(2780678),
-                mem: OneArgument::ConstantCost(6),
-            },
-            bls12_381_g1_uncompress: CostingFun {
-                cpu: OneArgument::ConstantCost(52948122),
-                mem: OneArgument::ConstantCost(18),
-            },
-            bls12_381_g1_hash_to_group: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: 52538055,
-                    slope: 3756,
-                }),
-                mem: TwoArguments::ConstantCost(18),
-            },
-            bls12_381_g2_add: CostingFun {
-                cpu: TwoArguments::ConstantCost(1995836),
-                mem: TwoArguments::ConstantCost(36),
-            },
-            bls12_381_g2_neg: CostingFun {
-                cpu: OneArgument::ConstantCost(284546),
-                mem: OneArgument::ConstantCost(36),
-            },
-            bls12_381_g2_scalar_mul: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: 158221314,
-                    slope: 26549,
-                }),
-                mem: TwoArguments::ConstantCost(36),
-            },
-            bls12_381_g2_equal: CostingFun {
-                cpu: TwoArguments::ConstantCost(901022),
-                mem: TwoArguments::ConstantCost(1),
-            },
-            bls12_381_g2_compress: CostingFun {
-                cpu: OneArgument::ConstantCost(3227919),
-                mem: OneArgument::ConstantCost(12),
-            },
-            bls12_381_g2_uncompress: CostingFun {
-                cpu: OneArgument::ConstantCost(74698472),
-                mem: OneArgument::ConstantCost(36),
-            },
-            bls12_381_g2_hash_to_group: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: 166917843,
-                    slope: 4307,
-                }),
-                mem: TwoArguments::ConstantCost(36),
-            },
-            bls12_381_miller_loop: CostingFun {
-                cpu: TwoArguments::ConstantCost(254006273),
-                mem: TwoArguments::ConstantCost(72),
-            },
-            bls12_381_mul_ml_result: CostingFun {
-                cpu: TwoArguments::ConstantCost(2174038),
-                mem: TwoArguments::ConstantCost(72),
-            },
-            bls12_381_final_verify: CostingFun {
-                cpu: TwoArguments::ConstantCost(333849714),
-                mem: TwoArguments::ConstantCost(1),
-            },
-            integer_to_byte_string: CostingFun {
-                cpu: ThreeArguments::QuadraticInZ(QuadraticFunction {
-                    coeff_0: 1293828,
-                    coeff_1: 28716,
-                    coeff_2: 63,
-                }),
-                mem: ThreeArguments::LiteralInYorLinearInZ(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-            },
-            byte_string_to_integer: CostingFun {
-                cpu: TwoArguments::QuadraticInY(QuadraticFunction {
-                    coeff_0: 1006041,
-                    coeff_1: 43623,
-                    coeff_2: 251,
-                }),
-                mem: TwoArguments::LinearInY(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-            },
-            and_byte_string: CostingFun {
-                cpu: ThreeArguments::LinearInYandZ(TwoVariableLinearSize {
-                    intercept: 100181,
-                    slope1: 726,
-                    slope2: 719,
-                }),
-                mem: ThreeArguments::LinearInMaxYZ(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-            },
-            or_byte_string: CostingFun {
-                cpu: ThreeArguments::LinearInYandZ(TwoVariableLinearSize {
-                    intercept: 100181,
-                    slope1: 726,
-                    slope2: 719,
-                }),
-                mem: ThreeArguments::LinearInMaxYZ(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-            },
-            xor_byte_string: CostingFun {
-                cpu: ThreeArguments::LinearInYandZ(TwoVariableLinearSize {
-                    intercept: 100181,
-                    slope1: 726,
-                    slope2: 719,
-                }),
-                mem: ThreeArguments::LinearInMaxYZ(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-            },
-            complement_byte_string: CostingFun {
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 107878,
-                    slope: 680,
-                }),
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-            },
-            read_bit: CostingFun {
-                cpu: TwoArguments::ConstantCost(95336),
-                mem: TwoArguments::ConstantCost(1),
-            },
-            write_bits: CostingFun {
-                cpu: ThreeArguments::LinearInY(LinearSize {
-                    intercept: 281145,
-                    slope: 18848,
-                }),
-                mem: ThreeArguments::LinearInX(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-            },
-            replicate_byte: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: 180194,
-                    slope: 159,
-                }),
-                mem: TwoArguments::LinearInX(LinearSize {
-                    intercept: 1,
-                    slope: 1,
-                }),
-            },
-            shift_byte_string: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: 158519,
-                    slope: 8942,
-                }),
-                mem: TwoArguments::LinearInX(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-            },
-            rotate_byte_string: CostingFun {
-                cpu: TwoArguments::LinearInX(LinearSize {
-                    intercept: 159378,
-                    slope: 8813,
-                }),
-                mem: TwoArguments::LinearInX(LinearSize {
-                    intercept: 0,
-                    slope: 1,
-                }),
-            },
-            count_set_bits: CostingFun {
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 107490,
-                    slope: 3298,
-                }),
-                mem: OneArgument::ConstantCost(1),
-            },
-            find_first_set_bit: CostingFun {
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 106057,
-                    slope: 655,
-                }),
-                mem: OneArgument::ConstantCost(1),
-            },
-            ripemd_160: CostingFun {
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: 1964219,
-                    slope: 24520,
-                }),
-                mem: OneArgument::ConstantCost(3),
-            },
-            // Not yet properly costed
-            exp_mod_int: CostingFun {
-                cpu: ThreeArguments::ConstantCost(30000000000),
-                mem: ThreeArguments::ConstantCost(30000000000),
-            },
-            pv11_builtin_costs: Pv11BuiltinCosts::unavailable(),
-        }
+        initialize_cost_model(&Language::PlutusV3, &Self::DEFAULT_V3[..]).builtin_costs
     }
 }
 
@@ -2906,2613 +2502,1028 @@ impl BuiltinCosts {
                 mem: self.ripemd_160.mem.cost(args[0].to_ex_mem()),
                 cpu: self.ripemd_160.cpu.cost(args[0].to_ex_mem()),
             },
-            // DefaultFunction::ExpModInteger => {
-            //     let arg3 = args[2].unwrap_integer()?;
-            //     if arg3.lt(&(0.into())) {
-            //         return Err(Error::OutsideNaturalBounds(arg3.clone()));
-            //     }
-
-            //     let arg3_exmem = if *arg3 == 0.into() {
-            //         1
-            //     } else {
-            //         (integer_log2(arg3.abs()) / 64) + 1
-            //     };
-
-            //     ExBudget {
-            //         mem: self.exp_mod_int.mem.cost(
-            //             args[0].to_ex_mem(),
-            //             args[1].to_ex_mem(),
-            //             arg3_exmem,
-            //         ),
-            //         cpu: self.exp_mod_int.cpu.cost(
-            //             args[0].to_ex_mem(),
-            //             args[1].to_ex_mem(),
-            //             arg3_exmem,
-            //         ),
-            //     }
-            // }
         })
     }
 }
 
-pub fn initialize_cost_model(version: &Language, costs: &[i64]) -> CostModel {
-    initialize_cost_model_with_semantics(version, BuiltinSemantics::for_language(version), costs)
+pub fn initialize_cost_model(language: &Language, costs: &[i64]) -> CostModel {
+    initialize_cost_model_with_semantics(language, BuiltinSemantics::for_language(language), costs)
 }
 
 pub fn initialize_cost_model_with_protocol(
-    version: &Language,
+    language: &Language,
     protocol_major_version: u16,
     costs: &[i64],
 ) -> CostModel {
     initialize_cost_model_with_semantics(
-        version,
-        BuiltinSemantics::for_language_and_protocol(version, protocol_major_version),
+        language,
+        BuiltinSemantics::for_language_and_protocol(language, protocol_major_version),
         costs,
     )
 }
 
 fn initialize_cost_model_with_semantics(
-    version: &Language,
+    language: &Language,
     semantics: BuiltinSemantics,
     costs: &[i64],
 ) -> CostModel {
-    let has_pv11_tail = matches!(version, Language::PlutusV3) && costs.len() >= 350;
+    use ParamName::*;
 
-    let cost_map: HashMap<&str, i64> = match version {
-        Language::PlutusV1 => {
-            hashmap! {
-                "add_integer-cpu-arguments-intercept" => costs[0],
-                "add_integer-cpu-arguments-slope" => costs[1],
-                "add_integer-mem-arguments-intercept" => costs[2],
-                "add_integer-mem-arguments-slope" => costs[3],
-                "append_byte_string-cpu-arguments-intercept" => costs[4],
-                "append_byte_string-cpu-arguments-slope" => costs[5],
-                "append_byte_string-mem-arguments-intercept" => costs[6],
-                "append_byte_string-mem-arguments-slope" => costs[7],
-                "append_string-cpu-arguments-intercept" => costs[8],
-                "append_string-cpu-arguments-slope" => costs[9],
-                "append_string-mem-arguments-intercept" => costs[10],
-                "append_string-mem-arguments-slope" => costs[11],
-                "b_data-cpu-arguments" => costs[12],
-                "b_data-mem-arguments" => costs[13],
-                "blake2b_256-cpu-arguments-intercept" => costs[14],
-                "blake2b_256-cpu-arguments-slope" => costs[15],
-                "blake2b_256-mem-arguments" => costs[16],
-                "cek_apply_cost-exBudgetCPU" => costs[17],
-                "cek_apply_cost-exBudgetmem" => costs[18],
-                "cek_builtin_cost-exBudgetCPU" => costs[19],
-                "cek_builtin_cost-exBudgetmem" => costs[20],
-                "cek_const_cost-exBudgetCPU" => costs[21],
-                "cek_const_cost-exBudgetmem" => costs[22],
-                "cek_delay_cost-exBudgetCPU" => costs[23],
-                "cek_delay_cost-exBudgetmem" => costs[24],
-                "cek_force_cost-exBudgetCPU" => costs[25],
-                "cek_force_cost-exBudgetmem" => costs[26],
-                "cek_lam_cost-exBudgetCPU" => costs[27],
-                "cek_lam_cost-exBudgetmem" => costs[28],
-                "cek_startup_cost-exBudgetCPU" => costs[29],
-                "cek_startup_cost-exBudgetmem" => costs[30],
-                "cek_var_cost-exBudgetCPU" => costs[31],
-                "cek_var_cost-exBudgetmem" => costs[32],
-                "choose_data-cpu-arguments" => costs[33],
-                "choose_data-mem-arguments" => costs[34],
-                "choose_list-cpu-arguments" => costs[35],
-                "choose_list-mem-arguments" => costs[36],
-                "choose_unit-cpu-arguments" => costs[37],
-                "choose_unit-mem-arguments" => costs[38],
-                "cons_byte_string-cpu-arguments-intercept" => costs[39],
-                "cons_byte_string-cpu-arguments-slope" => costs[40],
-                "cons_byte_string-mem-arguments-intercept" => costs[41],
-                "cons_byte_string-mem-arguments-slope" => costs[42],
-                "constr_data-cpu-arguments" => costs[43],
-                "constr_data-mem-arguments" => costs[44],
-                "decode_utf8-cpu-arguments-intercept" => costs[45],
-                "decode_utf8-cpu-arguments-slope" => costs[46],
-                "decode_utf8-mem-arguments-intercept" => costs[47],
-                "decode_utf8-mem-arguments-slope" => costs[48],
-                "divide_integer-cpu-arguments-constant" => costs[49],
-                "divide_integer-cpu-arguments-model-arguments-intercept" => costs[50],
-                "divide_integer-cpu-arguments-model-arguments-slope" => costs[51],
-                "divide_integer-mem-arguments-intercept" => costs[52],
-                "divide_integer-mem-arguments-minimum" => costs[53],
-                "divide_integer-mem-arguments-slope" => costs[54],
-                "encode_utf8-cpu-arguments-intercept" => costs[55],
-                "encode_utf8-cpu-arguments-slope" => costs[56],
-                "encode_utf8-mem-arguments-intercept" => costs[57],
-                "encode_utf8-mem-arguments-slope" => costs[58],
-                "equals_byte_string-cpu-arguments-constant" => costs[59],
-                "equals_byte_string-cpu-arguments-intercept" => costs[60],
-                "equals_byte_string-cpu-arguments-slope" => costs[61],
-                "equals_byte_string-mem-arguments" => costs[62],
-                "equals_data-cpu-arguments-intercept" => costs[63],
-                "equals_data-cpu-arguments-slope" => costs[64],
-                "equals_data-mem-arguments" => costs[65],
-                "equals_integer-cpu-arguments-intercept" => costs[66],
-                "equals_integer-cpu-arguments-slope" => costs[67],
-                "equals_integer-mem-arguments" => costs[68],
-                "equals_string-cpu-arguments-constant" => costs[69],
-                "equals_string-cpu-arguments-intercept" => costs[70],
-                "equals_string-cpu-arguments-slope" => costs[71],
-                "equals_string-mem-arguments" => costs[72],
-                "fst_pair-cpu-arguments" => costs[73],
-                "fst_pair-mem-arguments" => costs[74],
-                "head_list-cpu-arguments" => costs[75],
-                "head_list-mem-arguments" => costs[76],
-                "i_data-cpu-arguments" => costs[77],
-                "i_data-mem-arguments" => costs[78],
-                "if_then_else-cpu-arguments" => costs[79],
-                "if_then_else-mem-arguments" => costs[80],
-                "index_byte_string-cpu-arguments" => costs[81],
-                "index_byte_string-mem-arguments" => costs[82],
-                "length_of_byte_string-cpu-arguments" => costs[83],
-                "length_of_byte_string-mem-arguments" => costs[84],
-                "less_than_byte_string-cpu-arguments-intercept" => costs[85],
-                "less_than_byte_string-cpu-arguments-slope" => costs[86],
-                "less_than_byte_string-mem-arguments" => costs[87],
-                "less_than_equals_byte_string-cpu-arguments-intercept" => costs[88],
-                "less_than_equals_byte_string-cpu-arguments-slope" => costs[89],
-                "less_than_equals_byte_string-mem-arguments" => costs[90],
-                "less_than_equals_integer-cpu-arguments-intercept" => costs[91],
-                "less_than_equals_integer-cpu-arguments-slope" => costs[92],
-                "less_than_equals_integer-mem-arguments" => costs[93],
-                "less_than_integer-cpu-arguments-intercept" => costs[94],
-                "less_than_integer-cpu-arguments-slope" => costs[95],
-                "less_than_integer-mem-arguments" => costs[96],
-                "list_data-cpu-arguments" => costs[97],
-                "list_data-mem-arguments" => costs[98],
-                "map_data-cpu-arguments" => costs[99],
-                "map_data-mem-arguments" => costs[100],
-                "mk_cons-cpu-arguments" => costs[101],
-                "mk_cons-mem-arguments" => costs[102],
-                "mk_nil_data-cpu-arguments" => costs[103],
-                "mk_nil_data-mem-arguments" => costs[104],
-                "mk_nil_pair_data-cpu-arguments" => costs[105],
-                "mk_nil_pair_data-mem-arguments" => costs[106],
-                "mk_pair_data-cpu-arguments" => costs[107],
-                "mk_pair_data-mem-arguments" => costs[108],
-                "mod_integer-cpu-arguments-constant" => costs[109],
-                "mod_integer-cpu-arguments-model-arguments-intercept" => costs[110],
-                "mod_integer-cpu-arguments-model-arguments-slope" => costs[111],
-                "mod_integer-mem-arguments-intercept" => costs[112],
-                "mod_integer-mem-arguments-minimum" => costs[113],
-                "mod_integer-mem-arguments-slope" => costs[114],
-                "multiply_integer-cpu-arguments-intercept" => costs[115],
-                "multiply_integer-cpu-arguments-slope" => costs[116],
-                "multiply_integer-mem-arguments-intercept" => costs[117],
-                "multiply_integer-mem-arguments-slope" => costs[118],
-                "null_list-cpu-arguments" => costs[119],
-                "null_list-mem-arguments" => costs[120],
-                "quotient_integer-cpu-arguments-constant" => costs[121],
-                "quotient_integer-cpu-arguments-model-arguments-intercept" => costs[122],
-                "quotient_integer-cpu-arguments-model-arguments-slope" => costs[123],
-                "quotient_integer-mem-arguments-intercept" => costs[124],
-                "quotient_integer-mem-arguments-minimum" => costs[125],
-                "quotient_integer-mem-arguments-slope" => costs[126],
-                "remainder_integer-cpu-arguments-constant" => costs[127],
-                "remainder_integer-cpu-arguments-model-arguments-intercept" => costs[128],
-                "remainder_integer-cpu-arguments-model-arguments-slope" => costs[129],
-                "remainder_integer-mem-arguments-intercept" => costs[130],
-                "remainder_integer-mem-arguments-minimum" => costs[131],
-                "remainder_integer-mem-arguments-slope" => costs[132],
-                "sha2_256-cpu-arguments-intercept" => costs[133],
-                "sha2_256-cpu-arguments-slope" => costs[134],
-                "sha2_256-mem-arguments" => costs[135],
-                "sha3_256-cpu-arguments-intercept" => costs[136],
-                "sha3_256-cpu-arguments-slope" => costs[137],
-                "sha3_256-mem-arguments" => costs[138],
-                "slice_byte_string-cpu-arguments-intercept" => costs[139],
-                "slice_byte_string-cpu-arguments-slope" => costs[140],
-                "slice_byte_string-mem-arguments-intercept" => costs[141],
-                "slice_byte_string-mem-arguments-slope" => costs[142],
-                "snd_pair-cpu-arguments" => costs[143],
-                "snd_pair-mem-arguments" => costs[144],
-                "subtract_integer-cpu-arguments-intercept" => costs[145],
-                "subtract_integer-cpu-arguments-slope" => costs[146],
-                "subtract_integer-mem-arguments-intercept" => costs[147],
-                "subtract_integer-mem-arguments-slope" => costs[148],
-                "tail_list-cpu-arguments" => costs[149],
-                "tail_list-mem-arguments" => costs[150],
-                "trace-cpu-arguments" => costs[151],
-                "trace-mem-arguments" => costs[152],
-                "un_b_data-cpu-arguments" => costs[153],
-                "un_b_data-mem-arguments" => costs[154],
-                "un_constr_data-cpu-arguments" => costs[155],
-                "un_constr_data-mem-arguments" => costs[156],
-                "un_i_data-cpu-arguments" => costs[157],
-                "un_i_data-mem-arguments" => costs[158],
-                "un_list_data-cpu-arguments" => costs[159],
-                "un_list_data-mem-arguments" => costs[160],
-                "un_map_data-cpu-arguments" => costs[161],
-                "un_map_data-mem-arguments" => costs[162],
-                "verify_ed25519_signature-cpu-arguments-intercept" => costs[163],
-                "verify_ed25519_signature-cpu-arguments-slope" => costs[164],
-                "verify_ed25519_signature-mem-arguments" => costs[165]
-            }
-        }
-        Language::PlutusV2 => {
-            hashmap! {
-                "add_integer-cpu-arguments-intercept"=> costs[0],
-                "add_integer-cpu-arguments-slope"=> costs[1],
-                "add_integer-mem-arguments-intercept"=> costs[2],
-                "add_integer-mem-arguments-slope"=> costs[3],
-                "append_byte_string-cpu-arguments-intercept"=> costs[4],
-                "append_byte_string-cpu-arguments-slope"=> costs[5],
-                "append_byte_string-mem-arguments-intercept"=> costs[6],
-                "append_byte_string-mem-arguments-slope"=> costs[7],
-                "append_string-cpu-arguments-intercept"=> costs[8],
-                "append_string-cpu-arguments-slope"=> costs[9],
-                "append_string-mem-arguments-intercept"=> costs[10],
-                "append_string-mem-arguments-slope"=> costs[11],
-                "b_data-cpu-arguments"=> costs[12],
-                "b_data-mem-arguments"=> costs[13],
-                "blake2b_256-cpu-arguments-intercept"=> costs[14],
-                "blake2b_256-cpu-arguments-slope"=> costs[15],
-                "blake2b_256-mem-arguments"=> costs[16],
-                "cek_apply_cost-exBudgetCPU"=> costs[17],
-                "cek_apply_cost-exBudgetmem"=> costs[18],
-                "cek_builtin_cost-exBudgetCPU"=> costs[19],
-                "cek_builtin_cost-exBudgetmem"=> costs[20],
-                "cek_const_cost-exBudgetCPU"=> costs[21],
-                "cek_const_cost-exBudgetmem"=> costs[22],
-                "cek_delay_cost-exBudgetCPU"=> costs[23],
-                "cek_delay_cost-exBudgetmem"=> costs[24],
-                "cek_force_cost-exBudgetCPU"=> costs[25],
-                "cek_force_cost-exBudgetmem"=> costs[26],
-                "cek_lam_cost-exBudgetCPU"=> costs[27],
-                "cek_lam_cost-exBudgetmem"=> costs[28],
-                "cek_startup_cost-exBudgetCPU"=> costs[29],
-                "cek_startup_cost-exBudgetmem"=> costs[30],
-                "cek_var_cost-exBudgetCPU"=> costs[31],
-                "cek_var_cost-exBudgetmem"=> costs[32],
-                "choose_data-cpu-arguments"=> costs[33],
-                "choose_data-mem-arguments"=> costs[34],
-                "choose_list-cpu-arguments"=> costs[35],
-                "choose_list-mem-arguments"=> costs[36],
-                "choose_unit-cpu-arguments"=> costs[37],
-                "choose_unit-mem-arguments"=> costs[38],
-                "cons_byte_string-cpu-arguments-intercept"=> costs[39],
-                "cons_byte_string-cpu-arguments-slope"=> costs[40],
-                "cons_byte_string-mem-arguments-intercept"=> costs[41],
-                "cons_byte_string-mem-arguments-slope"=> costs[42],
-                "constr_data-cpu-arguments"=> costs[43],
-                "constr_data-mem-arguments"=> costs[44],
-                "decode_utf8-cpu-arguments-intercept"=> costs[45],
-                "decode_utf8-cpu-arguments-slope"=> costs[46],
-                "decode_utf8-mem-arguments-intercept"=> costs[47],
-                "decode_utf8-mem-arguments-slope"=> costs[48],
-                "divide_integer-cpu-arguments-constant"=> costs[49],
-                "divide_integer-cpu-arguments-model-arguments-intercept"=> costs[50],
-                "divide_integer-cpu-arguments-model-arguments-slope"=> costs[51],
-                "divide_integer-mem-arguments-intercept"=> costs[52],
-                "divide_integer-mem-arguments-minimum"=> costs[53],
-                "divide_integer-mem-arguments-slope"=> costs[54],
-                "encode_utf8-cpu-arguments-intercept"=> costs[55],
-                "encode_utf8-cpu-arguments-slope"=> costs[56],
-                "encode_utf8-mem-arguments-intercept"=> costs[57],
-                "encode_utf8-mem-arguments-slope"=> costs[58],
-                "equals_byte_string-cpu-arguments-constant"=> costs[59],
-                "equals_byte_string-cpu-arguments-intercept"=> costs[60],
-                "equals_byte_string-cpu-arguments-slope"=> costs[61],
-                "equals_byte_string-mem-arguments"=> costs[62],
-                "equals_data-cpu-arguments-intercept"=> costs[63],
-                "equals_data-cpu-arguments-slope"=> costs[64],
-                "equals_data-mem-arguments"=> costs[65],
-                "equals_integer-cpu-arguments-intercept"=> costs[66],
-                "equals_integer-cpu-arguments-slope"=> costs[67],
-                "equals_integer-mem-arguments"=> costs[68],
-                "equals_string-cpu-arguments-constant"=> costs[69],
-                "equals_string-cpu-arguments-intercept"=> costs[70],
-                "equals_string-cpu-arguments-slope"=> costs[71],
-                "equals_string-mem-arguments"=> costs[72],
-                "fst_pair-cpu-arguments"=> costs[73],
-                "fst_pair-mem-arguments"=> costs[74],
-                "head_list-cpu-arguments"=> costs[75],
-                "head_list-mem-arguments"=> costs[76],
-                "i_data-cpu-arguments"=> costs[77],
-                "i_data-mem-arguments"=> costs[78],
-                "if_then_else-cpu-arguments"=> costs[79],
-                "if_then_else-mem-arguments"=> costs[80],
-                "index_byte_string-cpu-arguments"=> costs[81],
-                "index_byte_string-mem-arguments"=> costs[82],
-                "length_of_byte_string-cpu-arguments"=> costs[83],
-                "length_of_byte_string-mem-arguments"=> costs[84],
-                "less_than_byte_string-cpu-arguments-intercept"=> costs[85],
-                "less_than_byte_string-cpu-arguments-slope"=> costs[86],
-                "less_than_byte_string-mem-arguments"=> costs[87],
-                "less_than_equals_byte_string-cpu-arguments-intercept"=> costs[88],
-                "less_than_equals_byte_string-cpu-arguments-slope"=> costs[89],
-                "less_than_equals_byte_string-mem-arguments"=> costs[90],
-                "less_than_equals_integer-cpu-arguments-intercept"=> costs[91],
-                "less_than_equals_integer-cpu-arguments-slope"=> costs[92],
-                "less_than_equals_integer-mem-arguments"=> costs[93],
-                "less_than_integer-cpu-arguments-intercept"=> costs[94],
-                "less_than_integer-cpu-arguments-slope"=> costs[95],
-                "less_than_integer-mem-arguments"=> costs[96],
-                "list_data-cpu-arguments"=> costs[97],
-                "list_data-mem-arguments"=> costs[98],
-                "map_data-cpu-arguments"=> costs[99],
-                "map_data-mem-arguments"=> costs[100],
-                "mk_cons-cpu-arguments"=> costs[101],
-                "mk_cons-mem-arguments"=> costs[102],
-                "mk_nil_data-cpu-arguments"=> costs[103],
-                "mk_nil_data-mem-arguments"=> costs[104],
-                "mk_nil_pair_data-cpu-arguments"=> costs[105],
-                "mk_nil_pair_data-mem-arguments"=> costs[106],
-                "mk_pair_data-cpu-arguments"=> costs[107],
-                "mk_pair_data-mem-arguments"=> costs[108],
-                "mod_integer-cpu-arguments-constant"=> costs[109],
-                "mod_integer-cpu-arguments-model-arguments-intercept"=> costs[110],
-                "mod_integer-cpu-arguments-model-arguments-slope"=> costs[111],
-                "mod_integer-mem-arguments-intercept"=> costs[112],
-                "mod_integer-mem-arguments-minimum"=> costs[113],
-                "mod_integer-mem-arguments-slope"=> costs[114],
-                "multiply_integer-cpu-arguments-intercept"=> costs[115],
-                "multiply_integer-cpu-arguments-slope"=> costs[116],
-                "multiply_integer-mem-arguments-intercept"=> costs[117],
-                "multiply_integer-mem-arguments-slope"=> costs[118],
-                "null_list-cpu-arguments"=> costs[119],
-                "null_list-mem-arguments"=> costs[120],
-                "quotient_integer-cpu-arguments-constant"=> costs[121],
-                "quotient_integer-cpu-arguments-model-arguments-intercept"=> costs[122],
-                "quotient_integer-cpu-arguments-model-arguments-slope"=> costs[123],
-                "quotient_integer-mem-arguments-intercept"=> costs[124],
-                "quotient_integer-mem-arguments-minimum"=> costs[125],
-                "quotient_integer-mem-arguments-slope"=> costs[126],
-                "remainder_integer-cpu-arguments-constant"=> costs[127],
-                "remainder_integer-cpu-arguments-model-arguments-intercept"=> costs[128],
-                "remainder_integer-cpu-arguments-model-arguments-slope"=> costs[129],
-                "remainder_integer-mem-arguments-intercept"=> costs[130],
-                "remainder_integer-mem-arguments-minimum"=> costs[131],
-                "remainder_integer-mem-arguments-slope"=> costs[132],
-                "serialise_data-cpu-arguments-intercept"=> costs[133],
-                "serialise_data-cpu-arguments-slope"=> costs[134],
-                "serialise_data-mem-arguments-intercept"=> costs[135],
-                "serialise_data-mem-arguments-slope"=> costs[136],
-                "sha2_256-cpu-arguments-intercept"=> costs[137],
-                "sha2_256-cpu-arguments-slope"=> costs[138],
-                "sha2_256-mem-arguments"=> costs[139],
-                "sha3_256-cpu-arguments-intercept"=> costs[140],
-                "sha3_256-cpu-arguments-slope"=> costs[141],
-                "sha3_256-mem-arguments"=> costs[142],
-                "slice_byte_string-cpu-arguments-intercept"=> costs[143],
-                "slice_byte_string-cpu-arguments-slope"=> costs[144],
-                "slice_byte_string-mem-arguments-intercept"=> costs[145],
-                "slice_byte_string-mem-arguments-slope"=> costs[146],
-                "snd_pair-cpu-arguments"=> costs[147],
-                "snd_pair-mem-arguments"=> costs[148],
-                "subtract_integer-cpu-arguments-intercept"=> costs[149],
-                "subtract_integer-cpu-arguments-slope"=> costs[150],
-                "subtract_integer-mem-arguments-intercept"=> costs[151],
-                "subtract_integer-mem-arguments-slope"=> costs[152],
-                "tail_list-cpu-arguments"=> costs[153],
-                "tail_list-mem-arguments"=> costs[154],
-                "trace-cpu-arguments"=> costs[155],
-                "trace-mem-arguments"=> costs[156],
-                "un_b_data-cpu-arguments"=> costs[157],
-                "un_b_data-mem-arguments"=> costs[158],
-                "un_constr_data-cpu-arguments"=> costs[159],
-                "un_constr_data-mem-arguments"=> costs[160],
-                "un_i_data-cpu-arguments"=> costs[161],
-                "un_i_data-mem-arguments"=> costs[162],
-                "un_list_data-cpu-arguments"=> costs[163],
-                "un_list_data-mem-arguments"=> costs[164],
-                "un_map_data-cpu-arguments"=> costs[165],
-                "un_map_data-mem-arguments"=> costs[166],
-                "verify_ecdsa_secp256k1_signature-cpu-arguments"=> costs[167],
-                "verify_ecdsa_secp256k1_signature-mem-arguments"=> costs[168],
-                "verify_ed25519_signature-cpu-arguments-intercept"=> costs[169],
-                "verify_ed25519_signature-cpu-arguments-slope"=> costs[170],
-                "verify_ed25519_signature-mem-arguments"=> costs[171],
-                "verify_schnorr_secp256k1_signature-cpu-arguments-intercept"=> costs[172],
-                "verify_schnorr_secp256k1_signature-cpu-arguments-slope"=> costs[173],
-                "verify_schnorr_secp256k1_signature-mem-arguments"=> costs[174]
-            }
-        }
-        Language::PlutusV3 => {
-            // We can't have an assert here. This will literally break mainnet
-            let mut main: HashMap<&str, i64> = hashmap! {
-                "add_integer-cpu-arguments-intercept" => costs[0],
-                "add_integer-cpu-arguments-slope" => costs[1],
-                "add_integer-mem-arguments-intercept" => costs[2],
-                "add_integer-mem-arguments-slope" => costs[3],
-                "append_byte_string-cpu-arguments-intercept" => costs[4],
-                "append_byte_string-cpu-arguments-slope" => costs[5],
-                "append_byte_string-mem-arguments-intercept" => costs[6],
-                "append_byte_string-mem-arguments-slope" => costs[7],
-                "append_string-cpu-arguments-intercept" => costs[8],
-                "append_string-cpu-arguments-slope" => costs[9],
-                "append_string-mem-arguments-intercept" => costs[10],
-                "append_string-mem-arguments-slope" => costs[11],
-                "b_data-cpu-arguments" => costs[12],
-                "b_data-mem-arguments" => costs[13],
-                "blake2b_256-cpu-arguments-intercept" => costs[14],
-                "blake2b_256-cpu-arguments-slope" => costs[15],
-                "blake2b_256-mem-arguments" => costs[16],
-                "cek_apply_cost-exBudgetCPU" => costs[17],
-                "cek_apply_cost-exBudgetmem" => costs[18],
-                "cek_builtin_cost-exBudgetCPU" => costs[19],
-                "cek_builtin_cost-exBudgetmem" => costs[20],
-                "cek_const_cost-exBudgetCPU" => costs[21],
-                "cek_const_cost-exBudgetmem" => costs[22],
-                "cek_delay_cost-exBudgetCPU" => costs[23],
-                "cek_delay_cost-exBudgetmem" => costs[24],
-                "cek_force_cost-exBudgetCPU" => costs[25],
-                "cek_force_cost-exBudgetmem" => costs[26],
-                "cek_lam_cost-exBudgetCPU" => costs[27],
-                "cek_lam_cost-exBudgetmem" => costs[28],
-                "cek_startup_cost-exBudgetCPU" => costs[29],
-                "cek_startup_cost-exBudgetmem" => costs[30],
-                "cek_var_cost-exBudgetCPU" => costs[31],
-                "cek_var_cost-exBudgetmem" => costs[32],
-                "choose_data-cpu-arguments" => costs[33],
-                "choose_data-mem-arguments" => costs[34],
-                "choose_list-cpu-arguments" => costs[35],
-                "choose_list-mem-arguments" => costs[36],
-                "choose_unit-cpu-arguments" => costs[37],
-                "choose_unit-mem-arguments" => costs[38],
-                "cons_byte_string-cpu-arguments-intercept" => costs[39],
-                "cons_byte_string-cpu-arguments-slope" => costs[40],
-                "cons_byte_string-mem-arguments-intercept" => costs[41],
-                "cons_byte_string-mem-arguments-slope" => costs[42],
-                "constr_data-cpu-arguments" => costs[43],
-                "constr_data-mem-arguments" => costs[44],
-                "decode_utf8-cpu-arguments-intercept" => costs[45],
-                "decode_utf8-cpu-arguments-slope" => costs[46],
-                "decode_utf8-mem-arguments-intercept" => costs[47],
-                "decode_utf8-mem-arguments-slope" => costs[48],
-                "divide_integer-cpu-arguments-constant" => costs[49],
-                "divide_integer-cpu-arguments-c00" => costs[50],
-                "divide_integer-cpu-arguments-c01" => costs[51],
-                "divide_integer-cpu-arguments-c02" => costs[52],
-                "divide_integer-cpu-arguments-c10" => costs[53],
-                "divide_integer-cpu-arguments-c11" => costs[54],
-                "divide_integer-cpu-arguments-c20" => costs[55],
-                "divide_integer-cpu-arguments-minimum" => costs[56],
-                "divide_integer-mem-arguments-intercept" => costs[57],
-                "divide_integer-mem-arguments-minimum" => costs[58],
-                "divide_integer-mem-arguments-slope" => costs[59],
-                "encode_utf8-cpu-arguments-intercept" => costs[60],
-                "encode_utf8-cpu-arguments-slope" => costs[61],
-                "encode_utf8-mem-arguments-intercept" => costs[62],
-                "encode_utf8-mem-arguments-slope" => costs[63],
-                "equals_byte_string-cpu-arguments-constant" => costs[64],
-                "equals_byte_string-cpu-arguments-intercept" => costs[65],
-                "equals_byte_string-cpu-arguments-slope" => costs[66],
-                "equals_byte_string-mem-arguments" => costs[67],
-                "equals_data-cpu-arguments-intercept" => costs[68],
-                "equals_data-cpu-arguments-slope" => costs[69],
-                "equals_data-mem-arguments" => costs[70],
-                "equals_integer-cpu-arguments-intercept" => costs[71],
-                "equals_integer-cpu-arguments-slope" => costs[72],
-                "equals_integer-mem-arguments" => costs[73],
-                "equals_string-cpu-arguments-constant" => costs[74],
-                "equals_string-cpu-arguments-intercept" => costs[75],
-                "equals_string-cpu-arguments-slope" => costs[76],
-                "equals_string-mem-arguments" => costs[77],
-                "fst_pair-cpu-arguments" => costs[78],
-                "fst_pair-mem-arguments" => costs[79],
-                "head_list-cpu-arguments" => costs[80],
-                "head_list-mem-arguments" => costs[81],
-                "i_data-cpu-arguments" => costs[82],
-                "i_data-mem-arguments" => costs[83],
-                "if_then_else-cpu-arguments" => costs[84],
-                "if_then_else-mem-arguments" => costs[85],
-                "index_byte_string-cpu-arguments" => costs[86],
-                "index_byte_string-mem-arguments" => costs[87],
-                "length_of_byte_string-cpu-arguments" => costs[88],
-                "length_of_byte_string-mem-arguments" => costs[89],
-                "less_than_byte_string-cpu-arguments-intercept" => costs[90],
-                "less_than_byte_string-cpu-arguments-slope" => costs[91],
-                "less_than_byte_string-mem-arguments" => costs[92],
-                "less_than_equals_byte_string-cpu-arguments-intercept" => costs[93],
-                "less_than_equals_byte_string-cpu-arguments-slope" => costs[94],
-                "less_than_equals_byte_string-mem-arguments" => costs[95],
-                "less_than_equals_integer-cpu-arguments-intercept" => costs[96],
-                "less_than_equals_integer-cpu-arguments-slope" => costs[97],
-                "less_than_equals_integer-mem-arguments" => costs[98],
-                "less_than_integer-cpu-arguments-intercept" => costs[99],
-                "less_than_integer-cpu-arguments-slope" => costs[100],
-                "less_than_integer-mem-arguments" => costs[101],
-                "list_data-cpu-arguments" => costs[102],
-                "list_data-mem-arguments" => costs[103],
-                "map_data-cpu-arguments" => costs[104],
-                "map_data-mem-arguments" => costs[105],
-                "mk_cons-cpu-arguments" => costs[106],
-                "mk_cons-mem-arguments" => costs[107],
-                "mk_nil_data-cpu-arguments" => costs[108],
-                "mk_nil_data-mem-arguments" => costs[109],
-                "mk_nil_pair_data-cpu-arguments" => costs[110],
-                "mk_nil_pair_data-mem-arguments" => costs[111],
-                "mk_pair_data-cpu-arguments" => costs[112],
-                "mk_pair_data-mem-arguments" => costs[113],
-                "mod_integer-cpu-arguments-constant" => costs[114],
-                "mod_integer-cpu-arguments-c00" => costs[115],
-                "mod_integer-cpu-arguments-c01" => costs[116],
-                "mod_integer-cpu-arguments-c02" => costs[117],
-                "mod_integer-cpu-arguments-c10" => costs[118],
-                "mod_integer-cpu-arguments-c11" => costs[119],
-                "mod_integer-cpu-arguments-c20" => costs[120],
-                "mod_integer-cpu-arguments-minimum" => costs[121],
-                "mod_integer-mem-arguments-intercept" => costs[122],
-                "mod_integer-mem-arguments-slope" => costs[123],
-                "multiply_integer-cpu-arguments-intercept" => costs[124],
-                "multiply_integer-cpu-arguments-slope" => costs[125],
-                "multiply_integer-mem-arguments-intercept" => costs[126],
-                "multiply_integer-mem-arguments-slope" => costs[127],
-                "null_list-cpu-arguments" => costs[128],
-                "null_list-mem-arguments" => costs[129],
-                "quotient_integer-cpu-arguments-constant" => costs[130],
-                "quotient_integer-cpu-arguments-c00" => costs[131],
-                "quotient_integer-cpu-arguments-c01" => costs[132],
-                "quotient_integer-cpu-arguments-c02" => costs[133],
-                "quotient_integer-cpu-arguments-c10" => costs[134],
-                "quotient_integer-cpu-arguments-c11" => costs[135],
-                "quotient_integer-cpu-arguments-c20" => costs[136],
-                "quotient_integer-cpu-arguments-minimum" => costs[137],
-                "quotient_integer-mem-arguments-intercept" => costs[138],
-                "quotient_integer-mem-arguments-minimum" => costs[139],
-                "quotient_integer-mem-arguments-slope" => costs[140],
-                "remainder_integer-cpu-arguments-constant" => costs[141],
-                "remainder_integer-cpu-arguments-c00" => costs[142],
-                "remainder_integer-cpu-arguments-c01" => costs[143],
-                "remainder_integer-cpu-arguments-c02" => costs[144],
-                "remainder_integer-cpu-arguments-c10" => costs[145],
-                "remainder_integer-cpu-arguments-c11" => costs[146],
-                "remainder_integer-cpu-arguments-c20" => costs[147],
-                "remainder_integer-cpu-arguments-minimum" => costs[148],
-                "remainder_integer-mem-arguments-intercept" => costs[149],
-                "remainder_integer-mem-arguments-slope" => costs[150],
-                "serialise_data-cpu-arguments-intercept" => costs[151],
-                "serialise_data-cpu-arguments-slope" => costs[152],
-                "serialise_data-mem-arguments-intercept" => costs[153],
-                "serialise_data-mem-arguments-slope" => costs[154],
-                "sha2_256-cpu-arguments-intercept" => costs[155],
-                "sha2_256-cpu-arguments-slope" => costs[156],
-                "sha2_256-mem-arguments" => costs[157],
-                "sha3_256-cpu-arguments-intercept" => costs[158],
-                "sha3_256-cpu-arguments-slope" => costs[159],
-                "sha3_256-mem-arguments" => costs[160],
-                "slice_byte_string-cpu-arguments-intercept" => costs[161],
-                "slice_byte_string-cpu-arguments-slope" => costs[162],
-                "slice_byte_string-mem-arguments-intercept" => costs[163],
-                "slice_byte_string-mem-arguments-slope" => costs[164],
-                "snd_pair-cpu-arguments" => costs[165],
-                "snd_pair-mem-arguments" => costs[166],
-                "subtract_integer-cpu-arguments-intercept" => costs[167],
-                "subtract_integer-cpu-arguments-slope" => costs[168],
-                "subtract_integer-mem-arguments-intercept" => costs[169],
-                "subtract_integer-mem-arguments-slope" => costs[170],
-                "tail_list-cpu-arguments" => costs[171],
-                "tail_list-mem-arguments" => costs[172],
-                "trace-cpu-arguments" => costs[173],
-                "trace-mem-arguments" => costs[174],
-                "un_b_data-cpu-arguments" => costs[175],
-                "un_b_data-mem-arguments" => costs[176],
-                "un_constr_data-cpu-arguments" => costs[177],
-                "un_constr_data-mem-arguments" => costs[178],
-                "un_i_data-cpu-arguments" => costs[179],
-                "un_i_data-mem-arguments" => costs[180],
-                "un_list_data-cpu-arguments" => costs[181],
-                "un_list_data-mem-arguments" => costs[182],
-                "un_map_data-cpu-arguments" => costs[183],
-                "un_map_data-mem-arguments" => costs[184],
-                "verify_ecdsa_secp256k1_signature-cpu-arguments" => costs[185],
-                "verify_ecdsa_secp256k1_signature-mem-arguments" => costs[186],
-                "verify_ed25519_signature-cpu-arguments-intercept" => costs[187],
-                "verify_ed25519_signature-cpu-arguments-slope" => costs[188],
-                "verify_ed25519_signature-mem-arguments" => costs[189],
-                "verify_schnorr_secp256k1_signature-cpu-arguments-intercept" => costs[190],
-                "verify_schnorr_secp256k1_signature-cpu-arguments-slope" => costs[191],
-                "verify_schnorr_secp256k1_signature-mem-arguments" => costs[192],
-                "cek_constr_cost-exBudgetCPU" => costs[193],
-                "cek_constr_cost-exBudgetmem" => costs[194],
-                "cek_case_cost-exBudgetCPU" => costs[195],
-                "cek_case_cost-exBudgetmem" => costs[196],
-                "bls12_381_G1_add-cpu-arguments" => costs[197],
-                "bls12_381_G1_add-mem-arguments" => costs[198],
-                "bls12_381_G1_compress-cpu-arguments" => costs[199],
-                "bls12_381_G1_compress-mem-arguments" => costs[200],
-                "bls12_381_G1_equal-cpu-arguments" => costs[201],
-                "bls12_381_G1_equal-mem-arguments" => costs[202],
-                "bls12_381_G1_hashToGroup-cpu-arguments-intercept" => costs[203],
-                "bls12_381_G1_hashToGroup-cpu-arguments-slope" => costs[204],
-                "bls12_381_G1_hashToGroup-mem-arguments" => costs[205],
-                "bls12_381_G1_neg-cpu-arguments" => costs[206],
-                "bls12_381_G1_neg-mem-arguments" => costs[207],
-                "bls12_381_G1_scalarMul-cpu-arguments-intercept" => costs[208],
-                "bls12_381_G1_scalarMul-cpu-arguments-slope" => costs[209],
-                "bls12_381_G1_scalarMul-mem-arguments" => costs[210],
-                "bls12_381_G1_uncompress-cpu-arguments" => costs[211],
-                "bls12_381_G1_uncompress-mem-arguments" => costs[212],
-                "bls12_381_G2_add-cpu-arguments" => costs[213],
-                "bls12_381_G2_add-mem-arguments" => costs[214],
-                "bls12_381_G2_compress-cpu-arguments" => costs[215],
-                "bls12_381_G2_compress-mem-arguments" => costs[216],
-                "bls12_381_G2_equal-cpu-arguments" => costs[217],
-                "bls12_381_G2_equal-mem-arguments" => costs[218],
-                "bls12_381_G2_hashToGroup-cpu-arguments-intercept" => costs[219],
-                "bls12_381_G2_hashToGroup-cpu-arguments-slope" => costs[220],
-                "bls12_381_G2_hashToGroup-mem-arguments" => costs[221],
-                "bls12_381_G2_neg-cpu-arguments" => costs[222],
-                "bls12_381_G2_neg-mem-arguments" => costs[223],
-                "bls12_381_G2_scalarMul-cpu-arguments-intercept" => costs[224],
-                "bls12_381_G2_scalarMul-cpu-arguments-slope" => costs[225],
-                "bls12_381_G2_scalarMul-mem-arguments" => costs[226],
-                "bls12_381_G2_uncompress-cpu-arguments" => costs[227],
-                "bls12_381_G2_uncompress-mem-arguments" => costs[228],
-                "bls12_381_finalVerify-cpu-arguments" => costs[229],
-                "bls12_381_finalVerify-mem-arguments" => costs[230],
-                "bls12_381_millerLoop-cpu-arguments" => costs[231],
-                "bls12_381_millerLoop-mem-arguments" => costs[232],
-                "bls12_381_mulMlResult-cpu-arguments" => costs[233],
-                "bls12_381_mulMlResult-mem-arguments" => costs[234],
-                "keccak_256-cpu-arguments-intercept" => costs[235],
-                "keccak_256-cpu-arguments-slope" => costs[236],
-                "keccak_256-mem-arguments" => costs[237],
-                "blake2b_224-cpu-arguments-intercept" => costs[238],
-                "blake2b_224-cpu-arguments-slope" => costs[239],
-                "blake2b_224-mem-arguments-slope" => costs[240],
-                "integerToByteString-cpu-arguments-c0" => costs[241],
-                "integerToByteString-cpu-arguments-c1" => costs[242],
-                "integerToByteString-cpu-arguments-c2" => costs[243],
-                "integerToByteString-mem-arguments-intercept" => costs[244],
-                "integerToByteString-mem-arguments-slope" => costs[245],
-                "byteStringToInteger-cpu-arguments-c0" => costs[246],
-                "byteStringToInteger-cpu-arguments-c1" => costs[247],
-                "byteStringToInteger-cpu-arguments-c2" => costs[248],
-                "byteStringToInteger-mem-arguments-intercept" => costs[249],
-                "byteStringToInteger-mem-arguments-slope" => costs[250],
-            };
+    let cost_map: HashMap<ParamName, i64> = match language {
+        Language::PlutusV1 => ParamName::V1
+            .into_iter()
+            .zip(costs.iter().copied())
+            .collect(),
+        Language::PlutusV2 => ParamName::V2
+            .into_iter()
+            .zip(costs.iter().copied())
+            .collect(),
+        Language::PlutusV3 => ParamName::V3
+            .into_iter()
+            .zip(costs.iter().copied())
+            .collect(),
+    };
 
-            if costs.len() >= 297 {
-                let test = hashmap! {
-                    "andByteString-cpu-arguments-intercept"=> costs[251],
-                    "andByteString-cpu-arguments-slope1"=> costs[252],
-                    "andByteString-cpu-arguments-slope2"=> costs[253],
-                    "andByteString-memory-arguments-intercept"=> costs[254],
-                    "andByteString-memory-arguments-slope"=> costs[255],
-                    "orByteString-cpu-arguments-intercept"=> costs[256],
-                    "orByteString-cpu-arguments-slope1"=> costs[257],
-                    "orByteString-cpu-arguments-slope2"=> costs[258],
-                    "orByteString-memory-arguments-intercept"=> costs[259],
-                    "orByteString-memory-arguments-slope"=> costs[260],
-                    "xorByteString-cpu-arguments-intercept"=> costs[261],
-                    "xorByteString-cpu-arguments-slope1"=> costs[262],
-                    "xorByteString-cpu-arguments-slope2"=> costs[263],
-                    "xorByteString-memory-arguments-intercept"=> costs[264],
-                    "xorByteString-memory-arguments-slope"=> costs[265],
-                    "complementByteString-cpu-arguments-intercept"=> costs[266],
-                    "complementByteString-cpu-arguments-slope"=> costs[267],
-                    "complementByteString-memory-arguments-intercept"=> costs[268],
-                    "complementByteString-memory-arguments-slope"=> costs[269],
-                    "readBit-cpu-arguments"=> costs[270],
-                    "readBit-memory-arguments"=> costs[271],
-                    "writeBits-cpu-arguments-intercept"=> costs[272],
-                    "writeBits-cpu-arguments-slope"=> costs[273],
-                    "writeBits-memory-arguments-intercept"=> costs[274],
-                    "writeBits-memory-arguments-slope"=> costs[275],
-                    "replicateByte-cpu-arguments-intercept"=> costs[276],
-                    "replicateByte-cpu-arguments-slope"=> costs[277],
-                    "replicateByte-memory-arguments-intercept"=> costs[278],
-                    "replicateByte-memory-arguments-slope"=> costs[279],
-                    "shiftByteString-cpu-arguments-intercept"=> costs[280],
-                    "shiftByteString-cpu-arguments-slope"=> costs[281],
-                    "shiftByteString-memory-arguments-intercept"=> costs[282],
-                    "shiftByteString-memory-arguments-slope"=> costs[283],
-                    "rotateByteString-cpu-arguments-intercept"=> costs[284],
-                    "rotateByteString-cpu-arguments-slope"=> costs[285],
-                    "rotateByteString-memory-arguments-intercept"=> costs[286],
-                    "rotateByteString-memory-arguments-slope"=> costs[287],
-                    "countSetBits-cpu-arguments-intercept"=> costs[288],
-                    "countSetBits-cpu-arguments-slope"=> costs[289],
-                    "countSetBits-memory-arguments"=> costs[290],
-                    "findFirstSetBit-cpu-arguments-intercept"=> costs[291],
-                    "findFirstSetBit-cpu-arguments-slope"=> costs[292],
-                    "findFirstSetBit-memory-arguments"=> costs[293],
-                    "ripemd_160-cpu-arguments-intercept"=> costs[294],
-                    "ripemd_160-cpu-arguments-slope"=> costs[295],
-                    "ripemd_160-memory-arguments"=> costs[296],
-                };
-
-                Extend::extend::<HashMap<&str, i64>>(&mut main, test);
-            }
-
-            main
-        }
+    let get = |param: ParamName| {
+        cost_map
+            .get(&param)
+            .copied()
+            .unwrap_or(UNAVAILABLE_BUILTIN_COST_PLACEHOLDER)
     };
 
     CostModel {
         machine_costs: MachineCosts {
             startup: ExBudget {
-                mem: *cost_map
-                    .get("cek_startup_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_startup_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekStartupCost_exBudgetMemory),
+                cpu: get(CekStartupCost_exBudgetCPU),
             },
             var: ExBudget {
-                mem: *cost_map
-                    .get("cek_var_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_var_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekVarCost_exBudgetMemory),
+                cpu: get(CekVarCost_exBudgetCPU),
             },
             constant: ExBudget {
-                mem: *cost_map
-                    .get("cek_const_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_const_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekConstCost_exBudgetMemory),
+                cpu: get(CekConstCost_exBudgetCPU),
             },
             lambda: ExBudget {
-                mem: *cost_map
-                    .get("cek_lam_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_lam_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekLamCost_exBudgetMemory),
+                cpu: get(CekLamCost_exBudgetCPU),
             },
             delay: ExBudget {
-                mem: *cost_map
-                    .get("cek_delay_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_delay_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekDelayCost_exBudgetMemory),
+                cpu: get(CekDelayCost_exBudgetCPU),
             },
             force: ExBudget {
-                mem: *cost_map
-                    .get("cek_force_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_force_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekForceCost_exBudgetMemory),
+                cpu: get(CekForceCost_exBudgetCPU),
             },
             apply: ExBudget {
-                mem: *cost_map
-                    .get("cek_apply_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_apply_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekApplyCost_exBudgetMemory),
+                cpu: get(CekApplyCost_exBudgetCPU),
             },
             builtin: ExBudget {
-                mem: *cost_map
-                    .get("cek_builtin_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_builtin_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekBuiltinCost_exBudgetMemory),
+                cpu: get(CekBuiltinCost_exBudgetCPU),
             },
             constr: ExBudget {
-                mem: *cost_map
-                    .get("cek_constr_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_constr_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekConstrCost_exBudgetMemory),
+                cpu: get(CekConstrCost_exBudgetCPU),
             },
             case: ExBudget {
-                mem: *cost_map
-                    .get("cek_case_cost-exBudgetmem")
-                    .unwrap_or(&30000000000),
-                cpu: *cost_map
-                    .get("cek_case_cost-exBudgetCPU")
-                    .unwrap_or(&30000000000),
+                mem: get(CekCaseCost_exBudgetMemory),
+                cpu: get(CekCaseCost_exBudgetCPU),
             },
         },
         builtin_costs: BuiltinCosts {
             add_integer: CostingFun {
                 mem: TwoArguments::MaxSize(MaxSize {
-                    intercept: *cost_map
-                        .get("add_integer-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("add_integer-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
+                    intercept: get(AddInteger_memory_arguments_intercept),
+                    slope: get(AddInteger_memory_arguments_slope),
                 }),
                 cpu: TwoArguments::MaxSize(MaxSize {
-                    intercept: *cost_map
-                        .get("add_integer-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("add_integer-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
+                    intercept: get(AddInteger_cpu_arguments_intercept),
+                    slope: get(AddInteger_cpu_arguments_slope),
                 }),
             },
-            subtract_integer: CostingFun {
-                mem: TwoArguments::MaxSize(MaxSize {
-                    intercept: *cost_map
-                        .get("subtract_integer-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("subtract_integer-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-                cpu: TwoArguments::MaxSize(MaxSize {
-                    intercept: *cost_map
-                        .get("subtract_integer-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("subtract_integer-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            multiply_integer: CostingFun {
+            append_byte_string: CostingFun {
                 mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: *cost_map
-                        .get("multiply_integer-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("multiply_integer-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
+                    intercept: get(AppendByteString_memory_arguments_intercept),
+                    slope: get(AppendByteString_memory_arguments_slope),
                 }),
-                cpu: match semantics {
-                    BuiltinSemantics::A => TwoArguments::AddedSizes(AddedSizes {
-                        intercept: *cost_map
-                            .get("multiply_integer-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("multiply_integer-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    BuiltinSemantics::B
-                    | BuiltinSemantics::C
-                    | BuiltinSemantics::D
-                    | BuiltinSemantics::E => TwoArguments::MultipliedSizes(MultipliedSizes {
-                        intercept: *cost_map
-                            .get("multiply_integer-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("multiply_integer-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
+                cpu: TwoArguments::AddedSizes(AddedSizes {
+                    intercept: get(AppendByteString_cpu_arguments_intercept),
+                    slope: get(AppendByteString_cpu_arguments_slope),
+                }),
+            },
+            append_string: CostingFun {
+                mem: TwoArguments::AddedSizes(AddedSizes {
+                    intercept: get(AppendString_memory_arguments_intercept),
+                    slope: get(AppendString_memory_arguments_slope),
+                }),
+                cpu: TwoArguments::AddedSizes(AddedSizes {
+                    intercept: get(AppendString_cpu_arguments_intercept),
+                    slope: get(AppendString_cpu_arguments_slope),
+                }),
+            },
+            b_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(BData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(BData_cpu_arguments)),
+            },
+            blake2b_256: CostingFun {
+                mem: OneArgument::ConstantCost(get(Blake2b_256_memory_arguments)),
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(Blake2b_256_cpu_arguments_intercept),
+                    slope: get(Blake2b_256_cpu_arguments_slope),
+                }),
+            },
+            choose_data: CostingFun {
+                mem: SixArguments::ConstantCost(get(ChooseData_memory_arguments)),
+                cpu: SixArguments::ConstantCost(get(ChooseData_cpu_arguments)),
+            },
+            choose_list: CostingFun {
+                mem: ThreeArguments::ConstantCost(get(ChooseList_memory_arguments)),
+                cpu: ThreeArguments::ConstantCost(get(ChooseList_cpu_arguments)),
+            },
+            choose_unit: CostingFun {
+                mem: TwoArguments::ConstantCost(get(ChooseUnit_memory_arguments)),
+                cpu: TwoArguments::ConstantCost(get(ChooseUnit_cpu_arguments)),
+            },
+            cons_byte_string: CostingFun {
+                mem: TwoArguments::AddedSizes(AddedSizes {
+                    intercept: get(ConsByteString_memory_arguments_intercept),
+                    slope: get(ConsByteString_memory_arguments_slope),
+                }),
+                cpu: TwoArguments::LinearInY(LinearSize {
+                    intercept: get(ConsByteString_cpu_arguments_intercept),
+                    slope: get(ConsByteString_cpu_arguments_slope),
+                }),
+            },
+            constr_data: CostingFun {
+                mem: TwoArguments::ConstantCost(get(ConstrData_memory_arguments)),
+                cpu: TwoArguments::ConstantCost(get(ConstrData_cpu_arguments)),
+            },
+            decode_utf8: CostingFun {
+                mem: OneArgument::LinearCost(LinearSize {
+                    intercept: get(DecodeUtf8_memory_arguments_intercept),
+                    slope: get(DecodeUtf8_memory_arguments_slope),
+                }),
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(DecodeUtf8_cpu_arguments_intercept),
+                    slope: get(DecodeUtf8_cpu_arguments_slope),
+                }),
             },
             divide_integer: CostingFun {
                 mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: *cost_map
-                        .get("divide_integer-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("divide_integer-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
-                    minimum: *cost_map
-                        .get("divide_integer-mem-arguments-minimum")
-                        .unwrap_or(&30000000000),
+                    intercept: get(DivideInteger_memory_arguments_intercept),
+                    slope: get(DivideInteger_memory_arguments_slope),
+                    minimum: get(DivideInteger_memory_arguments_minimum),
                 }),
                 cpu: match semantics {
                     BuiltinSemantics::A | BuiltinSemantics::B => {
                         TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                            constant: *cost_map
-                                .get("divide_integer-cpu-arguments-constant")
-                                .unwrap_or(&30000000000),
+                            constant: get(DivideInteger_cpu_arguments_constant),
                             model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                                intercept: *cost_map
-                                    .get("divide_integer-cpu-arguments-model-arguments-intercept")
-                                    .unwrap_or(&30000000000),
-                                slope: *cost_map
-                                    .get("divide_integer-cpu-arguments-model-arguments-slope")
-                                    .unwrap_or(&30000000000),
+                                intercept: get(
+                                    DivideInteger_cpu_arguments_model_arguments_intercept,
+                                ),
+                                slope: get(DivideInteger_cpu_arguments_model_arguments_slope),
                             })),
                         })
                     }
-                    BuiltinSemantics::C => TwoArguments::ConstAboveDiagonalIntoQuadraticXAndY(
-                        *cost_map
-                            .get("divide_integer-cpu-arguments-constant")
-                            .unwrap_or(&30000000000),
-                        TwoArgumentsQuadraticFunction {
-                            minimum: *cost_map
-                                .get("divide_integer-cpu-arguments-minimum")
-                                .unwrap_or(&30000000000),
-                            coeff_00: *cost_map
-                                .get("divide_integer-cpu-arguments-c00")
-                                .unwrap_or(&30000000000),
-                            coeff_10: *cost_map
-                                .get("divide_integer-cpu-arguments-c10")
-                                .unwrap_or(&30000000000),
-                            coeff_01: *cost_map
-                                .get("divide_integer-cpu-arguments-c01")
-                                .unwrap_or(&30000000000),
-                            coeff_20: *cost_map
-                                .get("divide_integer-cpu-arguments-c20")
-                                .unwrap_or(&30000000000),
-                            coeff_11: *cost_map
-                                .get("divide_integer-cpu-arguments-c11")
-                                .unwrap_or(&30000000000),
-                            coeff_02: *cost_map
-                                .get("divide_integer-cpu-arguments-c02")
-                                .unwrap_or(&30000000000),
-                        },
-                    ),
                     BuiltinSemantics::D => {
                         TwoArguments::AboveAndBelowDiagonal(ConstantOrTwoArguments {
-                            constant: *cost_map
-                                .get("divide_integer-cpu-arguments-constant")
-                                .unwrap_or(&30000000000),
+                            constant: get(DivideInteger_cpu_arguments_constant),
                             model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                                intercept: *cost_map
-                                    .get("divide_integer-cpu-arguments-model-arguments-intercept")
-                                    .unwrap_or(&30000000000),
-                                slope: *cost_map
-                                    .get("divide_integer-cpu-arguments-model-arguments-slope")
-                                    .unwrap_or(&30000000000),
+                                intercept: get(
+                                    DivideInteger_cpu_arguments_model_arguments_intercept,
+                                ),
+                                slope: get(DivideInteger_cpu_arguments_model_arguments_slope),
                             })),
+                        })
+                    }
+                    BuiltinSemantics::C => {
+                        TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
+                            constant: get(DivideInteger_cpu_arguments_constant),
+                            model: Box::new(TwoArguments::QuadraticInXAndY(
+                                TwoArgumentsQuadraticFunction {
+                                    minimum: get(
+                                        DivideInteger_cpu_arguments_model_arguments_minimum,
+                                    ),
+                                    coeff_00: get(DivideInteger_cpu_arguments_model_arguments_c00),
+                                    coeff_10: get(DivideInteger_cpu_arguments_model_arguments_c10),
+                                    coeff_01: get(DivideInteger_cpu_arguments_model_arguments_c01),
+                                    coeff_20: get(DivideInteger_cpu_arguments_model_arguments_c20),
+                                    coeff_11: get(DivideInteger_cpu_arguments_model_arguments_c11),
+                                    coeff_02: get(DivideInteger_cpu_arguments_model_arguments_c02),
+                                },
+                            )),
                         })
                     }
                     BuiltinSemantics::E => {
                         TwoArguments::AboveAndBelowDiagonal(ConstantOrTwoArguments {
-                            constant: *cost_map
-                                .get("divide_integer-cpu-arguments-constant")
-                                .unwrap_or(&30000000000),
+                            constant: get(DivideInteger_cpu_arguments_constant),
                             model: Box::new(TwoArguments::QuadraticInXAndY(
                                 TwoArgumentsQuadraticFunction {
-                                    minimum: *cost_map
-                                        .get("divide_integer-cpu-arguments-minimum")
-                                        .unwrap_or(&30000000000),
-                                    coeff_00: *cost_map
-                                        .get("divide_integer-cpu-arguments-c00")
-                                        .unwrap_or(&30000000000),
-                                    coeff_10: *cost_map
-                                        .get("divide_integer-cpu-arguments-c10")
-                                        .unwrap_or(&30000000000),
-                                    coeff_01: *cost_map
-                                        .get("divide_integer-cpu-arguments-c01")
-                                        .unwrap_or(&30000000000),
-                                    coeff_20: *cost_map
-                                        .get("divide_integer-cpu-arguments-c20")
-                                        .unwrap_or(&30000000000),
-                                    coeff_11: *cost_map
-                                        .get("divide_integer-cpu-arguments-c11")
-                                        .unwrap_or(&30000000000),
-                                    coeff_02: *cost_map
-                                        .get("divide_integer-cpu-arguments-c02")
-                                        .unwrap_or(&30000000000),
+                                    minimum: get(
+                                        DivideInteger_cpu_arguments_model_arguments_minimum,
+                                    ),
+                                    coeff_00: get(DivideInteger_cpu_arguments_model_arguments_c00),
+                                    coeff_10: get(DivideInteger_cpu_arguments_model_arguments_c10),
+                                    coeff_01: get(DivideInteger_cpu_arguments_model_arguments_c01),
+                                    coeff_20: get(DivideInteger_cpu_arguments_model_arguments_c20),
+                                    coeff_11: get(DivideInteger_cpu_arguments_model_arguments_c11),
+                                    coeff_02: get(DivideInteger_cpu_arguments_model_arguments_c02),
                                 },
                             )),
                         })
                     }
                 },
             },
-            quotient_integer: CostingFun {
-                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
-                    intercept: *cost_map
-                        .get("quotient_integer-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("quotient_integer-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
-                    minimum: *cost_map
-                        .get("quotient_integer-mem-arguments-minimum")
-                        .unwrap_or(&30000000000),
+            encode_utf8: CostingFun {
+                mem: OneArgument::LinearCost(LinearSize {
+                    intercept: get(EncodeUtf8_memory_arguments_intercept),
+                    slope: get(EncodeUtf8_memory_arguments_slope),
                 }),
-                cpu: match version {
-                    Language::PlutusV1 | Language::PlutusV2 => {
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(EncodeUtf8_cpu_arguments_intercept),
+                    slope: get(EncodeUtf8_cpu_arguments_slope),
+                }),
+            },
+            equals_byte_string: CostingFun {
+                mem: TwoArguments::ConstantCost(get(EqualsByteString_memory_arguments)),
+                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
+                    constant: get(EqualsByteString_cpu_arguments_constant),
+                    intercept: get(EqualsByteString_cpu_arguments_intercept),
+                    slope: get(EqualsByteString_cpu_arguments_slope),
+                }),
+            },
+            equals_data: CostingFun {
+                mem: TwoArguments::ConstantCost(get(EqualsData_memory_arguments)),
+                cpu: TwoArguments::MinSize(MinSize {
+                    intercept: get(EqualsData_cpu_arguments_intercept),
+                    slope: get(EqualsData_cpu_arguments_slope),
+                }),
+            },
+            equals_integer: CostingFun {
+                mem: TwoArguments::ConstantCost(get(EqualsInteger_memory_arguments)),
+                cpu: TwoArguments::MinSize(MinSize {
+                    intercept: get(EqualsInteger_cpu_arguments_intercept),
+                    slope: get(EqualsInteger_cpu_arguments_slope),
+                }),
+            },
+            equals_string: CostingFun {
+                mem: TwoArguments::ConstantCost(get(EqualsString_memory_arguments)),
+                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
+                    constant: get(EqualsString_cpu_arguments_constant),
+                    intercept: get(EqualsString_cpu_arguments_intercept),
+                    slope: get(EqualsString_cpu_arguments_slope),
+                }),
+            },
+            fst_pair: CostingFun {
+                mem: OneArgument::ConstantCost(get(FstPair_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(FstPair_cpu_arguments)),
+            },
+            head_list: CostingFun {
+                mem: OneArgument::ConstantCost(get(HeadList_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(HeadList_cpu_arguments)),
+            },
+            i_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(IData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(IData_cpu_arguments)),
+            },
+            if_then_else: CostingFun {
+                mem: ThreeArguments::ConstantCost(get(IfThenElse_memory_arguments)),
+                cpu: ThreeArguments::ConstantCost(get(IfThenElse_cpu_arguments)),
+            },
+            index_byte_string: CostingFun {
+                mem: TwoArguments::ConstantCost(get(IndexByteString_memory_arguments)),
+                cpu: TwoArguments::ConstantCost(get(IndexByteString_cpu_arguments)),
+            },
+            length_of_byte_string: CostingFun {
+                mem: OneArgument::ConstantCost(get(LengthOfByteString_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(LengthOfByteString_cpu_arguments)),
+            },
+            less_than_byte_string: CostingFun {
+                mem: TwoArguments::ConstantCost(get(LessThanByteString_memory_arguments)),
+                cpu: TwoArguments::MinSize(MinSize {
+                    intercept: get(LessThanByteString_cpu_arguments_intercept),
+                    slope: get(LessThanByteString_cpu_arguments_slope),
+                }),
+            },
+            less_than_equals_byte_string: CostingFun {
+                mem: TwoArguments::ConstantCost(get(LessThanEqualsByteString_memory_arguments)),
+                cpu: TwoArguments::MinSize(MinSize {
+                    intercept: get(LessThanEqualsByteString_cpu_arguments_intercept),
+                    slope: get(LessThanEqualsByteString_cpu_arguments_slope),
+                }),
+            },
+            less_than_equals_integer: CostingFun {
+                mem: TwoArguments::ConstantCost(get(LessThanEqualsInteger_memory_arguments)),
+                cpu: TwoArguments::MinSize(MinSize {
+                    intercept: get(LessThanEqualsInteger_cpu_arguments_intercept),
+                    slope: get(LessThanEqualsInteger_cpu_arguments_slope),
+                }),
+            },
+            less_than_integer: CostingFun {
+                mem: TwoArguments::ConstantCost(get(LessThanInteger_memory_arguments)),
+                cpu: TwoArguments::MinSize(MinSize {
+                    intercept: get(LessThanInteger_cpu_arguments_intercept),
+                    slope: get(LessThanInteger_cpu_arguments_slope),
+                }),
+            },
+            list_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(ListData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(ListData_cpu_arguments)),
+            },
+            map_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(MapData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(MapData_cpu_arguments)),
+            },
+            mk_cons: CostingFun {
+                mem: TwoArguments::ConstantCost(get(MkCons_memory_arguments)),
+                cpu: TwoArguments::ConstantCost(get(MkCons_cpu_arguments)),
+            },
+            mk_nil_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(MkNilData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(MkNilData_cpu_arguments)),
+            },
+            mk_nil_pair_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(MkNilPairData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(MkNilPairData_cpu_arguments)),
+            },
+            mk_pair_data: CostingFun {
+                mem: TwoArguments::ConstantCost(get(MkPairData_memory_arguments)),
+                cpu: TwoArguments::ConstantCost(get(MkPairData_cpu_arguments)),
+            },
+            mod_integer: CostingFun {
+                mem: match semantics {
+                    BuiltinSemantics::A | BuiltinSemantics::B => {
+                        TwoArguments::SubtractedSizes(SubtractedSizes {
+                            intercept: get(ModInteger_memory_arguments_intercept),
+                            minimum: get(ModInteger_memory_arguments_minimum),
+                            slope: get(ModInteger_memory_arguments_slope),
+                        })
+                    }
+                    BuiltinSemantics::D => TwoArguments::LinearInY2(SubtractedSizes {
+                        intercept: get(ModInteger_memory_arguments_intercept),
+                        minimum: get(ModInteger_memory_arguments_minimum),
+                        slope: get(ModInteger_memory_arguments_slope),
+                    }),
+                    BuiltinSemantics::C | BuiltinSemantics::E => {
+                        TwoArguments::LinearInY(LinearSize {
+                            intercept: get(ModInteger_memory_arguments_intercept),
+                            slope: get(ModInteger_memory_arguments_slope),
+                        })
+                    }
+                },
+                cpu: match semantics {
+                    BuiltinSemantics::A | BuiltinSemantics::B => {
                         TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                            constant: *cost_map
-                                .get("quotient_integer-cpu-arguments-constant")
-                                .unwrap_or(&30000000000),
+                            constant: get(ModInteger_cpu_arguments_constant),
                             model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                                intercept: *cost_map
-                                    .get("quotient_integer-cpu-arguments-model-arguments-intercept")
-                                    .unwrap_or(&30000000000),
-                                slope: *cost_map
-                                    .get("quotient_integer-cpu-arguments-model-arguments-slope")
-                                    .unwrap_or(&30000000000),
+                                intercept: get(ModInteger_cpu_arguments_model_arguments_intercept),
+                                slope: get(ModInteger_cpu_arguments_model_arguments_slope),
                             })),
                         })
                     }
-                    Language::PlutusV3 => TwoArguments::ConstAboveDiagonalIntoQuadraticXAndY(
-                        *cost_map
-                            .get("quotient_integer-cpu-arguments-constant")
-                            .unwrap_or(&30000000000),
-                        TwoArgumentsQuadraticFunction {
-                            minimum: *cost_map
-                                .get("quotient_integer-cpu-arguments-minimum")
-                                .unwrap_or(&30000000000),
-                            coeff_00: *cost_map
-                                .get("quotient_integer-cpu-arguments-c00")
-                                .unwrap_or(&30000000000),
-                            coeff_10: *cost_map
-                                .get("quotient_integer-cpu-arguments-c10")
-                                .unwrap_or(&30000000000),
-                            coeff_01: *cost_map
-                                .get("quotient_integer-cpu-arguments-c01")
-                                .unwrap_or(&30000000000),
-                            coeff_20: *cost_map
-                                .get("quotient_integer-cpu-arguments-c20")
-                                .unwrap_or(&30000000000),
-                            coeff_11: *cost_map
-                                .get("quotient_integer-cpu-arguments-c11")
-                                .unwrap_or(&30000000000),
-                            coeff_02: *cost_map
-                                .get("quotient_integer-cpu-arguments-c02")
-                                .unwrap_or(&30000000000),
-                        },
-                    ),
+                    BuiltinSemantics::D => {
+                        TwoArguments::AboveAndBelowDiagonal(ConstantOrTwoArguments {
+                            constant: get(ModInteger_cpu_arguments_constant),
+                            model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
+                                intercept: get(ModInteger_cpu_arguments_model_arguments_intercept),
+                                slope: get(ModInteger_cpu_arguments_model_arguments_slope),
+                            })),
+                        })
+                    }
+                    BuiltinSemantics::C => {
+                        TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
+                            constant: get(ModInteger_cpu_arguments_constant),
+                            model: Box::new(TwoArguments::QuadraticInXAndY(
+                                TwoArgumentsQuadraticFunction {
+                                    minimum: get(ModInteger_cpu_arguments_model_arguments_minimum),
+                                    coeff_00: get(ModInteger_cpu_arguments_model_arguments_c00),
+                                    coeff_10: get(ModInteger_cpu_arguments_model_arguments_c10),
+                                    coeff_01: get(ModInteger_cpu_arguments_model_arguments_c01),
+                                    coeff_20: get(ModInteger_cpu_arguments_model_arguments_c20),
+                                    coeff_11: get(ModInteger_cpu_arguments_model_arguments_c11),
+                                    coeff_02: get(ModInteger_cpu_arguments_model_arguments_c02),
+                                },
+                            )),
+                        })
+                    }
+                    BuiltinSemantics::E => {
+                        TwoArguments::AboveAndBelowDiagonal(ConstantOrTwoArguments {
+                            constant: get(ModInteger_cpu_arguments_constant),
+                            model: Box::new(TwoArguments::QuadraticInXAndY(
+                                TwoArgumentsQuadraticFunction {
+                                    minimum: get(ModInteger_cpu_arguments_model_arguments_minimum),
+                                    coeff_00: get(ModInteger_cpu_arguments_model_arguments_c00),
+                                    coeff_10: get(ModInteger_cpu_arguments_model_arguments_c10),
+                                    coeff_01: get(ModInteger_cpu_arguments_model_arguments_c01),
+                                    coeff_20: get(ModInteger_cpu_arguments_model_arguments_c20),
+                                    coeff_11: get(ModInteger_cpu_arguments_model_arguments_c11),
+                                    coeff_02: get(ModInteger_cpu_arguments_model_arguments_c02),
+                                },
+                            )),
+                        })
+                    }
+                },
+            },
+            multiply_integer: CostingFun {
+                mem: TwoArguments::AddedSizes(AddedSizes {
+                    intercept: get(MultiplyInteger_memory_arguments_intercept),
+                    slope: get(MultiplyInteger_memory_arguments_slope),
+                }),
+                cpu: match semantics {
+                    BuiltinSemantics::A => TwoArguments::AddedSizes(AddedSizes {
+                        intercept: get(MultiplyInteger_cpu_arguments_intercept),
+                        slope: get(MultiplyInteger_cpu_arguments_slope),
+                    }),
+                    BuiltinSemantics::B
+                    | BuiltinSemantics::C
+                    | BuiltinSemantics::D
+                    | BuiltinSemantics::E => TwoArguments::MultipliedSizes(MultipliedSizes {
+                        intercept: get(MultiplyInteger_cpu_arguments_intercept),
+                        slope: get(MultiplyInteger_cpu_arguments_slope),
+                    }),
+                },
+            },
+            null_list: CostingFun {
+                mem: OneArgument::ConstantCost(get(NullList_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(NullList_cpu_arguments)),
+            },
+            quotient_integer: CostingFun {
+                mem: TwoArguments::SubtractedSizes(SubtractedSizes {
+                    intercept: get(QuotientInteger_memory_arguments_intercept),
+                    slope: get(QuotientInteger_memory_arguments_slope),
+                    minimum: get(QuotientInteger_memory_arguments_minimum),
+                }),
+                cpu: match semantics {
+                    BuiltinSemantics::A | BuiltinSemantics::B | BuiltinSemantics::D => {
+                        TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
+                            constant: get(QuotientInteger_cpu_arguments_constant),
+                            model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
+                                intercept: get(
+                                    QuotientInteger_cpu_arguments_model_arguments_intercept,
+                                ),
+                                slope: get(QuotientInteger_cpu_arguments_model_arguments_slope),
+                            })),
+                        })
+                    }
+                    BuiltinSemantics::C | BuiltinSemantics::E => {
+                        TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
+                            constant: get(QuotientInteger_cpu_arguments_constant),
+                            model: Box::new(TwoArguments::QuadraticInXAndY(
+                                TwoArgumentsQuadraticFunction {
+                                    minimum: get(
+                                        QuotientInteger_cpu_arguments_model_arguments_minimum,
+                                    ),
+                                    coeff_00: get(
+                                        QuotientInteger_cpu_arguments_model_arguments_c00,
+                                    ),
+                                    coeff_10: get(
+                                        QuotientInteger_cpu_arguments_model_arguments_c10,
+                                    ),
+                                    coeff_01: get(
+                                        QuotientInteger_cpu_arguments_model_arguments_c01,
+                                    ),
+                                    coeff_20: get(
+                                        QuotientInteger_cpu_arguments_model_arguments_c20,
+                                    ),
+                                    coeff_11: get(
+                                        QuotientInteger_cpu_arguments_model_arguments_c11,
+                                    ),
+                                    coeff_02: get(
+                                        QuotientInteger_cpu_arguments_model_arguments_c02,
+                                    ),
+                                },
+                            )),
+                        })
+                    }
                 },
             },
             remainder_integer: CostingFun {
                 mem: match semantics {
                     BuiltinSemantics::A | BuiltinSemantics::B => {
                         TwoArguments::SubtractedSizes(SubtractedSizes {
-                            intercept: *cost_map
-                                .get("remainder_integer-mem-arguments-intercept")
-                                .unwrap_or(&30000000000),
-                            slope: *cost_map
-                                .get("remainder_integer-mem-arguments-slope")
-                                .unwrap_or(&30000000000),
-                            minimum: *cost_map
-                                .get("remainder_integer-mem-arguments-minimum")
-                                .unwrap_or(&30000000000),
-                        })
-                    }
-                    BuiltinSemantics::C | BuiltinSemantics::E => {
-                        TwoArguments::LinearInY(LinearSize {
-                            intercept: *cost_map
-                                .get("remainder_integer-mem-arguments-intercept")
-                                .unwrap_or(&30000000000),
-                            slope: *cost_map
-                                .get("remainder_integer-mem-arguments-slope")
-                                .unwrap_or(&30000000000),
+                            intercept: get(RemainderInteger_memory_arguments_intercept),
+                            minimum: get(RemainderInteger_memory_arguments_minimum),
+                            slope: get(RemainderInteger_memory_arguments_slope),
                         })
                     }
                     BuiltinSemantics::D => TwoArguments::LinearInY2(SubtractedSizes {
-                        intercept: *cost_map
-                            .get("remainder_integer-mem-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("remainder_integer-mem-arguments-slope")
-                            .unwrap_or(&30000000000),
-                        minimum: *cost_map
-                            .get("remainder_integer-mem-arguments-minimum")
-                            .unwrap_or(&30000000000),
+                        intercept: get(RemainderInteger_memory_arguments_intercept),
+                        minimum: get(RemainderInteger_memory_arguments_minimum),
+                        slope: get(RemainderInteger_memory_arguments_slope),
                     }),
+                    BuiltinSemantics::C | BuiltinSemantics::E => {
+                        TwoArguments::LinearInY(LinearSize {
+                            intercept: get(RemainderInteger_memory_arguments_intercept),
+                            slope: get(RemainderInteger_memory_arguments_slope),
+                        })
+                    }
                 },
                 cpu: match semantics {
                     BuiltinSemantics::A | BuiltinSemantics::B | BuiltinSemantics::D => {
                         TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                            constant: *cost_map
-                                .get("remainder_integer-cpu-arguments-constant")
-                                .unwrap_or(&30000000000),
+                            constant: get(RemainderInteger_cpu_arguments_constant),
                             model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                                intercept: *cost_map
-                                    .get(
-                                        "remainder_integer-cpu-arguments-model-arguments-intercept",
-                                    )
-                                    .unwrap_or(&30000000000),
-                                slope: *cost_map
-                                    .get("remainder_integer-cpu-arguments-model-arguments-slope")
-                                    .unwrap_or(&30000000000),
+                                intercept: get(
+                                    RemainderInteger_cpu_arguments_model_arguments_intercept,
+                                ),
+                                slope: get(RemainderInteger_cpu_arguments_model_arguments_slope),
                             })),
                         })
                     }
                     BuiltinSemantics::C | BuiltinSemantics::E => {
-                        TwoArguments::ConstAboveDiagonalIntoQuadraticXAndY(
-                            *cost_map
-                                .get("remainder_integer-cpu-arguments-constant")
-                                .unwrap_or(&30000000000),
-                            TwoArgumentsQuadraticFunction {
-                                minimum: *cost_map
-                                    .get("remainder_integer-cpu-arguments-minimum")
-                                    .unwrap_or(&30000000000),
-                                coeff_00: *cost_map
-                                    .get("remainder_integer-cpu-arguments-c00")
-                                    .unwrap_or(&30000000000),
-                                coeff_10: *cost_map
-                                    .get("remainder_integer-cpu-arguments-c10")
-                                    .unwrap_or(&30000000000),
-                                coeff_01: *cost_map
-                                    .get("remainder_integer-cpu-arguments-c01")
-                                    .unwrap_or(&30000000000),
-                                coeff_20: *cost_map
-                                    .get("remainder_integer-cpu-arguments-c20")
-                                    .unwrap_or(&30000000000),
-                                coeff_11: *cost_map
-                                    .get("remainder_integer-cpu-arguments-c11")
-                                    .unwrap_or(&30000000000),
-                                coeff_02: *cost_map
-                                    .get("remainder_integer-cpu-arguments-c02")
-                                    .unwrap_or(&30000000000),
-                            },
-                        )
-                    }
-                },
-            },
-            mod_integer: CostingFun {
-                mem: match semantics {
-                    BuiltinSemantics::A | BuiltinSemantics::B => {
-                        TwoArguments::SubtractedSizes(SubtractedSizes {
-                            intercept: *cost_map
-                                .get("mod_integer-mem-arguments-intercept")
-                                .unwrap_or(&30000000000),
-                            slope: *cost_map
-                                .get("mod_integer-mem-arguments-slope")
-                                .unwrap_or(&30000000000),
-                            minimum: *cost_map
-                                .get("mod_integer-mem-arguments-minimum")
-                                .unwrap_or(&30000000000),
-                        })
-                    }
-                    BuiltinSemantics::C | BuiltinSemantics::E => {
-                        TwoArguments::LinearInY(LinearSize {
-                            intercept: *cost_map
-                                .get("mod_integer-mem-arguments-intercept")
-                                .unwrap_or(&30000000000),
-                            slope: *cost_map
-                                .get("mod_integer-mem-arguments-slope")
-                                .unwrap_or(&30000000000),
-                        })
-                    }
-                    BuiltinSemantics::D => TwoArguments::LinearInY2(SubtractedSizes {
-                        intercept: *cost_map
-                            .get("mod_integer-mem-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("mod_integer-mem-arguments-slope")
-                            .unwrap_or(&30000000000),
-                        minimum: *cost_map
-                            .get("mod_integer-mem-arguments-minimum")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
-                cpu: match semantics {
-                    BuiltinSemantics::A | BuiltinSemantics::B => {
                         TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
-                            constant: *cost_map
-                                .get("mod_integer-cpu-arguments-constant")
-                                .unwrap_or(&30000000000),
-                            model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                                intercept: *cost_map
-                                    .get("mod_integer-cpu-arguments-model-arguments-intercept")
-                                    .unwrap_or(&30000000000),
-                                slope: *cost_map
-                                    .get("mod_integer-cpu-arguments-model-arguments-slope")
-                                    .unwrap_or(&30000000000),
-                            })),
-                        })
-                    }
-                    BuiltinSemantics::C => TwoArguments::ConstAboveDiagonalIntoQuadraticXAndY(
-                        *cost_map
-                            .get("mod_integer-cpu-arguments-constant")
-                            .unwrap_or(&30000000000),
-                        TwoArgumentsQuadraticFunction {
-                            minimum: *cost_map
-                                .get("mod_integer-cpu-arguments-minimum")
-                                .unwrap_or(&30000000000),
-                            coeff_00: *cost_map
-                                .get("mod_integer-cpu-arguments-c00")
-                                .unwrap_or(&30000000000),
-                            coeff_10: *cost_map
-                                .get("mod_integer-cpu-arguments-c10")
-                                .unwrap_or(&30000000000),
-                            coeff_01: *cost_map
-                                .get("mod_integer-cpu-arguments-c01")
-                                .unwrap_or(&30000000000),
-                            coeff_20: *cost_map
-                                .get("mod_integer-cpu-arguments-c20")
-                                .unwrap_or(&30000000000),
-                            coeff_11: *cost_map
-                                .get("mod_integer-cpu-arguments-c11")
-                                .unwrap_or(&30000000000),
-                            coeff_02: *cost_map
-                                .get("mod_integer-cpu-arguments-c02")
-                                .unwrap_or(&30000000000),
-                        },
-                    ),
-                    BuiltinSemantics::D => {
-                        TwoArguments::AboveAndBelowDiagonal(ConstantOrTwoArguments {
-                            constant: *cost_map
-                                .get("mod_integer-cpu-arguments-constant")
-                                .unwrap_or(&30000000000),
-                            model: Box::new(TwoArguments::MultipliedSizes(MultipliedSizes {
-                                intercept: *cost_map
-                                    .get("mod_integer-cpu-arguments-model-arguments-intercept")
-                                    .unwrap_or(&30000000000),
-                                slope: *cost_map
-                                    .get("mod_integer-cpu-arguments-model-arguments-slope")
-                                    .unwrap_or(&30000000000),
-                            })),
-                        })
-                    }
-                    BuiltinSemantics::E => {
-                        TwoArguments::AboveAndBelowDiagonal(ConstantOrTwoArguments {
-                            constant: *cost_map
-                                .get("mod_integer-cpu-arguments-constant")
-                                .unwrap_or(&30000000000),
+                            constant: get(RemainderInteger_cpu_arguments_constant),
                             model: Box::new(TwoArguments::QuadraticInXAndY(
                                 TwoArgumentsQuadraticFunction {
-                                    minimum: *cost_map
-                                        .get("mod_integer-cpu-arguments-minimum")
-                                        .unwrap_or(&30000000000),
-                                    coeff_00: *cost_map
-                                        .get("mod_integer-cpu-arguments-c00")
-                                        .unwrap_or(&30000000000),
-                                    coeff_10: *cost_map
-                                        .get("mod_integer-cpu-arguments-c10")
-                                        .unwrap_or(&30000000000),
-                                    coeff_01: *cost_map
-                                        .get("mod_integer-cpu-arguments-c01")
-                                        .unwrap_or(&30000000000),
-                                    coeff_20: *cost_map
-                                        .get("mod_integer-cpu-arguments-c20")
-                                        .unwrap_or(&30000000000),
-                                    coeff_11: *cost_map
-                                        .get("mod_integer-cpu-arguments-c11")
-                                        .unwrap_or(&30000000000),
-                                    coeff_02: *cost_map
-                                        .get("mod_integer-cpu-arguments-c02")
-                                        .unwrap_or(&30000000000),
+                                    minimum: get(
+                                        RemainderInteger_cpu_arguments_model_arguments_minimum,
+                                    ),
+                                    coeff_00: get(
+                                        RemainderInteger_cpu_arguments_model_arguments_c00,
+                                    ),
+                                    coeff_10: get(
+                                        RemainderInteger_cpu_arguments_model_arguments_c10,
+                                    ),
+                                    coeff_01: get(
+                                        RemainderInteger_cpu_arguments_model_arguments_c01,
+                                    ),
+                                    coeff_20: get(
+                                        RemainderInteger_cpu_arguments_model_arguments_c20,
+                                    ),
+                                    coeff_11: get(
+                                        RemainderInteger_cpu_arguments_model_arguments_c11,
+                                    ),
+                                    coeff_02: get(
+                                        RemainderInteger_cpu_arguments_model_arguments_c02,
+                                    ),
                                 },
                             )),
                         })
                     }
                 },
             },
-            equals_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("equals_integer-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: *cost_map
-                        .get("equals_integer-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("equals_integer-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
+            serialise_data: CostingFun {
+                mem: OneArgument::LinearCost(LinearSize {
+                    intercept: get(SerialiseData_memory_arguments_intercept),
+                    slope: get(SerialiseData_memory_arguments_slope),
+                }),
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(SerialiseData_cpu_arguments_intercept),
+                    slope: get(SerialiseData_cpu_arguments_slope),
                 }),
             },
-            less_than_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("less_than_integer-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: *cost_map
-                        .get("less_than_integer-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("less_than_integer-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
+            sha2_256: CostingFun {
+                mem: OneArgument::ConstantCost(get(Sha2_256_memory_arguments)),
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(Sha2_256_cpu_arguments_intercept),
+                    slope: get(Sha2_256_cpu_arguments_slope),
                 }),
             },
-            less_than_equals_integer: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("less_than_equals_integer-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: *cost_map
-                        .get("less_than_equals_integer-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("less_than_equals_integer-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            append_byte_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: *cost_map
-                        .get("append_byte_string-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("append_byte_string-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-                cpu: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: *cost_map
-                        .get("append_byte_string-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("append_byte_string-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            cons_byte_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: *cost_map
-                        .get("cons_byte_string-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("cons_byte_string-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-                cpu: TwoArguments::LinearInY(LinearSize {
-                    intercept: *cost_map
-                        .get("cons_byte_string-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("cons_byte_string-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
+            sha3_256: CostingFun {
+                mem: OneArgument::ConstantCost(get(Sha3_256_memory_arguments)),
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(Sha3_256_cpu_arguments_intercept),
+                    slope: get(Sha3_256_cpu_arguments_slope),
                 }),
             },
             slice_byte_string: CostingFun {
                 mem: ThreeArguments::LinearInZ(LinearSize {
-                    intercept: *cost_map
-                        .get("slice_byte_string-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("slice_byte_string-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
+                    intercept: get(SliceByteString_memory_arguments_intercept),
+                    slope: get(SliceByteString_memory_arguments_slope),
                 }),
                 cpu: ThreeArguments::LinearInZ(LinearSize {
-                    intercept: *cost_map
-                        .get("slice_byte_string-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("slice_byte_string-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
+                    intercept: get(SliceByteString_cpu_arguments_intercept),
+                    slope: get(SliceByteString_cpu_arguments_slope),
                 }),
-            },
-            length_of_byte_string: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("length_of_byte_string-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("length_of_byte_string-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            index_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("index_byte_string-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("index_byte_string-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            equals_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("equals_byte_string-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
-                    constant: *cost_map
-                        .get("equals_byte_string-cpu-arguments-constant")
-                        .unwrap_or(&30000000000),
-                    intercept: *cost_map
-                        .get("equals_byte_string-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("equals_byte_string-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            less_than_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("less_than_byte_string-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: *cost_map
-                        .get("less_than_byte_string-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("less_than_byte_string-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            less_than_equals_byte_string: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("less_than_equals_byte_string-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: *cost_map
-                        .get("less_than_equals_byte_string-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("less_than_equals_byte_string-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            sha2_256: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("sha2_256-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: *cost_map
-                        .get("sha2_256-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("sha2_256-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            sha3_256: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("sha3_256-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: *cost_map
-                        .get("sha3_256-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("sha3_256-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            blake2b_256: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("blake2b_256-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: *cost_map
-                        .get("blake2b_256-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("blake2b_256-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            verify_ed25519_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(
-                    *cost_map
-                        .get("verify_ed25519_signature-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: {
-                    let sizes = LinearSize {
-                        intercept: *cost_map
-                            .get("verify_ed25519_signature-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("verify_ed25519_signature-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    };
-
-                    ThreeArguments::LinearInY(sizes)
-                },
-            },
-            verify_ecdsa_secp256k1_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(
-                    *cost_map
-                        .get("verify_ecdsa_secp256k1_signature-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: ThreeArguments::ConstantCost(
-                    *cost_map
-                        .get("verify_ecdsa_secp256k1_signature-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            verify_schnorr_secp256k1_signature: CostingFun {
-                mem: ThreeArguments::ConstantCost(
-                    *cost_map
-                        .get("verify_schnorr_secp256k1_signature-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: ThreeArguments::LinearInY(LinearSize {
-                    intercept: *cost_map
-                        .get("verify_schnorr_secp256k1_signature-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("verify_schnorr_secp256k1_signature-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            append_string: CostingFun {
-                mem: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: *cost_map
-                        .get("append_string-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("append_string-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-                cpu: TwoArguments::AddedSizes(AddedSizes {
-                    intercept: *cost_map
-                        .get("append_string-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("append_string-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            equals_string: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("equals_string-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::LinearOnDiagonal(ConstantOrLinear {
-                    constant: *cost_map
-                        .get("equals_string-cpu-arguments-constant")
-                        .unwrap_or(&30000000000),
-                    intercept: *cost_map
-                        .get("equals_string-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("equals_string-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            encode_utf8: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: *cost_map
-                        .get("encode_utf8-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("encode_utf8-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: *cost_map
-                        .get("encode_utf8-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("encode_utf8-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            decode_utf8: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: *cost_map
-                        .get("decode_utf8-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("decode_utf8-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-                cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: *cost_map
-                        .get("decode_utf8-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("decode_utf8-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
-                }),
-            },
-            if_then_else: CostingFun {
-                mem: ThreeArguments::ConstantCost(
-                    *cost_map
-                        .get("if_then_else-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: ThreeArguments::ConstantCost(
-                    *cost_map
-                        .get("if_then_else-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            choose_unit: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("choose_unit-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("choose_unit-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            trace: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map.get("trace-mem-arguments").unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::ConstantCost(
-                    *cost_map.get("trace-cpu-arguments").unwrap_or(&30000000000),
-                ),
-            },
-            fst_pair: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("fst_pair-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("fst_pair-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
             },
             snd_pair: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("snd_pair-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("snd_pair-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
+                mem: OneArgument::ConstantCost(get(SndPair_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(SndPair_cpu_arguments)),
             },
-            choose_list: CostingFun {
-                mem: ThreeArguments::ConstantCost(
-                    *cost_map
-                        .get("choose_list-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: ThreeArguments::ConstantCost(
-                    *cost_map
-                        .get("choose_list-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            mk_cons: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("mk_cons-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("mk_cons-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            head_list: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("head_list-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("head_list-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
+            subtract_integer: CostingFun {
+                mem: TwoArguments::MaxSize(MaxSize {
+                    intercept: get(SubtractInteger_memory_arguments_intercept),
+                    slope: get(SubtractInteger_memory_arguments_slope),
+                }),
+                cpu: TwoArguments::MaxSize(MaxSize {
+                    intercept: get(SubtractInteger_cpu_arguments_intercept),
+                    slope: get(SubtractInteger_cpu_arguments_slope),
+                }),
             },
             tail_list: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("tail_list-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("tail_list-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
+                mem: OneArgument::ConstantCost(get(TailList_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(TailList_cpu_arguments)),
             },
-            null_list: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("null_list-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("null_list-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            choose_data: CostingFun {
-                mem: SixArguments::ConstantCost(
-                    *cost_map
-                        .get("choose_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: SixArguments::ConstantCost(
-                    *cost_map
-                        .get("choose_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            constr_data: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("constr_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("constr_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            map_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("map_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("map_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            list_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("list_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("list_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            i_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map.get("i_data-mem-arguments").unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map.get("i_data-cpu-arguments").unwrap_or(&30000000000),
-                ),
-            },
-            b_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map.get("b_data-mem-arguments").unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map.get("b_data-cpu-arguments").unwrap_or(&30000000000),
-                ),
-            },
-            un_constr_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_constr_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_constr_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            un_map_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_map_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_map_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            un_list_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_list_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_list_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-            },
-            un_i_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_i_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_i_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
+            trace: CostingFun {
+                mem: TwoArguments::ConstantCost(get(Trace_memory_arguments)),
+                cpu: TwoArguments::ConstantCost(get(Trace_cpu_arguments)),
             },
             un_b_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_b_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("un_b_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
+                mem: OneArgument::ConstantCost(get(UnBData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(UnBData_cpu_arguments)),
             },
-            equals_data: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("equals_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::MinSize(MinSize {
-                    intercept: *cost_map
-                        .get("equals_data-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("equals_data-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
+            un_constr_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(UnConstrData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(UnConstrData_cpu_arguments)),
+            },
+            un_i_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(UnIData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(UnIData_cpu_arguments)),
+            },
+            un_list_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(UnListData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(UnListData_cpu_arguments)),
+            },
+            un_map_data: CostingFun {
+                mem: OneArgument::ConstantCost(get(UnMapData_memory_arguments)),
+                cpu: OneArgument::ConstantCost(get(UnMapData_cpu_arguments)),
+            },
+            verify_ecdsa_secp256k1_signature: CostingFun {
+                mem: ThreeArguments::ConstantCost(get(
+                    VerifyEcdsaSecp256k1Signature_memory_arguments,
+                )),
+                cpu: ThreeArguments::ConstantCost(get(VerifyEcdsaSecp256k1Signature_cpu_arguments)),
+            },
+            verify_ed25519_signature: CostingFun {
+                mem: ThreeArguments::ConstantCost(get(VerifyEd25519Signature_memory_arguments)),
+                cpu: match semantics {
+                    BuiltinSemantics::A => ThreeArguments::LinearInZ(LinearSize {
+                        intercept: get(VerifyEd25519Signature_cpu_arguments_intercept),
+                        slope: get(VerifyEd25519Signature_cpu_arguments_slope),
+                    }),
+                    BuiltinSemantics::B
+                    | BuiltinSemantics::C
+                    | BuiltinSemantics::D
+                    | BuiltinSemantics::E => ThreeArguments::LinearInY(LinearSize {
+                        intercept: get(VerifyEd25519Signature_cpu_arguments_intercept),
+                        slope: get(VerifyEd25519Signature_cpu_arguments_slope),
+                    }),
+                },
+            },
+            verify_schnorr_secp256k1_signature: CostingFun {
+                mem: ThreeArguments::ConstantCost(get(
+                    VerifySchnorrSecp256k1Signature_memory_arguments,
+                )),
+                cpu: ThreeArguments::LinearInY(LinearSize {
+                    intercept: get(VerifySchnorrSecp256k1Signature_cpu_arguments_intercept),
+                    slope: get(VerifySchnorrSecp256k1Signature_cpu_arguments_slope),
                 }),
             },
-            mk_pair_data: CostingFun {
-                mem: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("mk_pair_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: TwoArguments::ConstantCost(
-                    *cost_map
-                        .get("mk_pair_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
+            bls12_381_g1_add: CostingFun {
+                cpu: TwoArguments::ConstantCost(get(Bls12_381_G1_add_cpu_arguments)),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G1_add_memory_arguments)),
             },
-            mk_nil_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("mk_nil_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("mk_nil_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
+            bls12_381_g1_compress: CostingFun {
+                cpu: OneArgument::ConstantCost(get(Bls12_381_G1_compress_cpu_arguments)),
+                mem: OneArgument::ConstantCost(get(Bls12_381_G1_compress_memory_arguments)),
             },
-            mk_nil_pair_data: CostingFun {
-                mem: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("mk_nil_pair_data-mem-arguments")
-                        .unwrap_or(&30000000000),
-                ),
-                cpu: OneArgument::ConstantCost(
-                    *cost_map
-                        .get("mk_nil_pair_data-cpu-arguments")
-                        .unwrap_or(&30000000000),
-                ),
+            bls12_381_g1_equal: CostingFun {
+                cpu: TwoArguments::ConstantCost(get(Bls12_381_G1_equal_cpu_arguments)),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G1_equal_memory_arguments)),
             },
-            serialise_data: CostingFun {
-                mem: OneArgument::LinearCost(LinearSize {
-                    intercept: *cost_map
-                        .get("serialise_data-mem-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("serialise_data-mem-arguments-slope")
-                        .unwrap_or(&30000000000),
+            bls12_381_g1_hash_to_group: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(Bls12_381_G1_hashToGroup_cpu_arguments_intercept),
+                    slope: get(Bls12_381_G1_hashToGroup_cpu_arguments_slope),
                 }),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G1_hashToGroup_memory_arguments)),
+            },
+            bls12_381_g1_neg: CostingFun {
+                cpu: OneArgument::ConstantCost(get(Bls12_381_G1_neg_cpu_arguments)),
+                mem: OneArgument::ConstantCost(get(Bls12_381_G1_neg_memory_arguments)),
+            },
+            bls12_381_g1_scalar_mul: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(Bls12_381_G1_scalarMul_cpu_arguments_intercept),
+                    slope: get(Bls12_381_G1_scalarMul_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G1_scalarMul_memory_arguments)),
+            },
+            bls12_381_g1_uncompress: CostingFun {
+                cpu: OneArgument::ConstantCost(get(Bls12_381_G1_uncompress_cpu_arguments)),
+                mem: OneArgument::ConstantCost(get(Bls12_381_G1_uncompress_memory_arguments)),
+            },
+            bls12_381_g2_add: CostingFun {
+                cpu: TwoArguments::ConstantCost(get(Bls12_381_G2_add_cpu_arguments)),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G2_add_memory_arguments)),
+            },
+            bls12_381_g2_compress: CostingFun {
+                cpu: OneArgument::ConstantCost(get(Bls12_381_G2_compress_cpu_arguments)),
+                mem: OneArgument::ConstantCost(get(Bls12_381_G2_compress_memory_arguments)),
+            },
+            bls12_381_g2_equal: CostingFun {
+                cpu: TwoArguments::ConstantCost(get(Bls12_381_G2_equal_cpu_arguments)),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G2_equal_memory_arguments)),
+            },
+            bls12_381_g2_hash_to_group: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(Bls12_381_G2_hashToGroup_cpu_arguments_intercept),
+                    slope: get(Bls12_381_G2_hashToGroup_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G2_hashToGroup_memory_arguments)),
+            },
+            bls12_381_g2_neg: CostingFun {
+                cpu: OneArgument::ConstantCost(get(Bls12_381_G2_neg_cpu_arguments)),
+                mem: OneArgument::ConstantCost(get(Bls12_381_G2_neg_memory_arguments)),
+            },
+            bls12_381_g2_scalar_mul: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(Bls12_381_G2_scalarMul_cpu_arguments_intercept),
+                    slope: get(Bls12_381_G2_scalarMul_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G2_scalarMul_memory_arguments)),
+            },
+            bls12_381_g2_uncompress: CostingFun {
+                cpu: OneArgument::ConstantCost(get(Bls12_381_G2_uncompress_cpu_arguments)),
+                mem: OneArgument::ConstantCost(get(Bls12_381_G2_uncompress_memory_arguments)),
+            },
+            bls12_381_final_verify: CostingFun {
+                cpu: TwoArguments::ConstantCost(get(Bls12_381_finalVerify_cpu_arguments)),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_finalVerify_memory_arguments)),
+            },
+            bls12_381_miller_loop: CostingFun {
+                cpu: TwoArguments::ConstantCost(get(Bls12_381_millerLoop_cpu_arguments)),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_millerLoop_memory_arguments)),
+            },
+            bls12_381_mul_ml_result: CostingFun {
+                cpu: TwoArguments::ConstantCost(get(Bls12_381_mulMlResult_cpu_arguments)),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_mulMlResult_memory_arguments)),
+            },
+            keccak_256: CostingFun {
                 cpu: OneArgument::LinearCost(LinearSize {
-                    intercept: *cost_map
-                        .get("serialise_data-cpu-arguments-intercept")
-                        .unwrap_or(&30000000000),
-                    slope: *cost_map
-                        .get("serialise_data-cpu-arguments-slope")
-                        .unwrap_or(&30000000000),
+                    intercept: get(Keccak_256_cpu_arguments_intercept),
+                    slope: get(Keccak_256_cpu_arguments_slope),
+                }),
+                mem: OneArgument::ConstantCost(get(Keccak_256_memory_arguments)),
+            },
+            blake2b_224: CostingFun {
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(Blake2b_224_cpu_arguments_intercept),
+                    slope: get(Blake2b_224_cpu_arguments_slope),
+                }),
+                mem: OneArgument::ConstantCost(get(Blake2b_224_memory_arguments)),
+            },
+            integer_to_byte_string: CostingFun {
+                cpu: ThreeArguments::QuadraticInZ(QuadraticFunction {
+                    coeff_0: get(IntegerToByteString_cpu_arguments_c0),
+                    coeff_1: get(IntegerToByteString_cpu_arguments_c1),
+                    coeff_2: get(IntegerToByteString_cpu_arguments_c2),
+                }),
+                mem: ThreeArguments::LiteralInYorLinearInZ(LinearSize {
+                    intercept: get(IntegerToByteString_memory_arguments_intercept),
+                    slope: get(IntegerToByteString_memory_arguments_slope),
                 }),
             },
-            blake2b_224: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::LinearCost(LinearSize {
-                        intercept: *cost_map
-                            .get("blake2b_224-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("blake2b_224-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("blake2b_224-mem-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            byte_string_to_integer: CostingFun {
+                cpu: TwoArguments::QuadraticInY(QuadraticFunction {
+                    coeff_0: get(ByteStringToInteger_cpu_arguments_c0),
+                    coeff_1: get(ByteStringToInteger_cpu_arguments_c1),
+                    coeff_2: get(ByteStringToInteger_cpu_arguments_c2),
+                }),
+                mem: TwoArguments::LinearInY(LinearSize {
+                    intercept: get(ByteStringToInteger_memory_arguments_intercept),
+                    slope: get(ByteStringToInteger_memory_arguments_slope),
+                }),
             },
-            keccak_256: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::LinearCost(LinearSize {
-                        intercept: *cost_map
-                            .get("keccak_256-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("keccak_256-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("keccak_256-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            and_byte_string: CostingFun {
+                cpu: ThreeArguments::LinearInYandZ(TwoVariableLinearSize {
+                    intercept: get(AndByteString_cpu_arguments_intercept),
+                    slope1: get(AndByteString_cpu_arguments_slope1),
+                    slope2: get(AndByteString_cpu_arguments_slope2),
+                }),
+                mem: ThreeArguments::LinearInMaxYZ(LinearSize {
+                    intercept: get(AndByteString_memory_arguments_intercept),
+                    slope: get(AndByteString_memory_arguments_slope),
+                }),
             },
-            bls12_381_g1_add: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_add-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_add-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            or_byte_string: CostingFun {
+                cpu: ThreeArguments::LinearInYandZ(TwoVariableLinearSize {
+                    intercept: get(OrByteString_cpu_arguments_intercept),
+                    slope1: get(OrByteString_cpu_arguments_slope1),
+                    slope2: get(OrByteString_cpu_arguments_slope2),
+                }),
+                mem: ThreeArguments::LinearInMaxYZ(LinearSize {
+                    intercept: get(OrByteString_memory_arguments_intercept),
+                    slope: get(OrByteString_memory_arguments_slope),
+                }),
             },
-            bls12_381_g1_neg: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_neg-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_neg-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            xor_byte_string: CostingFun {
+                cpu: ThreeArguments::LinearInYandZ(TwoVariableLinearSize {
+                    intercept: get(XorByteString_cpu_arguments_intercept),
+                    slope1: get(XorByteString_cpu_arguments_slope1),
+                    slope2: get(XorByteString_cpu_arguments_slope2),
+                }),
+                mem: ThreeArguments::LinearInMaxYZ(LinearSize {
+                    intercept: get(XorByteString_memory_arguments_intercept),
+                    slope: get(XorByteString_memory_arguments_slope),
+                }),
             },
-            bls12_381_g1_scalar_mul: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("bls12_381_G1_scalarMul-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("bls12_381_G1_scalarMul-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_scalarMul-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            complement_byte_string: CostingFun {
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(ComplementByteString_cpu_arguments_intercept),
+                    slope: get(ComplementByteString_cpu_arguments_slope),
+                }),
+                mem: OneArgument::LinearCost(LinearSize {
+                    intercept: get(ComplementByteString_memory_arguments_intercept),
+                    slope: get(ComplementByteString_memory_arguments_slope),
+                }),
             },
-            bls12_381_g1_equal: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_equal-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_equal-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            read_bit: CostingFun {
+                cpu: TwoArguments::ConstantCost(get(ReadBit_cpu_arguments)),
+                mem: TwoArguments::ConstantCost(get(ReadBit_memory_arguments)),
             },
-            bls12_381_g1_compress: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_compress-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_compress-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            write_bits: CostingFun {
+                cpu: ThreeArguments::LinearInY(LinearSize {
+                    intercept: get(WriteBits_cpu_arguments_intercept),
+                    slope: get(WriteBits_cpu_arguments_slope),
+                }),
+                mem: ThreeArguments::LinearInX(LinearSize {
+                    intercept: get(WriteBits_memory_arguments_intercept),
+                    slope: get(WriteBits_memory_arguments_slope),
+                }),
             },
-            bls12_381_g1_uncompress: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_uncompress-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_uncompress-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            replicate_byte: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(ReplicateByte_cpu_arguments_intercept),
+                    slope: get(ReplicateByte_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(ReplicateByte_memory_arguments_intercept),
+                    slope: get(ReplicateByte_memory_arguments_slope),
+                }),
             },
-            bls12_381_g1_hash_to_group: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("bls12_381_G1_hashToGroup-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("bls12_381_G1_hashToGroup-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G1_hashToGroup-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            shift_byte_string: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(ShiftByteString_cpu_arguments_intercept),
+                    slope: get(ShiftByteString_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(ShiftByteString_memory_arguments_intercept),
+                    slope: get(ShiftByteString_memory_arguments_slope),
+                }),
             },
-            bls12_381_g2_add: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_add-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_add-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            rotate_byte_string: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(RotateByteString_cpu_arguments_intercept),
+                    slope: get(RotateByteString_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(RotateByteString_memory_arguments_intercept),
+                    slope: get(RotateByteString_memory_arguments_slope),
+                }),
             },
-            bls12_381_g2_neg: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_neg-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_neg-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            count_set_bits: CostingFun {
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(CountSetBits_cpu_arguments_intercept),
+                    slope: get(CountSetBits_cpu_arguments_slope),
+                }),
+                mem: OneArgument::ConstantCost(get(CountSetBits_memory_arguments)),
             },
-            bls12_381_g2_scalar_mul: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("bls12_381_G2_scalarMul-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("bls12_381_G2_scalarMul-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_scalarMul-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            find_first_set_bit: CostingFun {
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(FindFirstSetBit_cpu_arguments_intercept),
+                    slope: get(FindFirstSetBit_cpu_arguments_slope),
+                }),
+                mem: OneArgument::ConstantCost(get(FindFirstSetBit_memory_arguments)),
             },
-            bls12_381_g2_equal: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_equal-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_equal-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            ripemd_160: CostingFun {
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(Ripemd_160_cpu_arguments_intercept),
+                    slope: get(Ripemd_160_cpu_arguments_slope),
+                }),
+                mem: OneArgument::ConstantCost(get(Ripemd_160_memory_arguments)),
             },
-            bls12_381_g2_compress: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_compress-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_compress-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            exp_mod_int: CostingFun {
+                cpu: ThreeArguments::ExpModCost(ExpModCostingFunction {
+                    coefficient_00: get(ExpModInteger_cpu_arguments_coefficient00),
+                    coefficient_11: get(ExpModInteger_cpu_arguments_coefficient11),
+                    coefficient_12: get(ExpModInteger_cpu_arguments_coefficient12),
+                }),
+                mem: ThreeArguments::LinearInZ(LinearSize {
+                    intercept: get(ExpModInteger_memory_arguments_intercept),
+                    slope: get(ExpModInteger_memory_arguments_slope),
+                }),
             },
-            bls12_381_g2_uncompress: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_uncompress-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_uncompress-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            drop_list: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(DropList_cpu_arguments_intercept),
+                    slope: get(DropList_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::ConstantCost(get(DropList_memory_arguments)),
             },
-            bls12_381_g2_hash_to_group: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("bls12_381_G2_hashToGroup-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("bls12_381_G2_hashToGroup-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_G2_hashToGroup-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            length_of_array: CostingFun {
+                cpu: OneArgument::ConstantCost(get(LengthOfArray_cpu_arguments)),
+                mem: OneArgument::ConstantCost(get(LengthOfArray_memory_arguments)),
             },
-
-            bls12_381_miller_loop: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_millerLoop-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_millerLoop-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            list_to_array: CostingFun {
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(ListToArray_cpu_arguments_intercept),
+                    slope: get(ListToArray_cpu_arguments_slope),
+                }),
+                mem: OneArgument::LinearCost(LinearSize {
+                    intercept: get(ListToArray_memory_arguments_intercept),
+                    slope: get(ListToArray_memory_arguments_slope),
+                }),
             },
-            bls12_381_mul_ml_result: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_mulMlResult-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_mulMlResult-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            index_array: CostingFun {
+                cpu: TwoArguments::ConstantCost(get(IndexArray_cpu_arguments)),
+                mem: TwoArguments::ConstantCost(get(IndexArray_memory_arguments)),
             },
-            bls12_381_final_verify: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_finalVerify-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("bls12_381_finalVerify-mem-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            bls12_381_g1_multi_scalar_mul: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(Bls12_381_G1_multiScalarMul_cpu_arguments_intercept),
+                    slope: get(Bls12_381_G1_multiScalarMul_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G1_multiScalarMul_memory_arguments)),
             },
-            integer_to_byte_string: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: ThreeArguments::ConstantCost(30000000000),
-                    mem: ThreeArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: ThreeArguments::QuadraticInZ(QuadraticFunction {
-                        coeff_0: *cost_map
-                            .get("integerToByteString-cpu-arguments-c0")
-                            .unwrap_or(&30000000000),
-                        coeff_1: *cost_map
-                            .get("integerToByteString-cpu-arguments-c1")
-                            .unwrap_or(&30000000000),
-                        coeff_2: *cost_map
-                            .get("integerToByteString-cpu-arguments-c2")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: ThreeArguments::LiteralInYorLinearInZ(LinearSize {
-                        intercept: *cost_map
-                            .get("integerToByteString-mem-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("integerToByteString-mem-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
+            bls12_381_g2_multi_scalar_mul: CostingFun {
+                cpu: TwoArguments::LinearInX(LinearSize {
+                    intercept: get(Bls12_381_G2_multiScalarMul_cpu_arguments_intercept),
+                    slope: get(Bls12_381_G2_multiScalarMul_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::ConstantCost(get(Bls12_381_G2_multiScalarMul_memory_arguments)),
             },
-            byte_string_to_integer: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::QuadraticInY(QuadraticFunction {
-                        coeff_0: *cost_map
-                            .get("byteStringToInteger-cpu-arguments-c0")
-                            .unwrap_or(&30000000000),
-                        coeff_1: *cost_map
-                            .get("byteStringToInteger-cpu-arguments-c1")
-                            .unwrap_or(&30000000000),
-                        coeff_2: *cost_map
-                            .get("byteStringToInteger-cpu-arguments-c2")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: TwoArguments::LinearInY(LinearSize {
-                        intercept: *cost_map
-                            .get("byteStringToInteger-mem-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("byteStringToInteger-mem-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
+            insert_coin: CostingFun {
+                cpu: FourArguments::LinearInU(LinearSize {
+                    intercept: get(InsertCoin_cpu_arguments_intercept),
+                    slope: get(InsertCoin_cpu_arguments_slope),
+                }),
+                mem: FourArguments::LinearInU(LinearSize {
+                    intercept: get(InsertCoin_memory_arguments_intercept),
+                    slope: get(InsertCoin_memory_arguments_slope),
+                }),
             },
-            and_byte_string: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: ThreeArguments::ConstantCost(30000000000),
-                    mem: ThreeArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: ThreeArguments::LinearInYandZ(TwoVariableLinearSize {
-                        intercept: *cost_map
-                            .get("andByteString-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope1: *cost_map
-                            .get("andByteString-cpu-arguments-slope1")
-                            .unwrap_or(&30000000000),
-                        slope2: *cost_map
-                            .get("andByteString-cpu-arguments-slope2")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: ThreeArguments::LinearInMaxYZ(LinearSize {
-                        intercept: *cost_map
-                            .get("andByteString-memory-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("andByteString-memory-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
+            lookup_coin: CostingFun {
+                cpu: ThreeArguments::LinearInZ(LinearSize {
+                    intercept: get(LookupCoin_cpu_arguments_intercept),
+                    slope: get(LookupCoin_cpu_arguments_slope),
+                }),
+                mem: ThreeArguments::ConstantCost(get(LookupCoin_memory_arguments)),
             },
-            or_byte_string: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: ThreeArguments::ConstantCost(30000000000),
-                    mem: ThreeArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: ThreeArguments::LinearInYandZ(TwoVariableLinearSize {
-                        intercept: *cost_map
-                            .get("orByteString-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope1: *cost_map
-                            .get("orByteString-cpu-arguments-slope1")
-                            .unwrap_or(&30000000000),
-                        slope2: *cost_map
-                            .get("orByteString-cpu-arguments-slope2")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: ThreeArguments::LinearInMaxYZ(LinearSize {
-                        intercept: *cost_map
-                            .get("orByteString-memory-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("orByteString-memory-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
+            union_value: CostingFun {
+                cpu: TwoArguments::WithInteractionInXAndY(TwoVariableWithInteractionSize {
+                    coeff_00: get(UnionValue_cpu_arguments_c00),
+                    coeff_10: get(UnionValue_cpu_arguments_c10),
+                    coeff_01: get(UnionValue_cpu_arguments_c01),
+                    coeff_11: get(UnionValue_cpu_arguments_c11),
+                }),
+                mem: TwoArguments::AddedSizes(AddedSizes {
+                    intercept: get(UnionValue_memory_arguments_intercept),
+                    slope: get(UnionValue_memory_arguments_slope),
+                }),
             },
-            xor_byte_string: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: ThreeArguments::ConstantCost(30000000000),
-                    mem: ThreeArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: ThreeArguments::LinearInYandZ(TwoVariableLinearSize {
-                        intercept: *cost_map
-                            .get("xorByteString-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope1: *cost_map
-                            .get("xorByteString-cpu-arguments-slope1")
-                            .unwrap_or(&30000000000),
-                        slope2: *cost_map
-                            .get("xorByteString-cpu-arguments-slope2")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: ThreeArguments::LinearInMaxYZ(LinearSize {
-                        intercept: *cost_map
-                            .get("xorByteString-memory-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("xorByteString-memory-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
+            value_contains: CostingFun {
+                cpu: TwoArguments::ConstAboveDiagonal(ConstantOrTwoArguments {
+                    constant: get(ValueContains_cpu_arguments_constant),
+                    model: Box::new(TwoArguments::LinearInXAndY(TwoVariableLinearSize {
+                        intercept: get(ValueContains_cpu_arguments_model_arguments_intercept),
+                        slope1: get(ValueContains_cpu_arguments_model_arguments_slope1),
+                        slope2: get(ValueContains_cpu_arguments_model_arguments_slope2),
+                    })),
+                }),
+                mem: TwoArguments::ConstantCost(get(ValueContains_memory_arguments)),
             },
-            complement_byte_string: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::LinearCost(LinearSize {
-                        intercept: *cost_map
-                            .get("complementByteString-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("complementByteString-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: OneArgument::LinearCost(LinearSize {
-                        intercept: *cost_map
-                            .get("complementByteString-memory-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("complementByteString-memory-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
+            value_data: CostingFun {
+                cpu: OneArgument::LinearCost(LinearSize {
+                    intercept: get(ValueData_cpu_arguments_intercept),
+                    slope: get(ValueData_cpu_arguments_slope),
+                }),
+                mem: OneArgument::LinearCost(LinearSize {
+                    intercept: get(ValueData_memory_arguments_intercept),
+                    slope: get(ValueData_memory_arguments_slope),
+                }),
             },
-            read_bit: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("readBit-cpu-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                    mem: TwoArguments::ConstantCost(
-                        *cost_map
-                            .get("readBit-memory-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
+            un_value_data: CostingFun {
+                cpu: OneArgument::QuadraticCost(QuadraticFunction {
+                    coeff_0: get(UnValueData_cpu_arguments_c0),
+                    coeff_1: get(UnValueData_cpu_arguments_c1),
+                    coeff_2: get(UnValueData_cpu_arguments_c2),
+                }),
+                mem: OneArgument::LinearCost(LinearSize {
+                    intercept: get(UnValueData_memory_arguments_intercept),
+                    slope: get(UnValueData_memory_arguments_slope),
+                }),
             },
-            write_bits: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: ThreeArguments::ConstantCost(30000000000),
-                    mem: ThreeArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: ThreeArguments::LinearInY(LinearSize {
-                        intercept: *cost_map
-                            .get("writeBits-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("writeBits-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: ThreeArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("writeBits-memory-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("writeBits-memory-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
-            },
-            replicate_byte: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("replicateByte-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("replicateByte-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("replicateByte-memory-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("replicateByte-memory-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
-            },
-            shift_byte_string: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("shiftByteString-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("shiftByteString-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("shiftByteString-memory-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("shiftByteString-memory-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
-            },
-            rotate_byte_string: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: TwoArguments::ConstantCost(30000000000),
-                    mem: TwoArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("rotateByteString-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("rotateByteString-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: TwoArguments::LinearInX(LinearSize {
-                        intercept: *cost_map
-                            .get("rotateByteString-memory-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("rotateByteString-memory-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                },
-            },
-            count_set_bits: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::LinearCost(LinearSize {
-                        intercept: *cost_map
-                            .get("countSetBits-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("countSetBits-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("countSetBits-memory-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
-            },
-            find_first_set_bit: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::LinearCost(LinearSize {
-                        intercept: *cost_map
-                            .get("findFirstSetBit-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("findFirstSetBit-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("findFirstSetBit-memory-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
-            },
-            ripemd_160: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: OneArgument::ConstantCost(30000000000),
-                    mem: OneArgument::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 => CostingFun {
-                    cpu: OneArgument::LinearCost(LinearSize {
-                        intercept: *cost_map
-                            .get("ripemd_160-cpu-arguments-intercept")
-                            .unwrap_or(&30000000000),
-                        slope: *cost_map
-                            .get("ripemd_160-cpu-arguments-slope")
-                            .unwrap_or(&30000000000),
-                    }),
-                    mem: OneArgument::ConstantCost(
-                        *cost_map
-                            .get("ripemd_160-memory-arguments")
-                            .unwrap_or(&30000000000),
-                    ),
-                },
-            },
-            exp_mod_int: match version {
-                Language::PlutusV1 | Language::PlutusV2 => CostingFun {
-                    cpu: ThreeArguments::ConstantCost(30000000000),
-                    mem: ThreeArguments::ConstantCost(30000000000),
-                },
-                Language::PlutusV3 if has_pv11_tail => pv11_exp_mod_integer_costs(costs),
-                Language::PlutusV3 => CostingFun {
-                    cpu: ThreeArguments::ConstantCost(30000000000),
-                    mem: ThreeArguments::ConstantCost(30000000000),
-                },
-            },
-            pv11_builtin_costs: if has_pv11_tail {
-                Pv11BuiltinCosts::from_van_rossem_costs(costs)
-            } else {
-                Pv11BuiltinCosts::unavailable()
+            scale_value: CostingFun {
+                cpu: TwoArguments::LinearInY(LinearSize {
+                    intercept: get(ScaleValue_cpu_arguments_intercept),
+                    slope: get(ScaleValue_cpu_arguments_slope),
+                }),
+                mem: TwoArguments::LinearInY(LinearSize {
+                    intercept: get(ScaleValue_memory_arguments_intercept),
+                    slope: get(ScaleValue_memory_arguments_slope),
+                }),
             },
         },
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct CostingFun<T> {
     pub mem: T,
     pub cpu: T,
@@ -5523,6 +3534,12 @@ pub enum OneArgument {
     ConstantCost(i64),
     LinearCost(LinearSize),
     QuadraticCost(QuadraticFunction),
+}
+
+impl Default for OneArgument {
+    fn default() -> Self {
+        OneArgument::ConstantCost(UNAVAILABLE_BUILTIN_COST_PLACEHOLDER)
+    }
 }
 
 impl OneArgument {
@@ -5555,6 +3572,12 @@ pub enum TwoArguments {
     QuadraticInY(QuadraticFunction),
     QuadraticInXAndY(TwoArgumentsQuadraticFunction),
     ConstAboveDiagonalIntoQuadraticXAndY(i64, TwoArgumentsQuadraticFunction),
+}
+
+impl Default for TwoArguments {
+    fn default() -> Self {
+        TwoArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST_PLACEHOLDER)
+    }
 }
 
 impl TwoArguments {
@@ -5643,6 +3666,12 @@ pub enum ThreeArguments {
     LinearInYandZ(TwoVariableLinearSize),
 }
 
+impl Default for ThreeArguments {
+    fn default() -> Self {
+        ThreeArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST_PLACEHOLDER)
+    }
+}
+
 impl ThreeArguments {
     pub fn cost(&self, x: i64, y: i64, z: i64) -> i64 {
         match self {
@@ -5675,6 +3704,12 @@ impl ThreeArguments {
 pub enum FourArguments {
     ConstantCost(i64),
     LinearInU(LinearSize),
+}
+
+impl Default for FourArguments {
+    fn default() -> Self {
+        FourArguments::ConstantCost(UNAVAILABLE_BUILTIN_COST_PLACEHOLDER)
+    }
 }
 
 impl FourArguments {
@@ -5834,106 +3869,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn assert_default_cost_model_v1_mainnet_2024_09_29() {
-        let costs = vec![
-            100788, 420, 1, 1, 1000, 173, 0, 1, 1000, 59957, 4, 1, 11183, 32, 201305, 8356, 4,
-            16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 100, 100,
-            16000, 100, 94375, 32, 132994, 32, 61462, 4, 72010, 178, 0, 1, 22151, 32, 91189, 769,
-            4, 2, 85848, 228465, 122, 0, 1, 1, 1000, 42921, 4, 2, 24548, 29498, 38, 1, 898148,
-            27279, 1, 51775, 558, 1, 39184, 1000, 60594, 1, 141895, 32, 83150, 32, 15299, 32,
-            76049, 1, 13169, 4, 22100, 10, 28999, 74, 1, 28999, 74, 1, 43285, 552, 1, 44749, 541,
-            1, 33852, 32, 68246, 32, 72362, 32, 7243, 32, 7391, 32, 11546, 32, 85848, 228465, 122,
-            0, 1, 1, 90434, 519, 0, 1, 74433, 32, 85848, 228465, 122, 0, 1, 1, 85848, 228465, 122,
-            0, 1, 1, 270652, 22588, 4, 1457325, 64566, 4, 20467, 1, 4, 0, 141992, 32, 100788, 420,
-            1, 1, 81663, 32, 59498, 32, 20142, 32, 24588, 32, 20744, 32, 25933, 32, 24623, 32,
-            53384111, 14333, 10,
-        ];
-
-        let cost_model = initialize_cost_model(&Language::PlutusV1, &costs);
-
-        assert_eq!(CostModel::v1(), cost_model);
-    }
-
-    #[test]
-    fn assert_default_cost_model_v2_mainnet_2024_09_29() {
-        let costs = vec![
-            100788, 420, 1, 1, 1000, 173, 0, 1, 1000, 59957, 4, 1, 11183, 32, 201305, 8356, 4,
-            16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 100, 100,
-            16000, 100, 94375, 32, 132994, 32, 61462, 4, 72010, 178, 0, 1, 22151, 32, 91189, 769,
-            4, 2, 85848, 228465, 122, 0, 1, 1, 1000, 42921, 4, 2, 24548, 29498, 38, 1, 898148,
-            27279, 1, 51775, 558, 1, 39184, 1000, 60594, 1, 141895, 32, 83150, 32, 15299, 32,
-            76049, 1, 13169, 4, 22100, 10, 28999, 74, 1, 28999, 74, 1, 43285, 552, 1, 44749, 541,
-            1, 33852, 32, 68246, 32, 72362, 32, 7243, 32, 7391, 32, 11546, 32, 85848, 228465, 122,
-            0, 1, 1, 90434, 519, 0, 1, 74433, 32, 85848, 228465, 122, 0, 1, 1, 85848, 228465, 122,
-            0, 1, 1, 955506, 213312, 0, 2, 270652, 22588, 4, 1457325, 64566, 4, 20467, 1, 4, 0,
-            141992, 32, 100788, 420, 1, 1, 81663, 32, 59498, 32, 20142, 32, 24588, 32, 20744, 32,
-            25933, 32, 24623, 32, 43053543, 10, 53384111, 14333, 10, 43574283, 26308, 10,
-        ];
-
-        let cost_model = initialize_cost_model(&Language::PlutusV2, &costs);
-
-        assert_eq!(CostModel::v2(), cost_model);
-    }
-
-    // #[test]
-    // fn assert_default_cost_model_v3_mainnet_2024_11_30() {
-    //     let costs: Vec<i64> = vec![
-    //         100788, 420, 1, 1, 1000, 173, 0, 1, 1000, 59957, 4, 1, 11183, 32, 201305, 8356, 4,
-    //         16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 100, 100,
-    //         16000, 100, 94375, 32, 132994, 32, 61462, 4, 72010, 178, 0, 1, 22151, 32, 91189, 769,
-    //         4, 2, 85848, 123203, 7305, -900, 1716, 549, 57, 85848, 0, 1, 1, 1000, 42921, 4, 2,
-    //         24548, 29498, 38, 1, 898148, 27279, 1, 51775, 558, 1, 39184, 1000, 60594, 1, 141895,
-    //         32, 83150, 32, 15299, 32, 76049, 1, 13169, 4, 22100, 10, 28999, 74, 1, 28999, 74, 1,
-    //         43285, 552, 1, 44749, 541, 1, 33852, 32, 68246, 32, 72362, 32, 7243, 32, 7391, 32,
-    //         11546, 32, 85848, 123203, 7305, -900, 1716, 549, 57, 85848, 0, 1, 90434, 519, 0, 1,
-    //         74433, 32, 85848, 123203, 7305, -900, 1716, 549, 57, 85848, 0, 1, 1, 85848, 123203,
-    //         7305, -900, 1716, 549, 57, 85848, 0, 1, 955506, 213312, 0, 2, 270652, 22588, 4,
-    //         1457325, 64566, 4, 20467, 1, 4, 0, 141992, 32, 100788, 420, 1, 1, 81663, 32, 59498, 32,
-    //         20142, 32, 24588, 32, 20744, 32, 25933, 32, 24623, 32, 43053543, 10, 53384111, 14333,
-    //         10, 43574283, 26308, 10, 16000, 100, 16000, 100, 962335, 18, 2780678, 6, 442008, 1,
-    //         52538055, 3756, 18, 267929, 18, 76433006, 8868, 18, 52948122, 18, 1995836, 36, 3227919,
-    //         12, 901022, 1, 166917843, 4307, 36, 284546, 36, 158221314, 26549, 36, 74698472, 36,
-    //         333849714, 1, 254006273, 72, 2174038, 72, 2261318, 64571, 4, 207616, 8310, 4, 1293828,
-    //         28716, 63, 0, 1, 1006041, 43623, 251, 0, 1,
-    //     ];
-
-    //     let cost_model = initialize_cost_model(&Language::PlutusV3, &costs);
-
-    //     assert_eq!(CostModel::v3(), cost_model);
-    // }
-
-    #[test]
-    fn assert_default_cost_model_v3_preprod_2024_11_22() {
-        let costs: Vec<i64> = vec![
-            100788, 420, 1, 1, 1000, 173, 0, 1, 1000, 59957, 4, 1, 11183, 32, 201305, 8356, 4,
-            16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 100, 100,
-            16000, 100, 94375, 32, 132994, 32, 61462, 4, 72010, 178, 0, 1, 22151, 32, 91189, 769,
-            4, 2, 85848, 123203, 7305, -900, 1716, 549, 57, 85848, 0, 1, 1, 1000, 42921, 4, 2,
-            24548, 29498, 38, 1, 898148, 27279, 1, 51775, 558, 1, 39184, 1000, 60594, 1, 141895,
-            32, 83150, 32, 15299, 32, 76049, 1, 13169, 4, 22100, 10, 28999, 74, 1, 28999, 74, 1,
-            43285, 552, 1, 44749, 541, 1, 33852, 32, 68246, 32, 72362, 32, 7243, 32, 7391, 32,
-            11546, 32, 85848, 123203, 7305, -900, 1716, 549, 57, 85848, 0, 1, 90434, 519, 0, 1,
-            74433, 32, 85848, 123203, 7305, -900, 1716, 549, 57, 85848, 0, 1, 1, 85848, 123203,
-            7305, -900, 1716, 549, 57, 85848, 0, 1, 955506, 213312, 0, 2, 270652, 22588, 4,
-            1457325, 64566, 4, 20467, 1, 4, 0, 141992, 32, 100788, 420, 1, 1, 81663, 32, 59498, 32,
-            20142, 32, 24588, 32, 20744, 32, 25933, 32, 24623, 32, 43053543, 10, 53384111, 14333,
-            10, 43574283, 26308, 10, 16000, 100, 16000, 100, 962335, 18, 2780678, 6, 442008, 1,
-            52538055, 3756, 18, 267929, 18, 76433006, 8868, 18, 52948122, 18, 1995836, 36, 3227919,
-            12, 901022, 1, 166917843, 4307, 36, 284546, 36, 158221314, 26549, 36, 74698472, 36,
-            333849714, 1, 254006273, 72, 2174038, 72, 2261318, 64571, 4, 207616, 8310, 4, 1293828,
-            28716, 63, 0, 1, 1006041, 43623, 251, 0, 1, 100181, 726, 719, 0, 1, 100181, 726, 719,
-            0, 1, 100181, 726, 719, 0, 1, 107878, 680, 0, 1, 95336, 1, 281145, 18848, 0, 1, 180194,
-            159, 1, 1, 158519, 8942, 0, 1, 159378, 8813, 0, 1, 107490, 3298, 1, 106057, 655, 1,
-            1964219, 24520, 3,
-        ];
-
-        let cost_model = initialize_cost_model(&Language::PlutusV3, &costs);
-
-        assert_eq!(CostModel::v3(), cost_model);
-    }
-
-    #[test]
-    fn plutus_v3_pv11_divide_integer_uses_above_and_below_diagonal() {
+    fn plutus_v3_divide_integer_always_uses_semantic_e_shape() {
         let mut costs: Vec<i64> = (0..350).collect();
         costs[49] = 85848;
         costs[50] = 123203;
@@ -5944,18 +3880,18 @@ mod tests {
         costs[55] = 57;
         costs[56] = 85848;
 
-        let language_only = initialize_cost_model(&Language::PlutusV3, &costs);
+        let pv10 = initialize_cost_model(&Language::PlutusV3, &costs);
         let pv11 = initialize_cost_model_with_protocol(&Language::PlutusV3, 11, &costs);
 
-        let old_cpu = language_only.builtin_costs.divide_integer.cpu.cost(1, 2);
+        let pv10_cpu = pv10.builtin_costs.divide_integer.cpu.cost(1, 2);
         let pv11_cpu = pv11.builtin_costs.divide_integer.cpu.cost(1, 2);
 
-        assert_eq!(85848, old_cpu);
-        assert_eq!(49340, pv11_cpu - old_cpu);
+        assert_eq!(pv10_cpu, pv11_cpu);
+        assert_eq!(135188, pv10_cpu);
     }
 
     #[test]
-    fn plutus_v2_protocol_selects_multiply_integer_a_or_b_costing() {
+    fn plutus_v2_multiply_integer_always_uses_semantic_d_shape() {
         let mut costs: Vec<i64> = (0..350).collect();
         costs[115] = 10;
         costs[116] = 3;
@@ -5967,7 +3903,7 @@ mod tests {
         assert_eq!(
             TwoArguments::AddedSizes(AddedSizes {
                 intercept: 10,
-                slope: 3
+                slope: 3,
             }),
             before_chang.builtin_costs.multiply_integer.cpu
         );
@@ -5977,6 +3913,10 @@ mod tests {
                 slope: 3,
             }),
             after_chang.builtin_costs.multiply_integer.cpu
+        );
+        assert_ne!(
+            after_chang.builtin_costs.multiply_integer.cpu,
+            before_chang.builtin_costs.multiply_integer.cpu
         );
         assert_eq!(
             10 + 3 * (2 + 4),
@@ -5993,7 +3933,7 @@ mod tests {
     }
 
     #[test]
-    fn plutus_v2_pv11_linear_in_y2_keeps_ledger_payload() {
+    fn plutus_v2_remainder_and_mod_integer_always_use_semantic_d_shape() {
         let costs: Vec<i64> = (0..350).collect();
 
         let cost_model = initialize_cost_model_with_protocol(&Language::PlutusV2, 11, &costs);
@@ -6002,16 +3942,16 @@ mod tests {
         assert_eq!(
             TwoArguments::LinearInY2(SubtractedSizes {
                 intercept: 130,
-                slope: 132,
                 minimum: 131,
+                slope: 132,
             }),
             builtin_costs.remainder_integer.mem
         );
         assert_eq!(
             TwoArguments::LinearInY2(SubtractedSizes {
                 intercept: 112,
-                slope: 114,
                 minimum: 113,
+                slope: 114,
             }),
             builtin_costs.mod_integer.mem
         );
@@ -6027,7 +3967,6 @@ mod tests {
 
         let cost_model = initialize_cost_model_with_protocol(&Language::PlutusV3, 11, &costs);
         let builtin_costs = &cost_model.builtin_costs;
-        let pv11 = &builtin_costs.pv11_builtin_costs;
 
         assert_eq!(
             ThreeArguments::ExpModCost(ExpModCostingFunction {
@@ -6049,15 +3988,15 @@ mod tests {
                 intercept: 302,
                 slope: 303,
             }),
-            pv11.drop_list.cpu
+            builtin_costs.drop_list.cpu
         );
-        assert_eq!(TwoArguments::ConstantCost(304), pv11.drop_list.mem);
+        assert_eq!(TwoArguments::ConstantCost(304), builtin_costs.drop_list.mem);
         assert_eq!(
             OneArgument::LinearCost(LinearSize {
                 intercept: 307,
                 slope: 308,
             }),
-            pv11.list_to_array.cpu
+            builtin_costs.list_to_array.cpu
         );
         assert_eq!(
             TwoArguments::WithInteractionInXAndY(TwoVariableWithInteractionSize {
@@ -6066,30 +4005,33 @@ mod tests {
                 coeff_01: 328,
                 coeff_11: 329,
             }),
-            pv11.union_value.cpu
+            builtin_costs.union_value.cpu
         );
         assert_eq!(
             TwoArguments::AddedSizes(AddedSizes {
                 intercept: 330,
                 slope: 331,
             }),
-            pv11.union_value.mem
+            builtin_costs.union_value.mem
         );
-        assert_eq!(330 + 331 * (2 + 4), pv11.union_value.mem.cost(2, 4));
+        assert_eq!(
+            330 + 331 * (2 + 4),
+            builtin_costs.union_value.mem.cost(2, 4)
+        );
         assert_eq!(
             OneArgument::QuadraticCost(QuadraticFunction {
                 coeff_0: 341,
                 coeff_1: 342,
                 coeff_2: 343,
             }),
-            pv11.un_value_data.cpu
+            builtin_costs.un_value_data.cpu
         );
         assert_eq!(
             TwoArguments::LinearInY(LinearSize {
                 intercept: 348,
                 slope: 349,
             }),
-            pv11.scale_value.mem
+            builtin_costs.scale_value.mem
         );
     }
 

@@ -51,10 +51,8 @@ pub enum BuiltinSemantics {
 impl BuiltinSemantics {
     pub fn for_language(language: &Language) -> Self {
         match language {
-            // Preserve the old language-only evaluator behavior. Protocol-aware
-            // entry points can still select pre-Chang A explicitly.
-            Language::PlutusV1 | Language::PlutusV2 => BuiltinSemantics::B,
-            Language::PlutusV3 => BuiltinSemantics::C,
+            Language::PlutusV1 | Language::PlutusV2 => BuiltinSemantics::D,
+            Language::PlutusV3 => BuiltinSemantics::E,
         }
     }
 
