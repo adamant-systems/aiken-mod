@@ -5,8 +5,15 @@ use crate::{
 use chumsky::prelude::*;
 
 pub fn decorators() -> impl Parser<Token, Vec<ast::Decorator>, Error = ParseError> {
-    let tag_value =
-        select! { Token::Int { value, base } => ast::DecoratorKind::Tag { value, base } };
+    let tag_value = select! { Token::Int { value, base }  => (value, base) }.validate(
+        |(value_str, base), span, emit| match usize::from_str_radix(&value_str, 10) {
+            Err(_) => {
+                emit(ParseError::invalid_decorator_tag(span));
+                ast::DecoratorKind::List
+            }
+            Ok(value) => ast::DecoratorKind::Tag { value, base },
+        },
+    );
 
     just(Token::At)
         .ignore_then(choice((
@@ -210,6 +217,19 @@ mod tests {
 
               @tag(1171)
               Withdrawn(Bool, ByteArray)
+            }
+            "#
+        );
+    }
+
+    #[test]
+    fn decorator_tag_overflow() {
+        assert_definition!(
+            r#"
+            pub type Datum {
+              @tag(18446744073709551616)
+              TooLarge
+              Other
             }
             "#
         );

@@ -144,6 +144,15 @@ impl ParseError {
         }
     }
 
+    pub fn invalid_decorator_tag(span: Span) -> Self {
+        Self {
+            kind: Box::new(ErrorKind::InvalidDecoratorTag),
+            span,
+            expected: HashSet::new(),
+            label: Some("invalid or too large"),
+        }
+    }
+
     pub fn hybrid_notation_in_bytearray(span: Span) -> Self {
         Self {
             kind: Box::new(ErrorKind::HybridNotationInByteArray),
@@ -301,6 +310,14 @@ pub enum ErrorKind {
         "Expect doc-comments are turned into traces and must remain short.\nHence, I will only allow a single line of doc-comment above an 'expect'. And yet, you've put many."
     ))]
     IllegalMultilineExpectComment,
+
+    #[error("I spotted an invalid constructor decorator tag.")]
+    #[diagnostic(help(
+        "Decorators must be non-negative sized integers ({} bits, maximum={})",
+        usize::BITS,
+        usize::MAX
+    ))]
+    InvalidDecoratorTag,
 }
 
 fn fmt_curve_type(curve: &CurveType) -> String {

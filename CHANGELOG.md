@@ -9,7 +9,7 @@
 ### Fixed
 
 - **aiken-lang**: Preserve typed `expect` assignments during unused-binding cleanup so `Data` validation still runs even when the bound name is unused. Fixes [#1325](https://github.com/aiken-lang/aiken/issues/1325). @knoal
-- **aiken-lang**: Emit a `DecoratorValidation` diagnostic instead of panicking when an `@tag(...)` decorator value exceeds `usize::MAX`. Fixes [#1319](https://github.com/aiken-lang/aiken/issues/1319). @SAY-5
+- **aiken-lang**: Emit a parse error instead panicking when a `@tag(...)` decorator value exceeds `usize::MAX`. Fixes [#1319](https://github.com/aiken-lang/aiken/issues/1319). @SAY-5, @KtorZ
 
 ## v1.1.22 - 2026-05-15
 

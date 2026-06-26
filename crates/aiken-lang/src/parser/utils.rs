@@ -130,15 +130,28 @@ macro_rules! assert_definition {
 
         let stream = chumsky::Stream::from_iter($crate::ast::Span::create(tokens.len(), 1), tokens.into_iter());
 
-        let result = $crate::parser::definition().parse(stream).unwrap();
+        let result = $crate::parser::definition().parse(stream);
 
-        insta::with_settings!({
-            description => concat!("Code:\n\n", indoc::indoc! { $code }),
-            prepend_module_to_snapshot => false,
-            omit_expression => true
-        }, {
-            insta::assert_debug_snapshot!(result);
-        });
+        match result {
+            Ok(expr) => {
+                insta::with_settings!({
+                    description => concat!("Code:\n\n", indoc::indoc! { $code }),
+                    prepend_module_to_snapshot => false,
+                    omit_expression => true
+                }, {
+                    insta::assert_debug_snapshot!(expr);
+                })
+            },
+            Err(err) => {
+                insta::with_settings!({
+                    description => concat!("Invalid code (parse error):\n\n", indoc::indoc! { $code }),
+                    prepend_module_to_snapshot => false,
+                    omit_expression => true
+                }, {
+                    insta::assert_snapshot!(err.into_iter().map(|e| e.to_string()).collect::<Vec<_>>().join("\n"));
+                })
+            }
+        }
     };
 }
 

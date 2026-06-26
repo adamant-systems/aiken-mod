@@ -558,7 +558,7 @@ impl Data {
                 .iter()
                 .find_map(|decorator| {
                     if let DecoratorKind::Tag { value, .. } = &decorator.kind {
-                        Some(value.parse().unwrap())
+                        Some(*value)
                     } else {
                         None
                     }

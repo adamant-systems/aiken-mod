@@ -10,7 +10,7 @@ DataType(
                 decorators: [
                     Decorator {
                         kind: Tag {
-                            value: "117",
+                            value: 117,
                             base: Decimal {
                                 numeric_underscore: false,
                             },
@@ -28,7 +28,7 @@ DataType(
                 decorators: [
                     Decorator {
                         kind: Tag {
-                            value: "118",
+                            value: 118,
                             base: Decimal {
                                 numeric_underscore: false,
                             },
@@ -66,7 +66,7 @@ DataType(
                 decorators: [
                     Decorator {
                         kind: Tag {
-                            value: "1170",
+                            value: 1170,
                             base: Decimal {
                                 numeric_underscore: false,
                             },
@@ -116,7 +116,7 @@ DataType(
                 decorators: [
                     Decorator {
                         kind: Tag {
-                            value: "1171",
+                            value: 1171,
                             base: Decimal {
                                 numeric_underscore: false,
                             },

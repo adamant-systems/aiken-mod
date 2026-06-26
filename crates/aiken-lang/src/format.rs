@@ -1823,7 +1823,14 @@ impl<'comments> Formatter<'comments> {
         join(
             decorators.iter().map(|d| match &d.kind {
                 crate::ast::DecoratorKind::Tag { value, base } => {
-                    docvec!["@tag(", self.uint(value, base), ")"]
+                    docvec![
+                        "@tag(",
+                        Document::String(match base {
+                            Base::Decimal { .. } => value.to_string(),
+                            Base::Hexadecimal => format!("{value:#x}"),
+                        }),
+                        ")"
+                    ]
                 }
                 crate::ast::DecoratorKind::List => "@list".to_doc(),
             }),

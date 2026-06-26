@@ -2309,7 +2309,7 @@ impl<'a> CodeGenerator<'a> {
                                     DecoratorKind::Tag { value, .. } => Some(value),
                                     _ => None,
                                 }) {
-                                tag.parse().unwrap()
+                                *tag
                             } else {
                                 index
                             };

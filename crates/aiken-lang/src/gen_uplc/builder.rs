@@ -1384,7 +1384,7 @@ pub fn get_constr_index_variant<'a>(
                     _ => None,
                 })
             {
-                (tag.parse().unwrap(), dt)
+                (*tag, dt)
             } else {
                 (index, dt)
             }

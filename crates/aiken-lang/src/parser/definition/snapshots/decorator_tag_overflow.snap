@@ -1,0 +1,5 @@
+---
+source: crates/aiken-lang/src/parser/definition/data_type.rs
+description: "Invalid code (parse error):\n\npub type Datum {\n  @tag(18446744073709551616)\n  TooLarge\n  Other\n}\n"
+---
+I spotted an invalid constructor decorator tag.

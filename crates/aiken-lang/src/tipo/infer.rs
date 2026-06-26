@@ -1079,16 +1079,7 @@ impl TypedDataType {
             let mut tagged: Option<(usize, &Span)> = None;
             for decorator in &constructor.decorators {
                 if let DecoratorKind::Tag { value, .. } = &decorator.kind {
-                    let parsed =
-                        value
-                            .parse::<usize>()
-                            .map_err(|_| Error::DecoratorValidation {
-                                location: decorator.location,
-                                message: format!(
-                                    "tag value `{value}` does not fit in a usize on this platform"
-                                ),
-                            })?;
-                    tagged = Some((parsed, &decorator.location));
+                    tagged = Some((*value, &decorator.location));
                     break;
                 }
             }
