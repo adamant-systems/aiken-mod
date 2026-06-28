@@ -703,6 +703,11 @@ pub fn get_data_info(witness_set: &MintedWitnessSet) -> Vec<(DatumHash, PlutusDa
             s.iter()
                 .map(|d| (d.original_hash(), d.clone().unwrap()))
                 .sorted()
+                // The ledger stores witness datums in a `Map DataHash Data`, so a tx carrying
+                // the same datum twice collapses to a single entry. Dedupe by hash to match;
+                // otherwise `txInfoData` is a Plutus Map with duplicate keys and validators that
+                // fold/look up the datum map disagree with the node.
+                .dedup_by(|(a, _), (b, _)| a == b)
                 .collect()
         })
         .unwrap_or_default()
