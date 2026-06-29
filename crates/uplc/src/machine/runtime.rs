@@ -1678,18 +1678,22 @@ fn verify_ecdsa(public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<V
 
     let signature = Signature::from_compact(signature)?;
 
-    let message = Message::from_slice(message)?;
+    // ECDSA requires a 32-byte (pre-hashed) message — `from_digest_slice` enforces that length.
+    let message = Message::from_digest_slice(message)?;
 
     let valid = secp.verify_ecdsa(&message, &signature, &public_key);
 
     Ok(Value::Con(Constant::Bool(valid.is_ok()).into()))
 }
 
-/// Unlike the Haskell implementation the schnorr verification function in Aiken doesn't allow for arbitrary message sizes (at the moment).
-/// The message needs to be 32 bytes (ideally prehashed, but not a requirement).
+/// `verifySchnorrSecp256k1Signature` takes an **arbitrary-length** message (BIP-340 / CIP-49); only
+/// ECDSA requires a 32-byte digest. The native path passes the message bytes straight to
+/// libsecp256k1's `verify_schnorr` (which accepts `msg: &[u8]` since secp256k1 0.30), matching the
+/// ledger. (It previously forced a 32-byte `Message`, diverging from the chain for real on-chain
+/// txs that sign a non-32-byte message — e.g. preview txs 0345500c… / 07333566….)
 #[cfg(not(target_family = "wasm"))]
 fn verify_schnorr(public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<Value, Error> {
-    use secp256k1::{Message, Secp256k1, XOnlyPublicKey, schnorr::Signature};
+    use secp256k1::{Secp256k1, XOnlyPublicKey, schnorr::Signature};
 
     let secp = Secp256k1::verification_only();
 
@@ -1697,9 +1701,7 @@ fn verify_schnorr(public_key: &[u8], message: &[u8], signature: &[u8]) -> Result
 
     let signature = Signature::from_slice(signature)?;
 
-    let message = Message::from_slice(message)?;
-
-    let valid = secp.verify_schnorr(&signature, &message, &public_key);
+    let valid = secp.verify_schnorr(&signature, message, &public_key);
 
     Ok(Value::Con(Constant::Bool(valid.is_ok()).into()))
 }
@@ -1779,5 +1781,43 @@ mod tests {
     #[test]
     fn to_any_tag() {
         assert_eq!(convert_tag_to_constr(102), None);
+    }
+
+    // `verifySchnorrSecp256k1Signature` accepts an arbitrary-length message (BIP-340 / CIP-49), so a
+    // valid Schnorr signature over a NON-32-byte message must verify on the native path. Before the
+    // secp256k1 0.30 bump this errored, because the native impl forced a 32-byte `Message`.
+    #[cfg(not(target_family = "wasm"))]
+    #[test]
+    fn verify_schnorr_accepts_non_32_byte_message() {
+        use super::{Constant, Value, verify_schnorr};
+        use secp256k1::{Keypair, Secp256k1};
+
+        let secp = Secp256k1::signing_only();
+        // Any valid (non-zero, in-range) 32-byte scalar works as the secret key.
+        let keypair = Keypair::from_seckey_slice(&secp, &[0x11u8; 32]).unwrap();
+        let pubkey = keypair.x_only_public_key().0.serialize(); // 32-byte x-only key
+
+        // A message that is deliberately *not* 32 bytes.
+        let message = b"verifySchnorrSecp256k1Signature: arbitrary-length message";
+        assert_ne!(message.len(), 32);
+        let sig = secp.sign_schnorr_no_aux_rand(message, &keypair).serialize();
+
+        let is_true = matches!(
+            verify_schnorr(&pubkey, message, &sig),
+            Ok(Value::Con(c)) if matches!(c.as_ref(), Constant::Bool(true))
+        );
+        assert!(
+            is_true,
+            "valid Schnorr sig over a non-32-byte message must verify"
+        );
+
+        // A tampered signature over the same message must NOT verify.
+        let mut bad = sig;
+        bad[0] ^= 0x01;
+        let bad_ok = matches!(
+            verify_schnorr(&pubkey, message, &bad),
+            Ok(Value::Con(c)) if matches!(c.as_ref(), Constant::Bool(true))
+        );
+        assert!(!bad_ok, "a tampered signature must not verify");
     }
 }
